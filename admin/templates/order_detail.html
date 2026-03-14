@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Đơn #{{ order.order_code }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📋 Đơn {{ order.order_code }}</h1>
+</div>
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="table-card p-3">
+            <table class="table table-sm mb-0">
+                <tr>
+                    <th width="30%">Mã đơn</th>
+                    <td><code>{{ order.order_code }}</code></td>
+                </tr>
+                <tr>
+                    <th>User ID</th>
+                    <td>{{ order.user_id }} <a href="/users/{{ order.user_id }}">(xem)</a></td>
+                </tr>
+                <tr>
+                    <th>Sản phẩm</th>
+                    <td>{{ order.product_name|default('—') }} ({{ order.product_type }})</td>
+                </tr>
+                <tr>
+                    <th>Số tiền</th>
+                    <td><b>{{ format_vnd(order.amount) }}</b></td>
+                </tr>
+                <tr>
+                    <th>Thanh toán</th>
+                    <td>{{ order.payment_method }}</td>
+                </tr>
+                <tr>
+                    <th>Trạng thái</th>
+                    <td>{{ status_emoji(order.status) }} <b>{{ status_text_vi(order.status) }}</b></td>
+                </tr>
+                <tr>
+                    <th>Ngày tạo</th>
+                    <td>{{ order.created_at | time_vn }}</td>
+                </tr>
+                {% if order.paid_at %}<tr>
+                    <th>Thanh toán lúc</th>
+                    <td>{{ order.paid_at }}</td>
+                </tr>{% endif %}
+                {% if order.api_key %}<tr>
+                    <th>API Key</th>
+                    <td><code>{{ order.api_key }}</code></td>
+                </tr>{% endif %}
+                {% if order.quota_before is not none %}<tr>
+                    <th>Quota</th>
+                    <td>{{ "{:,}".format(order.quota_before) }} → {{ "{:,}".format(order.quota_after) }}</td>
+                </tr>{% endif %}
+                {% if order.delivery_info %}<tr>
+                    <th>Delivery</th>
+                    <td>
+                        <pre class="mb-0">{{ order.delivery_info }}</pre>
+                    </td>
+                </tr>{% endif %}
+                {% if order.mb_transaction_id %}<tr>
+                    <th>MB TX ID</th>
+                    <td><code>{{ order.mb_transaction_id }}</code></td>
+                </tr>{% endif %}
+                {% if order.refund_reason %}<tr>
+                    <th>Hoàn tiền</th>
+                    <td>{{ order.refund_reason }}</td>
+                </tr>{% endif %}
+            </table>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="table-card p-3">
+            <h6>⚡ Thao tác</h6>
+            {% if order.status in ['paid', 'processing'] and order.product_type == 'service_upgrade' %}
+            <form method="POST" action="/orders/{{ order.id }}/complete" class="mb-2"
+                onsubmit="return confirm('Đánh dấu đơn Dịch vụ này là Hoàn thành và Báo luôn cho khách hàng?');">
+                <button type="submit" class="btn btn-success btn-sm w-100">✅ Hoàn thành đơn Dịch vụ</button>
+            </form>
+            {% endif %}
+            {% if order.status in ['pending','paid'] %}
+            <a href="/orders/{{ order.id }}/cancel" class="btn btn-outline-danger btn-sm w-100 mb-2"
+                onclick="return confirmDelete('Hủy đơn này?')">🚫 Hủy đơn (Không hoàn tiền)</a>
+            {% endif %}
+            {% if order.status in ['paid','processing','completed'] and order.product_type != 'wallet_topup' %}
+            <a href="/orders/{{ order.id }}/refund" class="btn btn-danger btn-sm w-100 mb-2"
+                onclick="return confirmDelete('Hủy đơn & HOÀN TIỀN vào ví khách hàng?')">💸 Hủy & Hoàn tiền</a>
+            {% endif %}
+            <a href="/orders" class="btn btn-outline-secondary btn-sm w-100">⬅️ Quay lại</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📊 Dashboard</h1>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(67,97,238,0.1);color:var(--primary)">💰</div>
+            <div class="stat-value">{{ format_vnd(stats.total_revenue) }}</div>
+            <div class="stat-label">Tổng doanh thu</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(46,196,182,0.1);color:var(--success)">📋</div>
+            <div class="stat-value">{{ stats.today_orders }}</div>
+            <div class="stat-label">Đơn hôm nay</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(255,159,28,0.1);color:var(--warning)">💵</div>
+            <div class="stat-value">{{ format_vnd(stats.today_revenue) }}</div>
+            <div class="stat-label">Doanh thu hôm nay</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(76,201,240,0.1);color:var(--info)">👥</div>
+            <div class="stat-value">{{ stats.total_users }}</div>
+            <div class="stat-label">Tổng users</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="p-3 border-bottom">
+                <h6 class="mb-0">📋 Đơn theo trạng thái</h6>
+            </div>
+            <table class="table table-sm">
+                <tbody>
+                    {% for status, count in stats.status_counts.items() %}
+                    <tr>
+                        <td>{{ status_emoji(status) }} {{ status_text_vi(status) }}</td>
+                        <td class="text-end fw-bold">{{ count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="p-3 border-bottom">
+                <h6 class="mb-0">🖥 Servers</h6>
+            </div>
+            <table class="table table-sm">
+                <tbody>
+                    {% for srv in stats.servers %}
+                    <tr>
+                        <td>{{ srv.name }}</td>
+                        <td class="text-end">
+                            <span class="badge {{ 'bg-success' if srv.is_active else 'bg-secondary' }}">
+                                {{ 'Active' if srv.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

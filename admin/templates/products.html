@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+{% block title %}Sản phẩm{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1>📦 Sản phẩm</h1>
+    <div>
+        <a href="/products/auto-generate" class="btn btn-outline-success btn-sm">⚡ Auto-generate từ Server</a>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Thêm SP</button>
+    </div>
+</div>
+<div class="table-card">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Danh mục</th>
+                <th>Loại</th>
+                <th>Giá</th>
+                <th>Stock</th>
+                <th>Định dạng</th>
+                <th>Active</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in products %}
+            <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.name }}</td>
+                <td>{{ p.cat_name|default('—') }}</td>
+                <td><span class="badge bg-info">{{ p.product_type }}</span></td>
+                <td>{{ format_vnd(p.price_vnd) }}</td>
+                <td>{{ '∞' if p.stock == -1 else p.stock }}</td>
+                <td>{% if p.format_template %}<code>{{ p.format_template }}</code>{% elif p.input_prompt %}<small
+                        class="text-muted">{{ p.input_prompt[:30] }}...</small>{% else %}—{% endif %}</td>
+                <td><span class="badge {{ 'bg-success' if p.is_active else 'bg-secondary' }}">{{ 'On' if p.is_active
+                        else 'Off' }}</span></td>
+                <td>
+                    <a href="/products/{{ p.id }}/edit" class="btn btn-outline-primary btn-sm">Sửa</a>
+                    <a href="/products/{{ p.id }}/delete" class="btn btn-outline-danger btn-sm"
+                        onclick="return confirmDelete()">Xóa</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="/products/add">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thêm sản phẩm</h5><button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-2"><label class="form-label">Tên</label><input name="name"
+                                class="form-control" required></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Danh mục</label><select name="category_id"
+                                class="form-select">{% for c in categories %}<option value="{{ c.id }}">{{ c.icon }} {{
+                                    c.name }}</option>{% endfor %}</select></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-2"><label class="form-label">Loại</label><select name="product_type"
+                                class="form-select" id="addProductType" onchange="toggleAddFields()">
+                                <option value="key_new">🔑 Key mới</option>
+                                <option value="key_topup">🔑 Key nạp thêm</option>
+                                <option value="account_stocked">📦 Tài khoản có sẵn</option>
+                                <option value="service_upgrade">🔧 Dịch vụ / Nâng cấp</option>
+                            </select></div>
+                        <div class="col-md-4 mb-2"><label class="form-label">Giá (VNĐ)</label><input name="price_vnd"
+                                type="number" class="form-control" required></div>
+                        <div class="col-md-4 mb-2"><label class="form-label">Stock (-1=∞)</label><input name="stock"
+                                type="number" class="form-control" value="-1"></div>
+                    </div>
+                    <!-- Key API fields -->
+                    <div id="addKeyFields">
+                        <div class="row">
+                            <div class="col-md-4 mb-2"><label class="form-label">Server</label><select name="server_id"
+                                    id="addServerSelect" class="form-select">
+                                    <option value="">— Không —</option>{% for s in servers %}<option value="{{ s.id }}">
+                                        {{ s.name }}</option>{% endfor %}
+                                </select></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Quota</label><input name="quota_amount"
+                                    type="number" class="form-control" value="0"></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Dollar</label><input
+                                    name="dollar_amount" type="number" step="0.1" class="form-control" value="0"></div>
+                        </div>
+                        <div class="mb-2" id="addGroupWrap" style="display:none">
+                            <div class="d-flex justify-content-between align-items-end mb-1">
+                                <label class="form-label mb-0">Group name</label>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-info me-1" id="addFetchGroupBtn"
+                                        onclick="fetchGroups('add')" style="display:none;"><i
+                                            class="fas fa-sync-alt"></i> Tải lại</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        id="addToggleGroupModeBtn" onclick="toggleGroupInputMode('add')">Nhập
+                                        tay</button>
+                                </div>
+                            </div>
+                            <div id="addGroupInputContainer">
+                                <input name="group_name" id="addGroupInput" class="form-control"
+                                    placeholder="Nhập tên group...">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Account fields -->
+                    <div class="mb-2" id="addFormatWrap" style="display:none">
+                        <label class="form-label">📋 Định dạng tài khoản <small class="text-muted">(Ví dụ:
+                                Email|Password|Cookie)</small></label>
+                        <input name="format_template" class="form-control" placeholder="Email|Password">
+                    </div>
+                    <!-- Service upgrade fields -->
+                    <div class="mb-2" id="addInputPromptWrap" style="display:none">
+                        <label class="form-label">❓ Câu hỏi khi khách mua <small class="text-muted">(Ví dụ: Nhập
+                                email cần nâng cấp)</small></label>
+                        <input name="input_prompt" class="form-control" placeholder="Vui lòng nhập email cần nâng cấp:">
+                    </div>
+                    <div class="mb-2"><label class="form-label">Mô tả</label><textarea name="description"
+                            class="form-control" rows="2"></textarea></div>
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary">Thêm</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Edit form -->
+{% if editing %}
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between">
+        <h5>✏️ Sửa sản phẩm: {{ editing.name }}</h5>
+        <a href="/products" class="btn btn-sm btn-secondary">Hủy</a>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/products/{{ editing.id }}/edit">
+            <div class="row mb-2">
+                <div class="col-md-6"><label class="form-label">Tên</label><input name="name" class="form-control"
+                        value="{{ editing.name }}" required></div>
+                <div class="col-md-6"><label class="form-label">Danh mục</label>
+                    <select name="category_id" class="form-select">
+                        {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if c.id==editing.category_id
+                            }}>{{ c.icon }} {{ c.name }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-2">
+                <div class="col-md-4"><label class="form-label">Loại</label>
+                    <select name="product_type" class="form-select" id="editProductType" onchange="toggleEditFields()">
+                        <option value="key_new" {{ 'selected' if editing.product_type=='key_new' }}>🔑 Key mới</option>
+                        <option value="key_topup" {{ 'selected' if editing.product_type=='key_topup' }}>🔑 Key nạp thêm
+                        </option>
+                        <option value="account_stocked" {{ 'selected' if editing.product_type=='account_stocked' }}>📦
+                            Tài khoản có sẵn</option>
+                        <option value="service_upgrade" {{ 'selected' if editing.product_type=='service_upgrade' }}>🔧
+                            Dịch vụ / Nâng cấp</option>
+                    </select>
+                </div>
+                <div class="col-md-4"><label class="form-label">Giá (VNĐ)</label><input name="price_vnd" type="number"
+                        class="form-control" value="{{ editing.price_vnd }}" required></div>
+                <div class="col-md-4"><label class="form-label">Stock (-1=∞)</label><input name="stock" type="number"
+                        class="form-control" value="{{ editing.stock }}"></div>
+            </div>
+            <!-- Key API fields -->
+            <div id="editKeyFields">
+                <div class="row mb-2">
+                    <div class="col-md-4"><label class="form-label">Server</label>
+                        <select name="server_id" id="editServerSelect" class="form-select">
+                            <option value="">— Không —</option>
+                            {% for s in servers %}<option value="{{ s.id }}" {{ 'selected' if s.id==editing.server_id
+                                }}>{{ s.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">Quota</label><input name="quota_amount"
+                            type="number" class="form-control" value="{{ editing.quota_amount }}"></div>
+                    <div class="col-md-4"><label class="form-label">Dollar</label><input name="dollar_amount"
+                            type="number" step="0.1" class="form-control" value="{{ editing.dollar_amount }}"></div>
+                </div>
+                <div class="mb-2" id="editGroupWrap">
+                    <div class="d-flex justify-content-between align-items-end mb-1">
+                        <label class="form-label mb-0">Group name</label>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-info me-1" id="editFetchGroupBtn"
+                                onclick="fetchGroups('edit')" style="display:none;"><i class="fas fa-sync-alt"></i> Tải
+                                lại</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="editToggleGroupModeBtn"
+                                onclick="toggleGroupInputMode('edit')">Nhập tay</button>
+                        </div>
+                    </div>
+                    <div id="editGroupInputContainer">
+                        <input name="group_name" id="editGroupInput" class="form-control"
+                            value="{{ editing.group_name or '' }}" placeholder="Nhập tên group...">
+                    </div>
+                </div>
+            </div>
+            <!-- Account fields -->
+            <div class="mb-2" id="editFormatWrap">
+                <label class="form-label">📋 Định dạng tài khoản <small class="text-muted">(Ví dụ:
+                        Email|Password|Cookie)</small></label>
+                <input name="format_template" class="form-control" value="{{ editing.format_template or '' }}"
+                    placeholder="Email|Password">
+            </div>
+            <!-- Service upgrade fields -->
+            <div class="mb-2" id="editInputPromptWrap">
+                <label class="form-label">❓ Câu hỏi khi khách mua <small class="text-muted">(Ví dụ: Nhập email cần
+                        nâng cấp)</small></label>
+                <input name="input_prompt" class="form-control" value="{{ editing.input_prompt or '' }}"
+                    placeholder="Vui lòng nhập email cần nâng cấp:">
+            </div>
+            <div class="mb-2"><label class="form-label">Mô tả</label><textarea name="description" class="form-control"
+                    rows="2">{{ editing.description or '' }}</textarea></div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {{ 'checked' if
+                    editing.is_active }}>
+                <label class="form-check-label" for="editActive">Active</label>
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Lưu</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+<script>
+    // Dictionary lưu trữ dữ liệu groups để tự động điền description
+    let groupsDataMap = {};
+
+    function toggleAddFields() {
+        var t = document.getElementById('addProductType').value;
+        var isKey = (t === 'key_new' || t === 'key_topup');
+        var isKeyNew = (t === 'key_new');
+        var isAccount = (t === 'account_stocked');
+        var isService = (t === 'service_upgrade');
+        document.getElementById('addKeyFields').style.display = isKey ? '' : 'none';
+        document.getElementById('addGroupWrap').style.display = isKeyNew ? '' : 'none';
+        document.getElementById('addFormatWrap').style.display = isAccount ? '' : 'none';
+        document.getElementById('addInputPromptWrap').style.display = isService ? '' : 'none';
+
+        var addStockInput = document.querySelector("#addModal input[name='stock']");
+        if (addStockInput) {
+            if (isAccount) {
+                addStockInput.value = "-1";
+                addStockInput.setAttribute("readonly", true);
+                addStockInput.parentElement.querySelector("label").innerHTML = "Stock <small>(Tự đếm)</small>";
+            } else {
+                addStockInput.removeAttribute("readonly");
+                addStockInput.parentElement.querySelector("label").textContent = "Stock (-1=∞)";
+            }
+        }
+
+        if (isKeyNew) {
+            checkAndFetchGroups('add');
+        }
+    }
+    function toggleEditFields() {
+        var editTypeSelect = document.getElementById('editProductType');
+        if (!editTypeSelect) return;
+        var t = editTypeSelect.value;
+        var isKey = (t === 'key_new' || t === 'key_topup');
+        var isKeyNew = (t === 'key_new');
+        var isAccount = (t === 'account_stocked');
+        var isService = (t === 'service_upgrade');
+        document.getElementById('editKeyFields').style.display = isKey ? '' : 'none';
+        document.getElementById('editGroupWrap').style.display = isKeyNew ? '' : 'none';
+        document.getElementById('editFormatWrap').style.display = isAccount ? '' : 'none';
+        document.getElementById('editInputPromptWrap').style.display = isService ? '' : 'none';
+
+        var editStockInput = document.querySelector("input[name='stock']");
+        var editForm = document.getElementById("editForm");
+        // For the edit template it doesn't have an editForm wrapper id by default, just use document query
+        if (editStockInput) {
+            if (isAccount) {
+                editStockInput.value = "-1";
+                editStockInput.setAttribute("readonly", true);
+                if (editStockInput.parentElement.querySelector("label")) {
+                    editStockInput.parentElement.querySelector("label").innerHTML = "Stock <small>(Tự đếm)</small>";
+                }
+            } else {
+                editStockInput.removeAttribute("readonly");
+                if (editStockInput.parentElement.querySelector("label")) {
+                    editStockInput.parentElement.querySelector("label").textContent = "Stock (-1=∞)";
+                }
+            }
+        }
+
+        if (isKeyNew) {
+            checkAndFetchGroups('edit');
+        }
+    }
+
+    // Biến để track trạng thái input (manual hay select)
+    let groupInputMode = {
+        'add': 'manual',
+        'edit': 'manual'
+    };
+
+    function toggleGroupInputMode(prefix) {
+        let container = document.getElementById(`${prefix}GroupInputContainer`);
+        let toggleBtn = document.getElementById(`${prefix}ToggleGroupModeBtn`);
+        let fetchBtn = document.getElementById(`${prefix}FetchGroupBtn`);
+
+        // Lấy giá trị hiện tại
+        let currentInput = document.getElementById(`${prefix}GroupInput`);
+        let currentValue = currentInput ? currentInput.value : '';
+
+        if (groupInputMode[prefix] === 'manual') {
+            // Chuyển sang chế độ chọn (Select)
+            groupInputMode[prefix] = 'select';
+            toggleBtn.textContent = 'Nhập tay';
+            toggleBtn.classList.replace('btn-outline-secondary', 'btn-outline-primary');
+            fetchBtn.style.display = 'inline-block';
+
+            // Xây dựng lại element select
+            let selectHtml = `<select name="group_name" id="${prefix}GroupInput" class="form-select" onchange="onGroupSelectChange('${prefix}')">
+                <option value="${currentValue}" selected>${currentValue ? currentValue + ' (Chưa tải dữ liệu)' : '— Chưa tải dữ liệu —'}</option>
+            </select>`;
+            container.innerHTML = selectHtml;
+
+            // Tự động tải nếu đã chọn server
+            checkAndFetchGroups(prefix);
+        } else {
+            // Chuyển về chế độ nhập tay (Text)
+            groupInputMode[prefix] = 'manual';
+            toggleBtn.textContent = 'Danh sách';
+            toggleBtn.classList.replace('btn-outline-primary', 'btn-outline-secondary');
+            fetchBtn.style.display = 'none';
+
+            // Revert back to text input
+            container.innerHTML = `<input type="text" name="group_name" id="${prefix}GroupInput" class="form-control" value="${currentValue}" placeholder="Nhập tên group...">`;
+        }
+    }
+
+    function checkAndFetchGroups(prefix) {
+        let serverSelect = document.getElementById(`${prefix}ServerSelect`);
+        if (serverSelect && serverSelect.value && groupInputMode[prefix] === 'select') {
+            fetchGroups(prefix);
+        }
+    }
+
+    async function fetchGroups(prefix) {
+        let serverSelect = document.getElementById(`${prefix}ServerSelect`);
+        let serverId = serverSelect.value;
+        if (!serverId) {
+            alert("Vui lòng chọn Server trước!");
+            return;
+        }
+
+        let container = document.getElementById(`${prefix}GroupInputContainer`);
+        let currentInput = document.getElementById(`${prefix}GroupInput`);
+        let currentValue = currentInput ? currentInput.value : '';
+
+        // Hiển thị trạng thái loading
+        container.innerHTML = `<select name="group_name" id="${prefix}GroupInput" class="form-select" disabled>
+            <option>⏳ Đang tải danh sách groups...</option>
+        </select>`;
+
+        try {
+            let response = await fetch(`/servers/${serverId}/api/groups`);
+            let result = await response.json();
+
+            if (result.success && result.data) {
+                let groups = result.data;
+                groupsDataMap = groups; // Lưu lại để dùng cho description auto-fill
+
+                let selectHtml = `<select name="group_name" id="${prefix}GroupInput" class="form-select" onchange="onGroupSelectChange('${prefix}')">`;
+                selectHtml += `<option value="">— Chọn Group —</option>`;
+
+                let hasMatch = false;
+                for (let groupName in groups) {
+                    let info = groups[groupName];
+                    let desc = info.desc || '';
+                    let ratio = info.ratio !== undefined ? info.ratio : 'N/A';
+
+                    let isSelected = (groupName === currentValue) ? 'selected' : '';
+                    if (isSelected) hasMatch = true;
+
+                    selectHtml += `<option value="${groupName}" ${isSelected}>${groupName} — ${desc} (Ratio: ${ratio})</option>`;
+                }
+
+                // Giữ lại giá trị cũ nếu không có trong danh sách
+                if (currentValue && !hasMatch) {
+                    selectHtml = `<option value="${currentValue}" selected>${currentValue} (Custom)</option>` + selectHtml;
+                }
+
+                selectHtml += `</select>`;
+                container.innerHTML = selectHtml;
+
+            } else {
+                alert("Lỗi tải groups: " + (result.message || "Unknown error"));
+                // Khôi phục
+                container.innerHTML = `<select name="group_name" id="${prefix}GroupInput" class="form-select" onchange="onGroupSelectChange('${prefix}')">
+                    <option value="${currentValue}" selected>${currentValue}</option>
+                </select>`;
+            }
+        } catch (error) {
+            console.error("Fetch groups error:", error);
+            alert("Lỗi kết nối khi tải groups.");
+            container.innerHTML = `<select name="group_name" id="${prefix}GroupInput" class="form-select" onchange="onGroupSelectChange('${prefix}')">
+                    <option value="${currentValue}" selected>${currentValue}</option>
+                </select>`;
+        }
+    }
+
+    function onGroupSelectChange(prefix) {
+        let select = document.getElementById(`${prefix}GroupInput`);
+        let groupName = select.value;
+
+        if (groupName && groupsDataMap[groupName]) {
+            let desc = groupsDataMap[groupName].desc;
+            if (desc) {
+                // Tìm textarea description trong form gần nhất
+                let form = select.closest('form');
+                if (form) {
+                    let descInput = form.querySelector('textarea[name="description"]');
+                    if (descInput && !descInput.value.trim()) {
+                        descInput.value = desc;
+                    }
+                }
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Gắn sự kiện thay đổi server để tự động tải khi ở chế độ dropdown
+        let addServerSelect = document.getElementById('addServerSelect');
+        if (addServerSelect) {
+            addServerSelect.addEventListener('change', () => checkAndFetchGroups('add'));
+        }
+        let editServerSelect = document.getElementById('editServerSelect');
+        if (editServerSelect) {
+            editServerSelect.addEventListener('change', () => checkAndFetchGroups('edit'));
+        }
+
+        toggleAddFields();
+    });
+
+    // Handle toggle on page load for edit form
+    document.addEventListener("DOMContentLoaded", function () {
+        if (document.getElementById('editProductType')) {
+            toggleEditFields();
+            // Tự động chuyển edit sang chế độ select nếu là dạng key_new
+            var editType = document.getElementById('editProductType').value;
+            if (editType === 'key_new') { // Only for key_new, not key_topup
+                toggleGroupInputMode('edit');
+            }
+        }
+    });
+</script>
+{% endblock %}

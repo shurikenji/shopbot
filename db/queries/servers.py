@@ -1,0 +1,107 @@
+"""
+db/queries/servers.py — CRUD operations cho bảng api_servers.
+"""
+from __future__ import annotations
+
+from typing import Optional
+
+from db.database import get_db
+
+
+async def get_active_servers() -> list[dict]:
+    """Lấy danh sách server đang active, sắp xếp theo sort_order."""
+    db = await get_db()
+    cursor = await db.execute(
+        """SELECT * FROM api_servers
+           WHERE is_active = 1
+           ORDER BY sort_order ASC, id ASC"""
+    )
+    rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
+async def get_all_servers() -> list[dict]:
+    """Lấy tất cả servers (admin)."""
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT * FROM api_servers ORDER BY sort_order ASC, id ASC"
+    )
+    rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
+async def get_server_by_id(server_id: int) -> Optional[dict]:
+    """Lấy server theo ID."""
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT * FROM api_servers WHERE id = ?", (server_id,)
+    )
+    row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def create_server(
+    name: str,
+    base_url: str,
+    user_id_header: str,
+    access_token: str,
+    price_per_unit: int,
+    quota_per_unit: int,
+    dollar_per_unit: float = 10.0,
+    quota_multiple: float = 1.0,
+    default_group: str = "",
+    sort_order: int = 0,
+) -> int:
+    """Tạo API server mới, trả về ID."""
+    db = await get_db()
+    cursor = await db.execute(
+        """INSERT INTO api_servers
+           (name, base_url, user_id_header, access_token,
+            price_per_unit, dollar_per_unit, quota_multiple, quota_per_unit,
+            default_group, sort_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            name, base_url, user_id_header, access_token,
+            price_per_unit, dollar_per_unit, quota_multiple, quota_per_unit,
+            default_group, sort_order,
+        ),
+    )
+    await db.commit()
+    return cursor.lastrowid  # type: ignore[return-value]
+
+
+async def update_server(server_id: int, **kwargs) -> None:
+    """Cập nhật server — chỉ update các field được truyền vào."""
+    if not kwargs:
+        return
+
+    db = await get_db()
+    allowed_fields = {
+        "name", "base_url", "user_id_header", "access_token",
+        "price_per_unit", "dollar_per_unit", "quota_multiple", "quota_per_unit",
+        "default_group", "is_active", "sort_order",
+    }
+
+    fields = []
+    values = []
+    for key, val in kwargs.items():
+        if key in allowed_fields:
+            fields.append(f"{key} = ?")
+            values.append(val)
+
+    if not fields:
+        return
+
+    fields.append("updated_at = datetime('now', '+7 hours')")
+    values.append(server_id)
+
+    query = f"UPDATE api_servers SET {', '.join(fields)} WHERE id = ?"
+    await db.execute(query, tuple(values))
+    await db.commit()
+
+
+async def delete_server(server_id: int) -> None:
+    """Xóa server."""
+    db = await get_db()
+    await db.execute("DELETE FROM api_servers WHERE id = ?", (server_id,))
+    await db.commit()

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Đơn hàng{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📋 Đơn hàng</h1>
+</div>
+<form class="row g-2 mb-3" method="GET">
+    <div class="col-auto"><select name="status" class="form-select form-select-sm">
+            <option value="">Tất cả trạng thái</option>
+            {% for s in ['pending','paid','processing','completed','failed','expired','refunded','cancelled'] %}
+            <option value="{{ s }}" {{ 'selected' if filter_status==s }}>{{ status_emoji(s) }} {{ s }}</option>{% endfor
+            %}
+        </select></div>
+    <div class="col-auto"><input name="search" class="form-control form-control-sm" placeholder="Tìm mã đơn..."
+            value="{{ filter_search|default('') }}"></div>
+    <div class="col-auto"><button class="btn btn-primary btn-sm">🔍 Lọc</button></div>
+</form>
+<div class="table-card">
+    <table class="table table-hover table-sm">
+        <thead>
+            <tr>
+                <th>Mã đơn</th>
+                <th>User</th>
+                <th>Sản phẩm</th>
+                <th>Số tiền</th>
+                <th>Thanh toán</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td><code>{{ o.order_code }}</code></td>
+                <td>{{ o.user_id }}</td>
+                <td>{{ o.product_name|default('—') }}</td>
+                <td>{{ format_vnd(o.amount) }}</td>
+                <td>{{ o.payment_method }}</td>
+                <td>{{ status_emoji(o.status) }} {{ o.status }}</td>
+                <td><small>{{ o.created_at | time_vn }}</small></td>
+                <td><a href="/orders/{{ o.id }}" class="btn btn-outline-primary btn-sm">Chi tiết</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if total_pages > 1 %}
+<nav class="mt-3">
+    <ul class="pagination pagination-sm justify-content-center">
+        {% for p in range(total_pages) %}
+        <li class="page-item {{ 'active' if p==page }}"><a class="page-link"
+                href="?page={{ p }}&status={{ filter_status|default('') }}&search={{ filter_search|default('') }}">{{
+                p+1 }}</a></li>
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

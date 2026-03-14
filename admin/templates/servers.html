@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Servers{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1>🖥 API Servers</h1>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Thêm server</button>
+</div>
+<div class="table-card">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Base URL</th>
+                <th>Giá/$</th>
+                <th>Quota/$</th>
+                <th>Multiple</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in servers %}
+            <tr>
+                <td>{{ s.id }}</td>
+                <td>{{ s.name }}</td>
+                <td><small>{{ s.base_url }}</small></td>
+                <td>{{ format_vnd(s.price_per_unit) }}</td>
+                <td>{{ "{:,}".format(s.quota_per_unit) }}</td>
+                <td>{{ s.quota_multiple }}</td>
+                <td><span class="badge {{ 'bg-success' if s.is_active else 'bg-secondary' }}">{{ 'Active' if s.is_active
+                        else 'Off' }}</span></td>
+                <td>
+                    <a href="/servers/{{ s.id }}/groups" class="btn btn-outline-info btn-sm">Groups</a>
+                    <a href="/servers/{{ s.id }}/edit" class="btn btn-outline-primary btn-sm">Sửa</a>
+                    <a href="/servers/{{ s.id }}/delete" class="btn btn-outline-danger btn-sm"
+                        onclick="return confirmDelete()">Xóa</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="/servers/add">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thêm Server</h5><button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control"
+                            required></div>
+                    <div class="mb-2"><label class="form-label">Base URL</label><input name="base_url"
+                            class="form-control" required placeholder="https://api.example.com"></div>
+                    <div class="mb-2"><label class="form-label">User ID Header</label><input name="user_id_header"
+                            class="form-control" required></div>
+                    <div class="mb-2"><label class="form-label">Access Token</label><input name="access_token"
+                            class="form-control" required></div>
+                    <div class="row">
+                        <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit"
+                                type="number" class="form-control" required></div>
+                        <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit"
+                                type="number" class="form-control" required></div>
+                    </div>
+                    <div class="mb-2 mt-2"><label class="form-label">Hệ số $ (VD: 10.0)</label><input
+                            name="dollar_per_unit" type="number" step="0.1" class="form-control" value="10.0"></div>
+                    <div class="mb-2"><label class="form-label">Quota Multiple (tỉ lệ quy đổi $)</label><input
+                            name="quota_multiple" type="number" step="0.01" class="form-control" value="1.0"></div>
+                    <div class="mb-2"><label class="form-label">Exchange Rate (VND/$)</label><input name="exchange_rate"
+                            class="form-control bg-light" readonly placeholder="Tính tự động"></div>
+                    <div class="mb-2"><label class="form-label">Default Group (cho đơn custom $)</label><input
+                            name="default_group" class="form-control" placeholder="để trống nếu không cần"></div>
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary">Thêm</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Edit form (shown when editing) -->
+{% if editing %}
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between">
+        <h5>✏️ Sửa server: {{ editing.name }}</h5>
+        <a href="/servers" class="btn btn-sm btn-secondary">Hủy</a>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/servers/{{ editing.id }}/edit">
+            <div class="row mb-2">
+                <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control"
+                        value="{{ editing.name }}" required></div>
+                <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control"
+                        value="{{ editing.base_url }}" required></div>
+            </div>
+            <div class="row mb-2">
+                <div class="col"><label class="form-label">User ID Header</label><input name="user_id_header"
+                        class="form-control" value="{{ editing.user_id_header }}" required></div>
+                <div class="col"><label class="form-label">Access Token</label><input name="access_token"
+                        class="form-control" value="{{ editing.access_token }}" required></div>
+            </div>
+            <div class="row mb-2">
+                <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit" type="number"
+                        class="form-control" value="{{ editing.price_per_unit }}" required></div>
+                <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number"
+                        class="form-control" value="{{ editing.quota_per_unit }}" required></div>
+                <div class="col"><label class="form-label">Hệ số $ (VD: 10.0)</label><input name="dollar_per_unit"
+                        type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
+                <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number"
+                        step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
+            </div>
+            <div class="mb-2"><label class="form-label">Exchange Rate (VND/$)</label><input name="exchange_rate"
+                    class="form-control bg-light" readonly placeholder="Tính tự động"></div>
+            <div class="mb-2"><label class="form-label">Default Group (cho đơn custom $)</label><input
+                    name="default_group" class="form-control" value="{{ editing.default_group or '' }}"
+                    placeholder="để trống nếu không cần"></div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {{ 'checked' if
+                    editing.is_active }}>
+                <label class="form-check-label" for="editActive">Active</label>
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Lưu</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+<!-- Groups data -->
+{% if groups_data is defined and groups_data %}
+<div class="card mt-3">
+    <div class="card-header">
+        <h5>📋 Groups — {{ groups_server.name }}</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Group</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in groups_data %}
+                <tr>
+                    <td><code>{{ g }}</code></td>
+                    <td>—</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        function calcRate(form) {
+            const price = parseFloat(form.querySelector('input[name="price_per_unit"]')?.value) || 0;
+            const dollarPerUnit = parseFloat(form.querySelector('input[name="dollar_per_unit"]')?.value) || 10.0;
+
+            const rate = (dollarPerUnit > 0) ? (price / dollarPerUnit) : 0;
+            const rateInput = form.querySelector('input[name="exchange_rate"]');
+
+            if (rateInput) {
+                rateInput.value = (rate > 0 && isFinite(rate)) ? Math.round(rate) : '';
+            }
+        }
+
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('input', () => calcRate(form));
+            // Trigger initial calculation
+            setTimeout(() => calcRate(form), 100);
+        });
+    });
+</script>
+{% endblock %}

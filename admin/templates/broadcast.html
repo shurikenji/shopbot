@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Broadcast{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📢 Broadcast</h1>
+</div>
+<div class="row">
+    <div class="col-md-8">
+        <div class="table-card p-3">
+            <form method="POST" action="/broadcast/send">
+                <div class="mb-3">
+                    <label class="form-label">Nội dung tin nhắn (HTML)</label>
+                    <textarea name="message" class="form-control" rows="6" required
+                        placeholder="Nhập nội dung tin nhắn...&#10;Hỗ trợ HTML: <b>bold</b>, <i>italic</i>, <code>code</code>"></textarea>
+                </div>
+                <p class="text-muted small">Sẽ gửi đến <b>{{ total_users }}</b> users (không bao gồm user bị ban).</p>
+                <button type="submit" class="btn btn-primary"
+                    onclick="return confirm('Gửi broadcast đến tất cả users?')">📢 Gửi Broadcast</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

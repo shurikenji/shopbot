@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Danh mục{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1>📁 Danh mục</h1>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Thêm danh mục</button>
+</div>
+<div class="table-card">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Icon</th>
+                <th>Tên</th>
+                <th>Loại</th>
+                <th>Thứ tự</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in categories %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td>{{ c.icon }}</td>
+                <td>{{ c.name }}</td>
+                <td><span class="badge bg-info">{{ c.cat_type }}</span></td>
+                <td>{{ c.sort_order }}</td>
+                <td><span class="badge {{ 'bg-success' if c.is_active else 'bg-secondary' }}">{{ 'Active' if c.is_active
+                        else 'Off' }}</span></td>
+                <td>
+                    <a href="/categories/{{ c.id }}/edit" class="btn btn-outline-primary btn-sm">Sửa</a>
+                    <a href="/categories/{{ c.id }}/delete" class="btn btn-outline-danger btn-sm"
+                        onclick="return confirmDelete()">Xóa</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="/categories/add">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thêm danh mục</h5><button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control"
+                            required></div>
+                    <div class="mb-2"><label class="form-label">Icon (emoji)</label><input name="icon"
+                            class="form-control" value="📦"></div>
+                    <div class="mb-2"><label class="form-label">Loại</label><select name="cat_type" class="form-select">
+                            <option value="key_api">🔑 Key API</option>
+                            <option value="general" selected>📦 Danh mục chung</option>
+                        </select></div>
+                    <div class="mb-2"><label class="form-label">Mô tả</label><textarea name="description"
+                            class="form-control" rows="2"></textarea></div>
+                    <div class="mb-2"><label class="form-label">Thứ tự</label><input name="sort_order" type="number"
+                            class="form-control" value="0"></div>
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary">Thêm</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Edit form -->
+{% if editing %}
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between">
+        <h5>✏️ Sửa danh mục: {{ editing.name }}</h5>
+        <a href="/categories" class="btn btn-sm btn-secondary">Hủy</a>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/categories/{{ editing.id }}/edit">
+            <div class="row mb-2">
+                <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control"
+                        value="{{ editing.name }}" required></div>
+                <div class="col-3"><label class="form-label">Icon</label><input name="icon" class="form-control"
+                        value="{{ editing.icon }}"></div>
+            </div>
+            <div class="row mb-2">
+                <div class="col"><label class="form-label">Loại</label>
+                    <select name="cat_type" class="form-select">
+                        <option value="key_api" {{ 'selected' if editing.cat_type=='key_api' }}>🔑 Key API</option>
+                        <option value="general" {{ 'selected' if editing.cat_type not in ('key_api',) }}>📦 Danh mục
+                            chung</option>
+                    </select>
+                </div>
+                <div class="col-3"><label class="form-label">Thứ tự</label><input name="sort_order" type="number"
+                        class="form-control" value="{{ editing.sort_order }}"></div>
+            </div>
+            <div class="mb-2"><label class="form-label">Mô tả</label><textarea name="description" class="form-control"
+                    rows="2">{{ editing.description or '' }}</textarea></div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {{ 'checked' if
+                    editing.is_active }}>
+                <label class="form-check-label" for="editActive">Active</label>
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Lưu</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
