@@ -9,3 +9,6 @@ shopbot.db.bak
 startup_error.log
 shopbot_src.zip
 .cursor/
+test_phase*.py
+docs.md
+AGENTS.md
