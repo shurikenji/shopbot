@@ -8,6 +8,12 @@ from typing import Optional
 from db.database import get_db
 from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict, fetch_scalar
 
+_PRODUCT_WITH_REAL_STOCK_QUERY = """
+    SELECT p.*,
+           (SELECT COUNT(id) FROM account_stocks WHERE product_id = p.id AND is_sold = 0) as real_stock
+    FROM products p
+"""
+
 
 def _hydrate_product_stock(product: dict) -> dict:
     if product.get("product_type") == "account_stocked":
@@ -18,6 +24,13 @@ def _hydrate_product_stock(product: dict) -> dict:
 async def _fetch_products_with_real_stock(query: str, params: tuple | list = ()) -> list[dict]:
     products = await fetch_all_dicts(query, tuple(params))
     return [_hydrate_product_stock(product) for product in products]
+
+
+async def _fetch_product_with_real_stock(where_clause: str, params: tuple[object, ...]) -> Optional[dict]:
+    product = await fetch_one_dict(f"{_PRODUCT_WITH_REAL_STOCK_QUERY} WHERE {where_clause}", params)
+    if not product:
+        return None
+    return _hydrate_product_stock(product)
 
 
 async def get_active_products_by_category(
@@ -48,18 +61,7 @@ async def get_active_products_by_category(
 
 async def get_product_by_id(product_id: int) -> Optional[dict]:
     """Lấy sản phẩm theo ID."""
-    product = await fetch_one_dict(
-        """
-        SELECT p.*,
-               (SELECT COUNT(id) FROM account_stocks WHERE product_id = p.id AND is_sold = 0) as real_stock
-        FROM products p
-        WHERE p.id = ?
-        """,
-        (product_id,),
-    )
-    if not product:
-        return None
-    return _hydrate_product_stock(product)
+    return await _fetch_product_with_real_stock("p.id = ?", (product_id,))
 
 
 async def get_all_products(
@@ -138,9 +140,22 @@ async def create_product(
             stock, sort_order, meta_json, format_template, input_prompt)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
-            category_id, server_id, name, description, price_vnd, product_type,
-            quota_amount, dollar_amount, group_name, delivery_type, delivery_data,
-            stock, sort_order, meta_json, format_template, input_prompt,
+            category_id,
+            server_id,
+            name,
+            description,
+            price_vnd,
+            product_type,
+            quota_amount,
+            dollar_amount,
+            group_name,
+            delivery_type,
+            delivery_data,
+            stock,
+            sort_order,
+            meta_json,
+            format_template,
+            input_prompt,
         ),
     )
     return cursor.lastrowid  # type: ignore[return-value]
@@ -181,7 +196,7 @@ async def delete_product(product_id: int) -> None:
 
 
 async def get_product_delete_dependencies(product_id: int) -> dict:
-    """Äáº¿m cÃ¡c báº£n ghi Ä‘ang tham chiáº¿u tá»›i sáº£n pháº©m."""
+    """Đếm các bản ghi đang tham chiếu tới sản phẩm."""
     orders_count = int(
         await fetch_scalar("SELECT COUNT(*) FROM orders WHERE product_id = ?", (product_id,)) or 0
     )

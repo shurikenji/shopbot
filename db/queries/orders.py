@@ -25,6 +25,7 @@ _ORDER_UPDATEABLE_FIELDS = frozenset(
         "user_input_data",
     }
 )
+_ORDER_SELECT = "SELECT * FROM orders"
 
 
 def _build_order_admin_filters(
@@ -43,6 +44,10 @@ def _build_order_admin_filters(
         params.extend([f"%{search}%", f"%{search}%"])
 
     return query, params
+
+
+async def _fetch_order(where_clause: str, params: tuple[object, ...]) -> Optional[dict]:
+    return await fetch_one_dict(f"{_ORDER_SELECT} WHERE {where_clause}", params)
 
 
 async def create_order(
@@ -68,9 +73,19 @@ async def create_order(
             custom_quota, qr_content, expired_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
-            order_code, user_id, product_id, product_name, product_type,
-            amount, payment_method, server_id, group_name, existing_key,
-            custom_quota, qr_content, expired_at,
+            order_code,
+            user_id,
+            product_id,
+            product_name,
+            product_type,
+            amount,
+            payment_method,
+            server_id,
+            group_name,
+            existing_key,
+            custom_quota,
+            qr_content,
+            expired_at,
         ),
     )
     return cursor.lastrowid  # type: ignore[return-value]
@@ -78,12 +93,12 @@ async def create_order(
 
 async def get_order_by_id(order_id: int) -> Optional[dict]:
     """Lấy đơn hàng theo ID."""
-    return await fetch_one_dict("SELECT * FROM orders WHERE id = ?", (order_id,))
+    return await _fetch_order("id = ?", (order_id,))
 
 
 async def get_order_by_code(order_code: str) -> Optional[dict]:
     """Lấy đơn hàng theo mã đơn."""
-    return await fetch_one_dict("SELECT * FROM orders WHERE order_code = ?", (order_code,))
+    return await _fetch_order("order_code = ?", (order_code,))
 
 
 async def get_orders_by_user(
@@ -144,16 +159,19 @@ async def cancel_order(order_id: int) -> None:
     """Hủy đơn hàng và nhả tài khoản (nếu có)."""
     await update_order_status(order_id, "cancelled")
     from db.queries.account_stocks import release_account_by_order
+
     await release_account_by_order(order_id)
 
 
 async def expire_order(order_id: int) -> None:
     """Đánh dấu đơn hết hạn và nhả tài khoản (nếu có)."""
     from datetime import datetime as _dt
+
     await update_order_status(
         order_id, "expired", expired_at=_dt.utcnow().isoformat()
     )
     from db.queries.account_stocks import release_account_by_order
+
     await release_account_by_order(order_id)
 
 
