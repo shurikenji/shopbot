@@ -271,12 +271,16 @@ Respond with JSON only."""
             "temperature": 0.3,
         }
         
-        # Ensure base_url doesn't end with /
+        # Normalize OpenAI-compatible base URL.
         base_url = self.base_url.rstrip("/")
+        if base_url.endswith("/v1"):
+            endpoint = f"{base_url}/chat/completions"
+        else:
+            endpoint = f"{base_url}/v1/chat/completions"
         
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"{base_url}/v1/chat/completions",
+                endpoint,
                 headers=headers,
                 json=payload,
                 timeout=aiohttp.ClientTimeout(total=60)

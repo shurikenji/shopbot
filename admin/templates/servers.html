@@ -55,7 +55,7 @@
                     <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control" required></div>
                     <div class="mb-2"><label class="form-label">Base URL</label><input name="base_url" class="form-control" required placeholder="https://api.example.com"></div>
                     
-                    <div class="mb-2" id="add_auth_type_wrap">
+                    <div class="mb-2">
                         <label class="form-label">API Type</label>
                         <select name="api_type" class="form-select" id="add_api_type">
                             {% for t in api_types %}
@@ -112,6 +112,8 @@
                         <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="1.0"></div>
                     </div>
                     <div class="mb-2 mt-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" placeholder="default"></div>
+                    <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('add')">Tai groups</button></div>
+                    <div id="add_group_preview" class="mb-2" style="display:none;"></div>
                 </div>
                 <div class="modal-footer"><button type="submit" class="btn btn-primary">Thêm</button></div>
             </form>
@@ -134,7 +136,7 @@
                 <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
             </div>
             
-            <div class="mb-2" id="edit_auth_type_wrap">
+            <div class="mb-2">
                 <label class="form-label">API Type</label>
                 <select name="api_type" class="form-select" id="edit_api_type">
                     {% for t in api_types %}
@@ -188,6 +190,8 @@
                 <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
             </div>
             <div class="mb-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" value="{{ editing.default_group or '' }}"></div>
+            <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('edit')">Tai groups</button></div>
+            <div id="edit_group_preview" class="mb-2" style="display:none;"></div>
             
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
@@ -348,6 +352,78 @@ function setupApiType(prefix) {
 
 setupApiType('add');
 setupApiType('edit');
+
+async function previewServerGroups(prefix) {
+    const form = document.getElementById(prefix + 'Form');
+    const preview = document.getElementById(prefix + '_group_preview');
+    if (!form || !preview) return;
+
+    preview.style.display = 'block';
+    preview.className = 'alert alert-info';
+    preview.textContent = 'Dang tai groups...';
+
+    try {
+        const resp = await fetch('/servers/preview-groups', {
+            method: 'POST',
+            body: new FormData(form)
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            preview.className = 'alert alert-danger';
+            preview.textContent = data.message || 'Khong tai duoc groups';
+            return;
+        }
+        renderGroupPreview(prefix, data.data || [], !!data.supports_multi_group);
+    } catch (error) {
+        preview.className = 'alert alert-danger';
+        preview.textContent = 'Loi tai groups: ' + error.message;
+    }
+}
+
+function renderGroupPreview(prefix, groups, isMulti) {
+    const preview = document.getElementById(prefix + '_group_preview');
+    const defaultGroupInput = document.querySelector(`#${prefix}Form input[name="default_group"]`);
+    const manualGroupsInput = document.querySelector(`#${prefix}Form input[name="manual_groups"]`);
+    if (!preview) return;
+
+    if (!groups.length) {
+        preview.className = 'alert alert-warning';
+        preview.textContent = 'Khong co groups nao tra ve.';
+        return;
+    }
+
+    const selected = isMulti
+        ? new Set((manualGroupsInput?.value || '').split(',').map(v => v.trim()).filter(Boolean))
+        : new Set([(defaultGroupInput?.value || '').trim()].filter(Boolean));
+
+    preview.className = 'border rounded p-3 bg-light';
+    preview.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>${isMulti ? 'Chon Manual Groups' : 'Chon Default Group'}</strong>
+            <small class="text-muted">${groups.length} groups</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2" id="${prefix}_group_buttons"></div>
+    `;
+
+    const buttons = preview.querySelector(`#${prefix}_group_buttons`);
+    groups.forEach(group => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = selected.has(group.name) ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-secondary';
+        btn.textContent = `${group.label_vi || group.name} (${group.ratio ?? 1}x)`;
+        btn.addEventListener('click', function () {
+            if (isMulti) {
+                if (selected.has(group.name)) selected.delete(group.name);
+                else selected.add(group.name);
+                if (manualGroupsInput) manualGroupsInput.value = Array.from(selected).join(',');
+            } else {
+                if (defaultGroupInput) defaultGroupInput.value = group.name;
+            }
+            renderGroupPreview(prefix, groups, isMulti);
+        });
+        buttons.appendChild(btn);
+    });
+}
 
 // Multi-group selection
 {% if groups_data is defined and supports_multi_group %}

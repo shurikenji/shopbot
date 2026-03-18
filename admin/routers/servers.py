@@ -138,6 +138,26 @@ def _normalize_server_for_form(server: dict) -> dict:
     return server
 
 
+async def _load_and_translate_groups(server: dict) -> list[dict]:
+    client = get_api_client(server)
+    groups = await client.get_groups(server)
+
+    translator = await get_translator()
+    if translator.is_configured:
+        groups = await translator.translate_groups(groups, server.get("api_type", "newapi"))
+
+    parsed_groups = []
+    for g in groups:
+        parsed_groups.append({
+            "name": g.get("name", ""),
+            "label_vi": g.get("label_vi") or g.get("name_vi") or g.get("name", ""),
+            "ratio": g.get("ratio", 1.0),
+            "desc": g.get("desc", ""),
+            "category": g.get("category", "Other"),
+        })
+    return parsed_groups
+
+
 @router.get("", response_class=HTMLResponse)
 async def servers_list(request: Request):
     r = _check(request)
@@ -239,25 +259,7 @@ async def servers_groups(request: Request, server_id: int):
     if not server:
         return RedirectResponse("/servers", status_code=303)
 
-    # Use API client factory
-    client = get_api_client(server)
-    groups = await client.get_groups(server)
-    
-    # Translate with AI if enabled
-    translator = await get_translator()
-    if translator.is_configured:
-        groups = await translator.translate_groups(groups, server.get("api_type", "newapi"))
-    
-    # Parse groups for display
-    parsed_groups = []
-    for g in groups:
-        parsed_groups.append({
-            "name": g.get("name", ""),
-            "label_vi": g.get("label_vi") or g.get("name_vi") or g.get("name", ""),
-            "ratio": g.get("ratio", 1.0),
-            "desc": g.get("desc", ""),
-            "category": g.get("category", "Other"),
-        })
+    parsed_groups = await _load_and_translate_groups(server)
     
     templates = get_templates()
     servers = await get_all_servers()
@@ -311,13 +313,28 @@ async def api_servers_groups(request: Request, server_id: int):
                 })
         return JSONResponse({"success": True, "data": groups})
 
-    # Use API client factory
-    client = get_api_client(server)
-    groups = await client.get_groups(server)
-    
-    # Translate with AI if enabled
-    translator = await get_translator()
-    if translator.is_configured:
-        groups = await translator.translate_groups(groups, server.get("api_type", "newapi"))
-    
+    groups = await _load_and_translate_groups(server)
     return JSONResponse({"success": True, "data": groups})
+
+
+@router.post("/preview-groups")
+async def preview_groups(request: Request):
+    """Preview groups from form data before saving server."""
+    r = _check(request)
+    if r:
+        return JSONResponse({"success": False, "message": "Unauthorized"})
+
+    form = await request.form()
+    server = _get_server_form_payload(form)
+    if not server.get("name"):
+        server["name"] = "Preview Server"
+
+    groups = await _load_and_translate_groups(server)
+    return JSONResponse(
+        {
+            "success": True,
+            "data": groups,
+            "supports_multi_group": bool(server.get("supports_multi_group")),
+            "api_type": server.get("api_type", "newapi"),
+        }
+    )

@@ -177,7 +177,7 @@ class BaseAPIClient(ABC):
                             "Token created on %s: name=%s, quota=%d, group=%s",
                             server["name"], name, quota, group
                         )
-                        return data.get("data")
+                        return data
                     logger.error(
                         "create_token failed on %s: %s",
                         server["name"], data.get("message")
