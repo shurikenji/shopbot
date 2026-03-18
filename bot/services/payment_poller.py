@@ -15,7 +15,7 @@ from aiogram import Bot
 
 from bot.config import settings as env_settings
 from bot.services.mbbank import fetch_transactions, extract_order_code
-from bot.services.newapi import create_token, search_token, search_token_by_name, update_token
+from bot.services.api_clients import get_api_client
 from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar
 from db.queries.orders import (
     get_pending_qr_orders,
@@ -187,7 +187,7 @@ async def _process_order(bot: Bot, order: dict) -> None:
 
 
 async def _process_key_new(bot: Bot, order: dict) -> None:
-    """Tạo API key mới trên NewAPI server."""
+    """Tạo API key mới trên server."""
     server = await get_server_by_id(order["server_id"])
     if not server:
         await _refund_order(bot, order, "Server không tồn tại")
@@ -204,8 +204,11 @@ async def _process_key_new(bot: Bot, order: dict) -> None:
     quota = order.get("custom_quota") or (product["quota_amount"] if product else 0)
     group_name = order.get("group_name") or (product.get("group_name") if product else "") or ""
 
-    # Gọi NewAPI tạo token
-    result = await create_token(
+    # Get API client based on server type
+    client = get_api_client(server)
+
+    # Gọi API tạo token
+    result = await client.create_token(
         server=server,
         quota=quota,
         group=group_name,
@@ -216,15 +219,17 @@ async def _process_key_new(bot: Bot, order: dict) -> None:
         await _refund_order(bot, order, "Không thể tạo key trên server")
         return
 
-    # Lấy key từ response — NewAPI trả key trong data
-    api_key = result.get("data", {}).get("key", "") if isinstance(result.get("data"), dict) else ""
+    # Lấy key từ response
+    api_key = result.get("key", "")
+    if not api_key and isinstance(result, dict):
+        # Try nested data
+        api_key = result.get("data", {}).get("key", "") if isinstance(result.get("data"), dict) else ""
 
     # Nếu response không chứa key → search bằng name
     if not api_key:
         logger.warning("create_token didn't return key, searching by name: %s", token_name)
-        import asyncio
         await asyncio.sleep(1)  # Đợi server xử lý xong
-        found = await search_token_by_name(server, token_name)
+        found = await client.search_token_by_name(server, token_name)
         if found:
             api_key = found.get("key", "")
             logger.info("Found key by name search: %s", api_key[:20] if api_key else "empty")
@@ -293,8 +298,11 @@ async def _process_key_topup(bot: Bot, order: dict) -> None:
         await _refund_order(bot, order, "Không có key để nạp")
         return
 
+    # Get API client based on server type
+    client = get_api_client(server)
+
     # Search token hiện tại trên server
-    token_data = await search_token(server, existing_key)
+    token_data = await client.search_token(server, existing_key)
     if not token_data:
         await _refund_order(bot, order, "Không tìm thấy key trên server")
         return
@@ -305,13 +313,12 @@ async def _process_key_topup(bot: Bot, order: dict) -> None:
     add_quota = order.get("custom_quota") or (product["quota_amount"] if product else 0)
     new_quota = current_quota + add_quota
 
-    # Update quota — giữ nguyên group hiện có, expired_time=-1 để không hết hạn
-    result = await update_token(
+    # Update quota - use build_update_payload to preserve all fields
+    result = await client.update_token(
         server=server,
         token_id=token_id,
-        remain_quota=new_quota,
-        name=token_data.get("name"),
-        group=token_data.get("group", ""),
+        new_quota=new_quota,
+        current_data=token_data,
     )
 
     if not result:

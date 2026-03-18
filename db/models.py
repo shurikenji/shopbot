@@ -61,6 +61,21 @@ CREATE TABLE IF NOT EXISTS api_servers (
     quota_per_unit  INTEGER NOT NULL,
     is_active       INTEGER DEFAULT 1,
     sort_order      INTEGER DEFAULT 0,
+    -- New fields for multi-type support
+    api_type                TEXT DEFAULT 'newapi',
+    supports_multi_group   INTEGER DEFAULT 0,
+    groups_cache           TEXT,
+    groups_updated_at      TEXT,
+    manual_groups          TEXT,
+    -- Flexible authentication
+    auth_type              TEXT DEFAULT 'header',
+    auth_user_header       TEXT,
+    auth_user_value        TEXT,
+    auth_token             TEXT,
+    auth_cookie            TEXT,
+    -- Custom
+    custom_headers         TEXT,
+    groups_endpoint        TEXT,
     created_at      TEXT DEFAULT (datetime('now')),
     updated_at      TEXT DEFAULT (datetime('now'))
 );
@@ -204,6 +219,20 @@ CREATE TABLE IF NOT EXISTS logs (
     detail          TEXT,
     created_at      TEXT DEFAULT (datetime('now'))
 );
+
+-- GROUP TRANSLATIONS (AI translation cache)
+CREATE TABLE IF NOT EXISTS group_translations (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    original_name   TEXT NOT NULL,
+    api_type        TEXT NOT NULL,
+    name_en         TEXT,
+    name_vi         TEXT,
+    desc_en         TEXT,
+    desc_vi         TEXT,
+    category        TEXT,
+    updated_at      TEXT DEFAULT (datetime('now')),
+    UNIQUE(original_name, api_type)
+);
 """
 
 # ── Default settings ────────────────────────────────────────────────────────
@@ -233,6 +262,11 @@ _DEFAULT_SETTINGS = [
     ("custom_dollar_min_qr", "10", "$ tối thiểu nhập custom - thanh toán QR"),
     ("custom_vnd_min", "10000", "VNĐ tối thiểu đơn custom $ (floor)"),
     ("wallet_topup_max", "100000000", "Nạp ví tối đa (VNĐ)"),
+    # AI Translation Settings
+    ("ai_provider", "openai", "AI provider: openai, anthropic, gemini"),
+    ("ai_api_key", "", "API key for AI translation"),
+    ("ai_model", "gpt-4o-mini", "Model sử dụng cho translation"),
+    ("ai_enabled", "false", "Bật/tắt AI translation"),
     # Delivery message templates
     ("msg_key_new",
      "✅ Đơn <b>{order_code}</b> hoàn thành!\n\n"
@@ -308,6 +342,103 @@ async def init_db() -> None:
     try:
         await db.execute(
             "ALTER TABLE products ADD COLUMN input_prompt TEXT"
+        )
+    except Exception:
+        pass
+
+    # ── Migrations for new multi-type API support ──
+    # api_type
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN api_type TEXT DEFAULT 'newapi'"
+        )
+    except Exception:
+        pass
+
+    # supports_multi_group
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN supports_multi_group INTEGER DEFAULT 0"
+        )
+    except Exception:
+        pass
+
+    # groups_cache
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN groups_cache TEXT"
+        )
+    except Exception:
+        pass
+
+    # groups_updated_at
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN groups_updated_at TEXT"
+        )
+    except Exception:
+        pass
+
+    # manual_groups
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN manual_groups TEXT"
+        )
+    except Exception:
+        pass
+
+    # auth_type
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN auth_type TEXT DEFAULT 'header'"
+        )
+    except Exception:
+        pass
+
+    # auth_user_header
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN auth_user_header TEXT"
+        )
+    except Exception:
+        pass
+
+    # auth_user_value
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN auth_user_value TEXT"
+        )
+    except Exception:
+        pass
+
+    # auth_token
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN auth_token TEXT"
+        )
+    except Exception:
+        pass
+
+    # auth_cookie
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN auth_cookie TEXT"
+        )
+    except Exception:
+        pass
+
+    # custom_headers
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN custom_headers TEXT"
+        )
+    except Exception:
+        pass
+
+    # groups_endpoint
+    try:
+        await db.execute(
+            "ALTER TABLE api_servers ADD COLUMN groups_endpoint TEXT"
         )
     except Exception:
         pass

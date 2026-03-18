@@ -52,6 +52,41 @@
                 </div>
             </div>
         </div>
+        <!-- AI Settings -->
+        <div class="col-md-6">
+            <div class="table-card p-3 mb-3">
+                <h6>🤖 AI Translation</h6>
+                <p class="text-muted small mb-3">Dịch và phân loại groups tự động bằng AI.</p>
+                <div class="mb-2">
+                    <label class="form-label small">Provider</label>
+                    <select name="ai_provider" class="form-select form-select-sm" id="ai_provider">
+                        {% for p in ai_providers %}
+                        <option value="{{ p.value }}" {% if all_settings.get('ai_provider') == p.value %}selected{% endif %}>{{ p.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">API Key</label>
+                    <input name="ai_api_key" type="password" class="form-control form-control-sm"
+                        value="{{ all_settings.get('ai_api_key', '') }}" placeholder="sk-...">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Model</label>
+                    <select name="ai_model" class="form-select form-select-sm" id="ai_model">
+                        {% for m in ai_models.get(all_settings.get('ai_provider', 'openai'), []) %}
+                        <option value="{{ m }}" {% if all_settings.get('ai_model') == m %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-2 form-check">
+                    <input type="checkbox" class="form-check-input" id="ai_enabled" name="ai_enabled" value="true"
+                        {% if all_settings.get('ai_enabled') == 'true' %}checked{% endif %}>
+                    <label class="form-check-label" for="ai_enabled">Bật AI Translation</label>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="testAI()">🔗 Test Connection</button>
+                <span id="ai_test_result"></span>
+            </div>
+        </div>
         <!-- Row 2: Messages -->
         <div class="col-12">
             <div class="table-card p-3">
@@ -89,4 +124,53 @@
     </div>
     <div class="mt-3"><button type="submit" class="btn btn-primary">💾 Lưu cài đặt</button></div>
 </form>
+<script>
+// Update AI models when provider changes
+document.getElementById('ai_provider').addEventListener('change', function() {
+    const provider = this.value;
+    const modelSelect = document.getElementById('ai_model');
+    const models = {{ ai_models | tojson }};
+    
+    modelSelect.innerHTML = '';
+    (models[provider] || []).forEach(function(m) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        modelSelect.appendChild(opt);
+    });
+});
+
+async function testAI() {
+    const provider = document.getElementById('ai_provider').value;
+    const apiKey = document.querySelector('input[name="ai_api_key"]').value;
+    const model = document.getElementById('ai_model').value;
+    const resultSpan = document.getElementById('ai_test_result');
+    
+    resultSpan.textContent = ' Testing...';
+    resultSpan.className = '';
+    
+    const formData = new FormData();
+    formData.append('provider', provider);
+    formData.append('api_key', apiKey);
+    formData.append('model', model);
+    
+    try {
+        const resp = await fetch('/settings/ai/test', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await resp.json();
+        if (data.success) {
+            resultSpan.textContent = ' ✅ Connected!';
+            resultSpan.className = 'text-success';
+        } else {
+            resultSpan.textContent = ' ❌ ' + data.message;
+            resultSpan.className = 'text-danger';
+        }
+    } catch(e) {
+        resultSpan.textContent = ' ❌ Error: ' + e.message;
+        resultSpan.className = 'text-danger';
+    }
+}
+</script>
 {% endblock %}

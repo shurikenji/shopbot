@@ -11,10 +11,10 @@
             <tr>
                 <th>#</th>
                 <th>Tên</th>
+                <th>API Type</th>
                 <th>Base URL</th>
                 <th>Giá/$</th>
-                <th>Quota/$</th>
-                <th>Multiple</th>
+                <th>Multi-Group</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
             </tr>
@@ -24,61 +24,99 @@
             <tr>
                 <td>{{ s.id }}</td>
                 <td>{{ s.name }}</td>
+                <td><span class="badge bg-{{ 'info' if s.api_type == 'newapi' else ('warning' if s.api_type == 'rixapi' else 'secondary') }}">{{ s.api_type or 'newapi' }}</span></td>
                 <td><small>{{ s.base_url }}</small></td>
                 <td>{{ format_vnd(s.price_per_unit) }}</td>
-                <td>{{ "{:,}".format(s.quota_per_unit) }}</td>
-                <td>{{ s.quota_multiple }}</td>
-                <td><span class="badge {{ 'bg-success' if s.is_active else 'bg-secondary' }}">{{ 'Active' if s.is_active
-                        else 'Off' }}</span></td>
+                <td><span class="badge {{ 'bg-success' if s.supports_multi_group else 'bg-secondary' }}">{{ 'ON' if s.supports_multi_group else 'OFF' }}</span></td>
+                <td><span class="badge {{ 'bg-success' if s.is_active else 'bg-secondary' }}">{{ 'Active' if s.is_active else 'Off' }}</span></td>
                 <td>
                     <a href="/servers/{{ s.id }}/groups" class="btn btn-outline-info btn-sm">Groups</a>
                     <a href="/servers/{{ s.id }}/edit" class="btn btn-outline-primary btn-sm">Sửa</a>
-                    <a href="/servers/{{ s.id }}/delete" class="btn btn-outline-danger btn-sm"
-                        onclick="return confirmDelete()">Xóa</a>
+                    <a href="/servers/{{ s.id }}/delete" class="btn btn-outline-danger btn-sm" onclick="return confirmDelete()">Xóa</a>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
 <!-- Add Modal -->
 <div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="/servers/add">
+            <form method="POST" action="/servers/add" id="addForm">
                 <div class="modal-header">
-                    <h5 class="modal-title">Thêm Server</h5><button type="button" class="btn-close"
-                        data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title">Thêm Server</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control"
-                            required></div>
-                    <div class="mb-2"><label class="form-label">Base URL</label><input name="base_url"
-                            class="form-control" required placeholder="https://api.example.com"></div>
-                    <div class="mb-2"><label class="form-label">User ID Header</label><input name="user_id_header"
-                            class="form-control" required></div>
-                    <div class="mb-2"><label class="form-label">Access Token</label><input name="access_token"
-                            class="form-control" required></div>
-                    <div class="row">
-                        <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit"
-                                type="number" class="form-control" required></div>
-                        <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit"
-                                type="number" class="form-control" required></div>
+                    <!-- Basic Info -->
+                    <h6 class="text-muted mb-2">📋 Thông tin cơ bản</h6>
+                    <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control" required></div>
+                    <div class="mb-2"><label class="form-label">Base URL</label><input name="base_url" class="form-control" required placeholder="https://api.example.com"></div>
+                    
+                    <div class="mb-2">
+                        <label class="form-label">API Type</label>
+                        <select name="api_type" class="form-select" id="add_api_type">
+                            {% for t in api_types %}
+                            <option value="{{ t.value }}">{{ t.label }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="mb-2 mt-2"><label class="form-label">Hệ số $ (VD: 10.0)</label><input
-                            name="dollar_per_unit" type="number" step="0.1" class="form-control" value="10.0"></div>
-                    <div class="mb-2"><label class="form-label">Quota Multiple (tỉ lệ quy đổi $)</label><input
-                            name="quota_multiple" type="number" step="0.01" class="form-control" value="1.0"></div>
-                    <div class="mb-2"><label class="form-label">Exchange Rate (VND/$)</label><input name="exchange_rate"
-                            class="form-control bg-light" readonly placeholder="Tính tự động"></div>
-                    <div class="mb-2"><label class="form-label">Default Group (cho đơn custom $)</label><input
-                            name="default_group" class="form-control" placeholder="để trống nếu không cần"></div>
+                    
+                    <hr>
+                    <!-- Authentication -->
+                    <h6 class="text-muted mb-2">🔐 Xác thực</h6>
+                    <div class="mb-2">
+                        <label class="form-label">Method</label>
+                        <select name="auth_type" class="form-select" id="add_auth_type">
+                            {% for a in auth_types %}
+                            <option value="{{ a.value }}">{{ a.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div id="add_auth_fields">
+                        <div class="mb-2"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" placeholder="new-api-user"></div>
+                        <div class="mb-2"><label class="form-label">User ID Value</label><input name="auth_user_value" class="form-control" placeholder="User ID"></div>
+                        <div class="mb-2"><label class="form-label">Bearer Token</label><input name="auth_token" class="form-control"></div>
+                    </div>
+                    
+                    <div id="add_cookie_field" class="mb-2" style="display:none;">
+                        <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" placeholder="session=abc123; user_id=456">
+                    </div>
+                    
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="supports_multi_group" id="add_multi_group" value="1">
+                        <label class="form-check-label" for="add_multi_group">Enable Multi-Group Support</label>
+                    </div>
+                    
+                    <hr>
+                    <!-- Advanced -->
+                    <h6 class="text-muted mb-2">⚙️ Nâng cao (Optional)</h6>
+                    <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" placeholder="/api/user/self/groups"></div>
+                    <div class="mb-2"><label class="form-label">Manual Groups (comma-separated)</label><input name="manual_groups" class="form-control" placeholder="default,azure,gemini,claude"></div>
+                    <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2" placeholder='[{"key": "X-Custom", "value": "固定值"}]'></textarea></div>
+                    
+                    <hr>
+                    <!-- Pricing -->
+                    <h6 class="text-muted mb-2">💰 Pricing</h6>
+                    <div class="row">
+                        <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit" type="number" class="form-control" required></div>
+                        <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" required></div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col"><label class="form-label">Hệ số $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="10.0"></div>
+                        <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="1.0"></div>
+                    </div>
+                    <div class="mb-2 mt-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" placeholder="default"></div>
                 </div>
                 <div class="modal-footer"><button type="submit" class="btn btn-primary">Thêm</button></div>
             </form>
         </div>
     </div>
 </div>
+
 <!-- Edit form (shown when editing) -->
 {% if editing %}
 <div class="card mt-3">
@@ -87,37 +125,68 @@
         <a href="/servers" class="btn btn-sm btn-secondary">Hủy</a>
     </div>
     <div class="card-body">
-        <form method="POST" action="/servers/{{ editing.id }}/edit">
+        <form method="POST" action="/servers/{{ editing.id }}/edit" id="editForm">
+            <h6 class="text-muted mb-2">📋 Thông tin cơ bản</h6>
             <div class="row mb-2">
-                <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control"
-                        value="{{ editing.name }}" required></div>
-                <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control"
-                        value="{{ editing.base_url }}" required></div>
+                <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control" value="{{ editing.name }}" required></div>
+                <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
+            </div>
+            
+            <div class="mb-2">
+                <label class="form-label">API Type</label>
+                <select name="api_type" class="form-select" id="edit_api_type">
+                    {% for t in api_types %}
+                    <option value="{{ t.value }}" {% if editing.api_type == t.value %}selected{% endif %}>{{ t.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <hr>
+            <h6 class="text-muted mb-2">🔐 Xác thực</h6>
+            <div class="mb-2">
+                <label class="form-label">Method</label>
+                <select name="auth_type" class="form-select" id="edit_auth_type">
+                    {% for a in auth_types %}
+                    <option value="{{ a.value }}" {% if editing.auth_type == a.value %}selected{% endif %}>{{ a.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div id="edit_auth_fields">
+                <div class="mb-2"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
+                <div class="mb-2"><label class="form-label">User ID Value</label><input name="auth_user_value" class="form-control" value="{{ editing.auth_user_value or '' }}"></div>
+                <div class="mb-2"><label class="form-label">Bearer Token</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
+            </div>
+            
+            <div id="edit_cookie_field" class="mb-2" style="display:none;">
+                <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" value="{{ editing.auth_cookie or '' }}">
+            </div>
+            
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="supports_multi_group" id="edit_multi_group" value="1" {% if editing.supports_multi_group %}checked{% endif %}>
+                <label class="form-check-label" for="edit_multi_group">Enable Multi-Group Support</label>
+            </div>
+            
+            <hr>
+            <h6 class="text-muted mb-2">⚙️ Nâng cao</h6>
+            <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" value="{{ editing.groups_endpoint or '' }}"></div>
+            <div class="mb-2"><label class="form-label">Manual Groups</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
+            <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2">{{ editing.custom_headers or '' }}</textarea></div>
+            
+            <hr>
+            <h6 class="text-muted mb-2">💰 Pricing</h6>
+            <div class="row mb-2">
+                <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit" type="number" class="form-control" value="{{ editing.price_per_unit }}" required></div>
+                <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" value="{{ editing.quota_per_unit }}" required></div>
             </div>
             <div class="row mb-2">
-                <div class="col"><label class="form-label">User ID Header</label><input name="user_id_header"
-                        class="form-control" value="{{ editing.user_id_header }}" required></div>
-                <div class="col"><label class="form-label">Access Token</label><input name="access_token"
-                        class="form-control" value="{{ editing.access_token }}" required></div>
+                <div class="col"><label class="form-label">Hệ số $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
+                <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
             </div>
-            <div class="row mb-2">
-                <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit" type="number"
-                        class="form-control" value="{{ editing.price_per_unit }}" required></div>
-                <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number"
-                        class="form-control" value="{{ editing.quota_per_unit }}" required></div>
-                <div class="col"><label class="form-label">Hệ số $ (VD: 10.0)</label><input name="dollar_per_unit"
-                        type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
-                <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number"
-                        step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
-            </div>
-            <div class="mb-2"><label class="form-label">Exchange Rate (VND/$)</label><input name="exchange_rate"
-                    class="form-control bg-light" readonly placeholder="Tính tự động"></div>
-            <div class="mb-2"><label class="form-label">Default Group (cho đơn custom $)</label><input
-                    name="default_group" class="form-control" value="{{ editing.default_group or '' }}"
-                    placeholder="để trống nếu không cần"></div>
+            <div class="mb-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" value="{{ editing.default_group or '' }}"></div>
+            
             <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {{ 'checked' if
-                    editing.is_active }}>
+                <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
                 <label class="form-check-label" for="editActive">Active</label>
             </div>
             <button type="submit" class="btn btn-primary">💾 Lưu</button>
@@ -125,52 +194,199 @@
     </div>
 </div>
 {% endif %}
-<!-- Groups data -->
+
+<!-- Groups Panel -->
 {% if groups_data is defined and groups_data %}
 <div class="card mt-3">
-    <div class="card-header">
-        <h5>📋 Groups — {{ groups_server.name }}</h5>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5>📋 Groups — {{ groups_server.name }}</h5>
+            {% if supports_multi_group %}
+            <span class="badge bg-warning">Multi-Group Enabled - Click để chọn nhiều</span>
+            {% endif %}
+        </div>
+        <a href="/servers/{{ groups_server.id }}/groups" class="btn btn-sm btn-outline-primary">🔄 Refresh</a>
     </div>
     <div class="card-body">
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>Group</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
+        {% if supports_multi_group %}
+        <!-- Multi-Group Mode -->
+        <p class="text-muted small">Click vào các nút để chọn group. Thứ tự chọn sẽ được giữ nguyên trong payload.</p>
+        <div class="mb-3">
+            <label class="form-label">Available Groups:</label>
+            <div class="d-flex flex-wrap gap-2" id="available_groups">
                 {% for g in groups_data %}
-                <tr>
-                    <td><code>{{ g }}</code></td>
-                    <td>—</td>
-                </tr>
+                <button type="button" class="btn btn-outline-secondary group-btn" 
+                    data-name="{{ g.name }}" data-ratio="{{ g.ratio }}" data-label="{{ g.label_vi }}">
+                    {{ g.label_vi }} ({{ g.ratio }}x)
+                </button>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Selected Groups (theo thứ tự):</label>
+            <div class="d-flex flex-wrap gap-2" id="selected_groups"></div>
+            <input type="hidden" name="selected_group_input" id="selected_group_input" value="">
+        </div>
+        <div class="alert alert-info">
+            <strong>Original:</strong> <code id="group_original"></code><br>
+            <strong>Combined Ratio:</strong> <span id="combined_ratio">0</span>x
+        </div>
+        {% else %}
+        <!-- Single Group Mode -->
+        <div class="mb-3">
+            <label class="form-label">Chọn Group:</label>
+            <div class="d-flex flex-wrap gap-2">
+                {% for g in groups_data %}
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="group_radio" id="group_{{ loop.index }}" 
+                        value="{{ g.name }}" data-ratio="{{ g.ratio }}">
+                    <label class="form-check-label" for="group_{{ loop.index }}">
+                        {{ g.label_vi }} ({{ g.ratio }}x)
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="alert alert-info">
+            <strong>Selected:</strong> <code id="single_group_name">-</code> 
+            <strong>Ratio:</strong> <span id="single_ratio">0</span>x
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endif %}
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        function calcRate(form) {
-            const price = parseFloat(form.querySelector('input[name="price_per_unit"]')?.value) || 0;
-            const dollarPerUnit = parseFloat(form.querySelector('input[name="dollar_per_unit"]')?.value) || 10.0;
-
-            const rate = (dollarPerUnit > 0) ? (price / dollarPerUnit) : 0;
-            const rateInput = form.querySelector('input[name="exchange_rate"]');
-
-            if (rateInput) {
-                rateInput.value = (rate > 0 && isFinite(rate)) ? Math.round(rate) : '';
-            }
+// Auth type toggle
+function setupAuthType(prefix) {
+    const authType = document.getElementById(prefix + '_auth_type');
+    const authFields = document.getElementById(prefix + '_auth_fields');
+    const cookieField = document.getElementById(prefix + '_cookie_field');
+    
+    function toggle() {
+        if (authType.value === 'cookie') {
+            authFields.style.display = 'none';
+            cookieField.style.display = 'block';
+        } else if (authType.value === 'none') {
+            authFields.style.display = 'none';
+            cookieField.style.display = 'none';
+        } else {
+            authFields.style.display = 'block';
+            cookieField.style.display = 'none';
         }
+    }
+    
+    if (authType) authType.addEventListener('change', toggle);
+    toggle();
+}
 
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('input', () => calcRate(form));
-            // Trigger initial calculation
-            setTimeout(() => calcRate(form), 100);
-        });
+setupAuthType('add');
+setupAuthType('edit');
+
+// Auto-set header based on API type
+function setupApiType(prefix) {
+    const apiType = document.getElementById(prefix + '_api_type');
+    const authHeader = document.querySelector(`#${prefix}Form input[name="auth_user_header"]`);
+    
+    function setHeader() {
+        if (apiType.value === 'newapi' && authHeader && !authHeader.value) {
+            authHeader.value = 'new-api-user';
+        } else if (apiType.value === 'rixapi' && authHeader && !authHeader.value) {
+            authHeader.value = 'rix-api-user';
+        }
+    }
+    
+    if (apiType) {
+        apiType.addEventListener('change', setHeader);
+        setHeader();
+    }
+}
+
+setupApiType('add');
+setupApiType('edit');
+
+// Multi-group selection
+{% if groups_data is defined and supports_multi_group %}
+let selectedGroups = [];
+
+document.querySelectorAll('.group-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const name = this.dataset.name;
+        const ratio = parseFloat(this.dataset.ratio);
+        const label = this.dataset.label;
+        
+        const idx = selectedGroups.findIndex(g => g.name === name);
+        
+        if (idx > -1) {
+            selectedGroups.splice(idx, 1);
+            this.classList.remove('btn-primary');
+            this.classList.add('btn-outline-secondary');
+        } else {
+            selectedGroups.push({name, ratio, label});
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('btn-primary');
+        }
+        
+        renderSelected();
     });
+});
+
+function renderSelected() {
+    const container = document.getElementById('selected_groups');
+    const originalEl = document.getElementById('group_original');
+    const ratioEl = document.getElementById('combined_ratio');
+    const inputEl = document.getElementById('selected_group_input');
+    
+    container.innerHTML = '';
+    let original = [];
+    let totalRatio = 0;
+    
+    selectedGroups.forEach((g, idx) => {
+        original.push(g.name);
+        totalRatio += g.ratio;
+        
+        const chip = document.createElement('span');
+        chip.className = 'badge bg-primary';
+        chip.innerHTML = `${g.label} #${idx + 1} <span style="cursor:pointer" onclick="removeGroup('${g.name}')">×</span>`;
+        container.appendChild(chip);
+    });
+    
+    originalEl.textContent = original.join(',');
+    ratioEl.textContent = totalRatio.toFixed(1);
+    inputEl.value = original.join(',');
+}
+
+function removeGroup(name) {
+    const idx = selectedGroups.findIndex(g => g.name === name);
+    if (idx > -1) {
+        selectedGroups.splice(idx, 1);
+        
+        // Update button state
+        document.querySelectorAll('.group-btn').forEach(btn => {
+            if (btn.dataset.name === name) {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-secondary');
+            }
+        });
+        
+        renderSelected();
+    }
+}
+{% endif %}
+
+// Single group selection
+{% if groups_data is defined and not supports_multi_group %}
+document.querySelectorAll('input[name="group_radio"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        document.getElementById('single_group_name').textContent = this.value;
+        document.getElementById('single_ratio').textContent = this.dataset.ratio;
+    });
+});
+{% endif %}
+
+// Confirm delete
+function confirmDelete() {
+    return confirm('Bạn có chắc muốn xóa server này?');
+}
 </script>
 {% endblock %}

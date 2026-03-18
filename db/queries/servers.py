@@ -51,6 +51,17 @@ async def create_server(
     quota_multiple: float = 1.0,
     default_group: str = "",
     sort_order: int = 0,
+    # New fields
+    api_type: str = "newapi",
+    supports_multi_group: int = 0,
+    manual_groups: str = "",
+    auth_type: str = "header",
+    auth_user_header: str = "",
+    auth_user_value: str = "",
+    auth_token: str = "",
+    auth_cookie: str = "",
+    custom_headers: str = "",
+    groups_endpoint: str = "",
 ) -> int:
     """Tạo API server mới, trả về ID."""
     db = await get_db()
@@ -58,12 +69,16 @@ async def create_server(
         """INSERT INTO api_servers
            (name, base_url, user_id_header, access_token,
             price_per_unit, dollar_per_unit, quota_multiple, quota_per_unit,
-            default_group, sort_order)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            default_group, sort_order, api_type, supports_multi_group,
+            manual_groups, auth_type, auth_user_header, auth_user_value,
+            auth_token, auth_cookie, custom_headers, groups_endpoint)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             name, base_url, user_id_header, access_token,
             price_per_unit, dollar_per_unit, quota_multiple, quota_per_unit,
-            default_group, sort_order,
+            default_group, sort_order, api_type, supports_multi_group,
+            manual_groups, auth_type, auth_user_header, auth_user_value,
+            auth_token, auth_cookie, custom_headers, groups_endpoint,
         ),
     )
     await db.commit()
@@ -80,6 +95,10 @@ async def update_server(server_id: int, **kwargs) -> None:
         "name", "base_url", "user_id_header", "access_token",
         "price_per_unit", "dollar_per_unit", "quota_multiple", "quota_per_unit",
         "default_group", "is_active", "sort_order",
+        # New fields
+        "api_type", "supports_multi_group", "groups_cache", "groups_updated_at",
+        "manual_groups", "auth_type", "auth_user_header", "auth_user_value",
+        "auth_token", "auth_cookie", "custom_headers", "groups_endpoint",
     }
 
     fields = []
