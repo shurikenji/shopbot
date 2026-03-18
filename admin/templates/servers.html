@@ -122,85 +122,91 @@
     </div>
 </div>
 
-<!-- Edit form (shown when editing) -->
 {% if editing %}
-<div class="card mt-3">
-    <div class="card-header d-flex justify-content-between">
-        <h5>✏️ Sửa server: {{ editing.name }}</h5>
-        <a href="/servers" class="btn btn-sm btn-secondary">Hủy</a>
-    </div>
-    <div class="card-body">
-        <form method="POST" action="/servers/{{ editing.id }}/edit" id="editForm">
-            <h6 class="text-muted mb-2">📋 Thông tin cơ bản</h6>
-            <div class="row mb-2">
-                <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control" value="{{ editing.name }}" required></div>
-                <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
-            </div>
-            
-            <div class="mb-2">
-                <label class="form-label">API Type</label>
-                <select name="api_type" class="form-select" id="edit_api_type">
-                    {% for t in api_types %}
-                    <option value="{{ t.value }}" {% if editing.api_type == t.value %}selected{% endif %}>{{ t.label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <hr>
-            <h6 class="text-muted mb-2">🔐 Xác thực</h6>
-            <div class="mb-2" id="edit_auth_type_wrap">
-                <label class="form-label">Method</label>
-                <select name="auth_type" class="form-select" id="edit_auth_type">
-                    {% for a in auth_types %}
-                    <option value="{{ a.value }}" {% if editing.auth_type == a.value %}selected{% endif %}>{{ a.label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div id="edit_auth_fields">
-                <div class="mb-2" id="edit_header_wrap"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
-                <div class="mb-2"><label class="form-label" id="edit_user_value_label">User ID</label><input name="auth_user_value" class="form-control" value="{{ editing.auth_user_value or '' }}"></div>
-                <div class="mb-2"><label class="form-label" id="edit_token_label">Access Token</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
-            </div>
-            
-            <div id="edit_cookie_field" class="mb-2" style="display:none;">
-                <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" value="{{ editing.auth_cookie or '' }}">
-            </div>
-            
-            <div class="form-check mb-2" id="edit_multi_group_wrap">
-                <input class="form-check-input" type="checkbox" name="supports_multi_group" id="edit_multi_group" value="1" {% if editing.supports_multi_group %}checked{% endif %}>
-                <label class="form-check-label" for="edit_multi_group">Enable Multi-Group Support</label>
-            </div>
-            <div class="form-text mb-2" id="edit_multi_group_hint">Use "Tai groups" below to select one or many groups for this server.</div>
-            
-            <hr>
-            <div id="edit_advanced_block">
-            <h6 class="text-muted mb-2">⚙️ Nâng cao</h6>
-            <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" value="{{ editing.groups_endpoint or '' }}"></div>
-            <div class="mb-2"><label class="form-label">Manual Groups</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
-            <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2">{{ editing.custom_headers or '' }}</textarea></div>
-            </div>
-            
-            <hr>
-            <h6 class="text-muted mb-2">💰 Pricing</h6>
-            <div class="row mb-2">
-                <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit" type="number" class="form-control" value="{{ editing.price_per_unit }}" required></div>
-                <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" value="{{ editing.quota_per_unit }}" required></div>
-            </div>
-            <div class="row mb-2">
-                <div class="col"><label class="form-label">Hệ số $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
-                <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
-            </div>
-            <div class="mb-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" value="{{ editing.default_group or '' }}"></div>
-            <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('edit')">Tai groups</button></div>
-            <div id="edit_group_preview" class="mb-2" style="display:none;"></div>
-            
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
-                <label class="form-check-label" for="editActive">Active</label>
-            </div>
-            <button type="submit" class="btn btn-primary">💾 Lưu</button>
-        </form>
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="POST" action="/servers/{{ editing.id }}/edit" id="editForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sua server: {{ editing.name }}</h5>
+                    <a href="/servers" class="btn btn-sm btn-outline-secondary">Dong</a>
+                </div>
+                <div class="modal-body">
+                    <h6 class="text-muted mb-2">📋 Thong tin co ban</h6>
+                    <div class="row mb-2">
+                        <div class="col"><label class="form-label">Ten</label><input name="name" class="form-control" value="{{ editing.name }}" required></div>
+                        <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <label class="form-label">API Type</label>
+                        <select name="api_type" class="form-select" id="edit_api_type">
+                            {% for t in api_types %}
+                            <option value="{{ t.value }}" {% if editing.api_type == t.value %}selected{% endif %}>{{ t.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <hr>
+                    <h6 class="text-muted mb-2">🔐 Xac thuc</h6>
+                    <div class="mb-2" id="edit_auth_type_wrap">
+                        <label class="form-label">Method</label>
+                        <select name="auth_type" class="form-select" id="edit_auth_type">
+                            {% for a in auth_types %}
+                            <option value="{{ a.value }}" {% if editing.auth_type == a.value %}selected{% endif %}>{{ a.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div id="edit_auth_fields">
+                        <div class="mb-2" id="edit_header_wrap"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
+                        <div class="mb-2"><label class="form-label" id="edit_user_value_label">User ID</label><input name="auth_user_value" class="form-control" value="{{ editing.auth_user_value or '' }}"></div>
+                        <div class="mb-2"><label class="form-label" id="edit_token_label">Access Token</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
+                    </div>
+                    
+                    <div id="edit_cookie_field" class="mb-2" style="display:none;">
+                        <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" value="{{ editing.auth_cookie or '' }}">
+                    </div>
+                    
+                    <div class="form-check mb-2" id="edit_multi_group_wrap">
+                        <input class="form-check-input" type="checkbox" name="supports_multi_group" id="edit_multi_group" value="1" {% if editing.supports_multi_group %}checked{% endif %}>
+                        <label class="form-check-label" for="edit_multi_group">Enable Multi-Group Support</label>
+                    </div>
+                    <div class="form-text mb-2" id="edit_multi_group_hint">Use "Tai groups" below to select one or many groups for this server.</div>
+                    
+                    <hr>
+                    <div id="edit_advanced_block">
+                        <h6 class="text-muted mb-2">⚙️ Nang cao</h6>
+                        <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" value="{{ editing.groups_endpoint or '' }}"></div>
+                        <div class="mb-2"><label class="form-label">Manual Groups</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
+                        <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2">{{ editing.custom_headers or '' }}</textarea></div>
+                    </div>
+                    
+                    <hr>
+                    <h6 class="text-muted mb-2">💰 Pricing</h6>
+                    <div class="row mb-2">
+                        <div class="col"><label class="form-label">Gia/$ (VND)</label><input name="price_per_unit" type="number" class="form-control" value="{{ editing.price_per_unit }}" required></div>
+                        <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" value="{{ editing.quota_per_unit }}" required></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col"><label class="form-label">He so $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
+                        <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
+                    </div>
+                    <div class="mb-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" value="{{ editing.default_group or '' }}"></div>
+                    <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('edit')">Tai groups</button></div>
+                    <div id="edit_group_preview" class="mb-2" style="display:none;"></div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="editActive">Active</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="/servers" class="btn btn-outline-secondary">Huy</a>
+                    <button type="submit" class="btn btn-primary">Luu</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endif %}
@@ -513,5 +519,18 @@ document.querySelectorAll('input[name="group_radio"]').forEach(radio => {
 function confirmDelete() {
     return confirm('Bạn có chắc muốn xóa server này?');
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    {% if editing %}
+    const editModalEl = document.getElementById('editModal');
+    if (editModalEl) {
+        const modal = new bootstrap.Modal(editModalEl);
+        editModalEl.addEventListener('hidden.bs.modal', function () {
+            window.location.href = '/servers';
+        });
+        modal.show();
+    }
+    {% endif %}
+});
 </script>
 {% endblock %}

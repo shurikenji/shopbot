@@ -1,106 +1,254 @@
 {% extends "base.html" %}
-{% block title %}Danh mục{% endblock %}
+{% block title %}Danh muc{% endblock %}
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <h1>📁 Danh mục</h1>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Thêm danh mục</button>
+<style>
+    .cat-shell {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .cat-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        padding: 1.2rem 1.35rem;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #11324d, #29557a);
+        color: #f8fbff;
+        box-shadow: 0 20px 45px rgba(17, 50, 77, 0.16);
+    }
+
+    .cat-hero h1 {
+        margin: 0;
+        font-size: 1.7rem;
+    }
+
+    .cat-hero p {
+        margin: 0.35rem 0 0;
+        color: rgba(248, 251, 255, 0.78);
+        max-width: 680px;
+    }
+
+    .cat-table-card {
+        border: 1px solid rgba(17, 50, 77, 0.08);
+        border-radius: 24px;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,251,0.98));
+        box-shadow: 0 14px 30px rgba(17, 50, 77, 0.08);
+    }
+
+    .cat-table {
+        margin: 0;
+    }
+
+    .cat-table thead th {
+        background: rgba(17, 50, 77, 0.05);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.74rem;
+        color: #11324d;
+        padding: 0.95rem 0.8rem;
+        border-bottom: 1px solid rgba(17, 50, 77, 0.08);
+    }
+
+    .cat-table tbody td {
+        padding: 0.95rem 0.8rem;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(17, 50, 77, 0.06);
+    }
+
+    .cat-name {
+        font-weight: 700;
+        color: #163955;
+    }
+
+    .cat-note {
+        display: block;
+        color: #637489;
+        font-size: 0.86rem;
+        margin-top: 0.18rem;
+    }
+
+    .cat-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        border: 1px solid rgba(17, 50, 77, 0.08);
+        background: rgba(17, 50, 77, 0.05);
+    }
+
+    .cat-type.key {
+        background: rgba(255, 190, 11, 0.14);
+        border-color: rgba(255, 190, 11, 0.2);
+    }
+
+    .cat-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+</style>
+
+<div class="cat-shell">
+    <section class="cat-hero">
+        <div>
+            <h1>Category Map</h1>
+            <p>Danh mục được giữ gọn trong một bảng duy nhất. Sửa danh mục giờ mở trong dialog để không đẩy toàn bộ danh sách xuống dưới.</p>
+        </div>
+        <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Them danh muc</button>
+    </section>
+
+    <section class="cat-table-card">
+        <table class="table table-hover cat-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Icon</th>
+                    <th>Ten</th>
+                    <th>Loai</th>
+                    <th>Thu tu</th>
+                    <th>Trang thai</th>
+                    <th>Thao tac</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in categories %}
+                <tr>
+                    <td>{{ c.id }}</td>
+                    <td style="font-size:1.2rem;">{{ c.icon }}</td>
+                    <td>
+                        <span class="cat-name">{{ c.name }}</span>
+                        <span class="cat-note">{{ c.description or 'Khong co mo ta' }}</span>
+                    </td>
+                    <td>
+                        <span class="cat-type {{ 'key' if c.cat_type == 'key_api' else '' }}">
+                            {{ 'Key API' if c.cat_type == 'key_api' else 'General' }}
+                        </span>
+                    </td>
+                    <td>{{ c.sort_order }}</td>
+                    <td><span class="badge {{ 'bg-success' if c.is_active else 'bg-secondary' }}">{{ 'Active' if c.is_active else 'Off' }}</span></td>
+                    <td>
+                        <div class="cat-actions">
+                            <a href="/categories/{{ c.id }}/edit" class="btn btn-outline-primary btn-sm">Sua</a>
+                            <a href="/categories/{{ c.id }}/delete" class="btn btn-outline-danger btn-sm" onclick="return confirmDelete()">Xoa</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
 </div>
-<div class="table-card">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Icon</th>
-                <th>Tên</th>
-                <th>Loại</th>
-                <th>Thứ tự</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for c in categories %}
-            <tr>
-                <td>{{ c.id }}</td>
-                <td>{{ c.icon }}</td>
-                <td>{{ c.name }}</td>
-                <td><span class="badge bg-info">{{ c.cat_type }}</span></td>
-                <td>{{ c.sort_order }}</td>
-                <td><span class="badge {{ 'bg-success' if c.is_active else 'bg-secondary' }}">{{ 'Active' if c.is_active
-                        else 'Off' }}</span></td>
-                <td>
-                    <a href="/categories/{{ c.id }}/edit" class="btn btn-outline-primary btn-sm">Sửa</a>
-                    <a href="/categories/{{ c.id }}/delete" class="btn btn-outline-danger btn-sm"
-                        onclick="return confirmDelete()">Xóa</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+
 <div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="/categories/add">
                 <div class="modal-header">
-                    <h5 class="modal-title">Thêm danh mục</h5><button type="button" class="btn-close"
-                        data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title">Them danh muc</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control"
-                            required></div>
-                    <div class="mb-2"><label class="form-label">Icon (emoji)</label><input name="icon"
-                            class="form-control" value="📦"></div>
-                    <div class="mb-2"><label class="form-label">Loại</label><select name="cat_type" class="form-select">
-                            <option value="key_api">🔑 Key API</option>
-                            <option value="general" selected>📦 Danh mục chung</option>
-                        </select></div>
-                    <div class="mb-2"><label class="form-label">Mô tả</label><textarea name="description"
-                            class="form-control" rows="2"></textarea></div>
-                    <div class="mb-2"><label class="form-label">Thứ tự</label><input name="sort_order" type="number"
-                            class="form-control" value="0"></div>
+                    <div class="mb-2">
+                        <label class="form-label">Ten</label>
+                        <input name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Icon</label>
+                        <input name="icon" class="form-control" value="📦">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Loai</label>
+                        <select name="cat_type" class="form-select">
+                            <option value="key_api">Key API</option>
+                            <option value="general" selected>Danh muc chung</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Mo ta</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Thu tu</label>
+                        <input name="sort_order" type="number" class="form-control" value="0">
+                    </div>
                 </div>
-                <div class="modal-footer"><button type="submit" class="btn btn-primary">Thêm</button></div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Them</button>
+                </div>
             </form>
         </div>
     </div>
 </div>
-<!-- Edit form -->
+
 {% if editing %}
-<div class="card mt-3">
-    <div class="card-header d-flex justify-content-between">
-        <h5>✏️ Sửa danh mục: {{ editing.name }}</h5>
-        <a href="/categories" class="btn btn-sm btn-secondary">Hủy</a>
-    </div>
-    <div class="card-body">
-        <form method="POST" action="/categories/{{ editing.id }}/edit">
-            <div class="row mb-2">
-                <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control"
-                        value="{{ editing.name }}" required></div>
-                <div class="col-3"><label class="form-label">Icon</label><input name="icon" class="form-control"
-                        value="{{ editing.icon }}"></div>
-            </div>
-            <div class="row mb-2">
-                <div class="col"><label class="form-label">Loại</label>
-                    <select name="cat_type" class="form-select">
-                        <option value="key_api" {{ 'selected' if editing.cat_type=='key_api' }}>🔑 Key API</option>
-                        <option value="general" {{ 'selected' if editing.cat_type not in ('key_api',) }}>📦 Danh mục
-                            chung</option>
-                    </select>
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="/categories/{{ editing.id }}/edit">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sua danh muc: {{ editing.name }}</h5>
+                    <a href="/categories" class="btn btn-sm btn-outline-secondary">Dong</a>
                 </div>
-                <div class="col-3"><label class="form-label">Thứ tự</label><input name="sort_order" type="number"
-                        class="form-control" value="{{ editing.sort_order }}"></div>
-            </div>
-            <div class="mb-2"><label class="form-label">Mô tả</label><textarea name="description" class="form-control"
-                    rows="2">{{ editing.description or '' }}</textarea></div>
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {{ 'checked' if
-                    editing.is_active }}>
-                <label class="form-check-label" for="editActive">Active</label>
-            </div>
-            <button type="submit" class="btn btn-primary">💾 Lưu</button>
-        </form>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Ten</label>
+                        <input name="name" class="form-control" value="{{ editing.name }}" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Icon</label>
+                        <input name="icon" class="form-control" value="{{ editing.icon }}">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Loai</label>
+                        <select name="cat_type" class="form-select">
+                            <option value="key_api" {{ 'selected' if editing.cat_type == 'key_api' }}>Key API</option>
+                            <option value="general" {{ 'selected' if editing.cat_type != 'key_api' }}>Danh muc chung</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Mo ta</label>
+                        <textarea name="description" class="form-control" rows="3">{{ editing.description or '' }}</textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Thu tu</label>
+                        <input name="sort_order" type="number" class="form-control" value="{{ editing.sort_order }}">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {{ 'checked' if editing.is_active }}>
+                        <label class="form-check-label" for="editActive">Active</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="/categories" class="btn btn-outline-secondary">Huy</a>
+                    <button type="submit" class="btn btn-primary">Luu</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endif %}
+
+<script>
+function confirmDelete() {
+    return confirm('Ban co chac muon xoa danh muc nay?');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    {% if editing %}
+    const editModalEl = document.getElementById('editModal');
+    if (editModalEl) {
+        const modal = new bootstrap.Modal(editModalEl);
+        editModalEl.addEventListener('hidden.bs.modal', function () {
+            window.location.href = '/categories';
+        });
+        modal.show();
+    }
+    {% endif %}
+});
+</script>
 {% endblock %}

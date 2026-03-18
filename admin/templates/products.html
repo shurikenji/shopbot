@@ -496,107 +496,113 @@
 </div>
 
 {% if editing %}
-<div class="card mt-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Sua san pham: {{ editing.name }}</h5>
-        <a href="/products" class="btn btn-sm btn-secondary">Huy</a>
-    </div>
-    <div class="card-body">
-        <form method="POST" action="/products/{{ editing.id }}/edit" id="editForm">
-            <div class="row mb-2">
-                <div class="col-md-6">
-                    <label class="form-label">Ten</label>
-                    <input name="name" class="form-control" value="{{ editing.name }}" required>
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="POST" action="/products/{{ editing.id }}/edit" id="editForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sua san pham: {{ editing.name }}</h5>
+                    <a href="/products" class="btn btn-sm btn-outline-secondary">Dong</a>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Danh muc</label>
-                    <select name="category_id" class="form-select" id="editCategorySelect" onchange="syncProductTypeOptions('edit')">
-                        {% for c in categories %}
-                        <option value="{{ c.id }}" data-cat-type="{{ c.cat_type }}" {% if c.id == editing.category_id %}selected{% endif %}>{{ c.icon }} {{ c.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <div class="row mb-2">
-                <div class="col-md-4">
-                    <label class="form-label">Loai</label>
-                    <select name="product_type" class="form-select" id="editProductType" onchange="toggleEditFields()">
-                        <option value="key_new" {% if editing.product_type == 'key_new' %}selected{% endif %}>Key moi</option>
-                        <option value="key_topup" {% if editing.product_type == 'key_topup' %}selected{% endif %}>Nap them key</option>
-                        <option value="account_stocked" {% if editing.product_type == 'account_stocked' %}selected{% endif %}>Tai khoan co san</option>
-                        <option value="service_upgrade" {% if editing.product_type == 'service_upgrade' %}selected{% endif %}>Dich vu / Nang cap</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Gia (VND)</label>
-                    <input name="price_vnd" type="number" class="form-control" value="{{ editing.price_vnd }}" required>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Stock (-1 = infinity)</label>
-                    <input name="stock" type="number" class="form-control" value="{{ editing.stock }}">
-                </div>
-            </div>
-
-            <div id="editKeyFields">
-                <div class="row mb-2">
-                    <div class="col-md-4">
-                        <label class="form-label">Server</label>
-                        <select name="server_id" id="editServerSelect" class="form-select">
-                            <option value="">- None -</option>
-                            {% for s in servers %}
-                            <option value="{{ s.id }}" {% if s.id == editing.server_id %}selected{% endif %}>{{ s.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Quota</label>
-                        <input name="quota_amount" type="number" class="form-control" value="{{ editing.quota_amount }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Dollar</label>
-                        <input name="dollar_amount" type="number" step="0.1" class="form-control" value="{{ editing.dollar_amount }}">
-                    </div>
-                </div>
-
-                <div class="mb-2" id="editGroupWrap" style="display:none;">
-                    <div class="d-flex justify-content-between align-items-end mb-1">
-                        <label class="form-label mb-0">Group override</label>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-outline-dark" onclick="clearGroupOverride('edit')">Use server default</button>
-                            <button type="button" class="btn btn-sm btn-outline-info" id="editFetchGroupBtn" onclick="fetchGroups('edit')" style="display:none;">Reload</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="editToggleGroupModeBtn" onclick="toggleGroupInputMode('edit')">List</button>
+                <div class="modal-body">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Ten</label>
+                            <input name="name" class="form-control" value="{{ editing.name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Danh muc</label>
+                            <select name="category_id" class="form-select" id="editCategorySelect" onchange="syncProductTypeOptions('edit')">
+                                {% for c in categories %}
+                                <option value="{{ c.id }}" data-cat-type="{{ c.cat_type }}" {% if c.id == editing.category_id %}selected{% endif %}>{{ c.icon }} {{ c.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
-                    <div id="editGroupInputContainer">
-                        <input name="group_name" id="editGroupInput" class="form-control" value="{{ editing.group_name or '' }}" placeholder="Enter group name...">
+
+                    <div class="row mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label">Loai</label>
+                            <select name="product_type" class="form-select" id="editProductType" onchange="toggleEditFields()">
+                                <option value="key_new" {% if editing.product_type == 'key_new' %}selected{% endif %}>Key moi</option>
+                                <option value="key_topup" {% if editing.product_type == 'key_topup' %}selected{% endif %}>Nap them key</option>
+                                <option value="account_stocked" {% if editing.product_type == 'account_stocked' %}selected{% endif %}>Tai khoan co san</option>
+                                <option value="service_upgrade" {% if editing.product_type == 'service_upgrade' %}selected{% endif %}>Dich vu / Nang cap</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Gia (VND)</label>
+                            <input name="price_vnd" type="number" class="form-control" value="{{ editing.price_vnd }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Stock (-1 = infinity)</label>
+                            <input name="stock" type="number" class="form-control" value="{{ editing.stock }}">
+                        </div>
                     </div>
-                    <div class="product-group-helper" id="editGroupStrategy"></div>
+
+                    <div id="editKeyFields">
+                        <div class="row mb-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Server</label>
+                                <select name="server_id" id="editServerSelect" class="form-select">
+                                    <option value="">- None -</option>
+                                    {% for s in servers %}
+                                    <option value="{{ s.id }}" {% if s.id == editing.server_id %}selected{% endif %}>{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quota</label>
+                                <input name="quota_amount" type="number" class="form-control" value="{{ editing.quota_amount }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Dollar</label>
+                                <input name="dollar_amount" type="number" step="0.1" class="form-control" value="{{ editing.dollar_amount }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-2" id="editGroupWrap" style="display:none;">
+                            <div class="d-flex justify-content-between align-items-end mb-1">
+                                <label class="form-label mb-0">Group override</label>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-dark" onclick="clearGroupOverride('edit')">Use server default</button>
+                                    <button type="button" class="btn btn-sm btn-outline-info" id="editFetchGroupBtn" onclick="fetchGroups('edit')" style="display:none;">Reload</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="editToggleGroupModeBtn" onclick="toggleGroupInputMode('edit')">List</button>
+                                </div>
+                            </div>
+                            <div id="editGroupInputContainer">
+                                <input name="group_name" id="editGroupInput" class="form-control" value="{{ editing.group_name or '' }}" placeholder="Enter group name...">
+                            </div>
+                            <div class="product-group-helper" id="editGroupStrategy"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2" id="editFormatWrap" style="display:none;">
+                        <label class="form-label">Format template</label>
+                        <input name="format_template" class="form-control" value="{{ editing.format_template or '' }}" placeholder="Email|Password|Cookie">
+                    </div>
+
+                    <div class="mb-2" id="editInputPromptWrap" style="display:none;">
+                        <label class="form-label">Input prompt</label>
+                        <input name="input_prompt" class="form-control" value="{{ editing.input_prompt or '' }}" placeholder="Nhap thong tin khach can cung cap...">
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label">Mo ta</label>
+                        <textarea name="description" class="form-control" rows="3">{{ editing.description or '' }}</textarea>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="editActive">Active</label>
+                    </div>
                 </div>
-            </div>
-
-            <div class="mb-2" id="editFormatWrap" style="display:none;">
-                <label class="form-label">Format template</label>
-                <input name="format_template" class="form-control" value="{{ editing.format_template or '' }}" placeholder="Email|Password|Cookie">
-            </div>
-
-            <div class="mb-2" id="editInputPromptWrap" style="display:none;">
-                <label class="form-label">Input prompt</label>
-                <input name="input_prompt" class="form-control" value="{{ editing.input_prompt or '' }}" placeholder="Nhap thong tin khach can cung cap...">
-            </div>
-
-            <div class="mb-2">
-                <label class="form-label">Mo ta</label>
-                <textarea name="description" class="form-control" rows="3">{{ editing.description or '' }}</textarea>
-            </div>
-
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
-                <label class="form-check-label" for="editActive">Active</label>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Luu</button>
-        </form>
+                <div class="modal-footer">
+                    <a href="/products" class="btn btn-outline-secondary">Huy</a>
+                    <button type="submit" class="btn btn-primary">Luu</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endif %}
@@ -922,6 +928,17 @@
                 toggleGroupInputMode('edit');
             }
         }
+
+        {% if editing %}
+        const editModalEl = document.getElementById('editModal');
+        if (editModalEl) {
+            const modal = new bootstrap.Modal(editModalEl);
+            editModalEl.addEventListener('hidden.bs.modal', function () {
+                window.location.href = '/products';
+            });
+            modal.show();
+        }
+        {% endif %}
     });
 </script>
 {% endblock %}

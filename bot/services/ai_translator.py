@@ -6,11 +6,35 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from db.database import get_db
 from db.queries import settings
 
 logger = logging.getLogger(__name__)
+CJK_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+ENGLISH_FALLBACK_REPLACEMENTS = (
+    ("默认分组", "Default Group"),
+    ("默认", "Default"),
+    ("官转", "Official Relay"),
+    ("官方", "Official"),
+    ("官逆", "Official Reverse"),
+    ("逆向", "Reverse"),
+    ("无审", "Unfiltered"),
+    ("高并发", "High Concurrency"),
+    ("低并发", "Low Concurrency"),
+    ("高可用", "High Availability"),
+    ("企业级", "Enterprise"),
+    ("专属", "Dedicated"),
+    ("特价", "Discount"),
+    ("优质", "Premium"),
+    ("直连", "Direct"),
+    ("慢速", "Slow"),
+    ("渠道", "Route"),
+    ("可用站内大部分模型", "Most Models"),
+    ("大模型", "Model Pool"),
+    ("分组", "Group"),
+)
 
 
 class AITranslator:
@@ -35,6 +59,65 @@ class AITranslator:
         """Check if AI is properly configured."""
         return bool(self.enabled and self.api_key)
 
+    def _contains_cjk(self, text: object) -> bool:
+        return bool(text and CJK_RE.search(str(text)))
+
+    def _needs_translation_refresh(self, group: dict, cached: dict | None = None) -> bool:
+        current = cached or group
+        return (
+            not current.get("name_en")
+            or not current.get("name_vi")
+            or self._contains_cjk(current.get("name_en"))
+            or self._contains_cjk(current.get("desc_en"))
+        )
+
+    def _fallback_english_text(self, text: object) -> str:
+        if not text:
+            return ""
+        value = str(text)
+        for source, target in ENGLISH_FALLBACK_REPLACEMENTS:
+            value = value.replace(source, f" {target} ")
+        value = value.replace("（", "(").replace("）", ")")
+        value = re.sub(r"[\[\]{}]", " ", value)
+        value = CJK_RE.sub(" ", value)
+        value = re.sub(r"\s*[-_/,:;]+\s*", " ", value)
+        value = re.sub(r"\(\s*([^)]+?)\s*\)", r" \1 ", value)
+        value = re.sub(r"\s+", " ", value).strip(" -_,")
+        return value
+
+    def _sanitize_translation_payload(self, translations: dict[str, dict], groups: list[dict] | None = None) -> dict[str, dict]:
+        source_map = {
+            (group.get("name") or ""): group for group in (groups or [])
+        }
+        cleaned: dict[str, dict] = {}
+        for original_name, trans in translations.items():
+            group = source_map.get(original_name, {})
+            source_text = group.get("translation_source") or group.get("desc") or original_name
+            name_en = (trans.get("name_en") or "").strip()
+            desc_en = (trans.get("desc_en") or "").strip()
+
+            if not name_en or self._contains_cjk(name_en):
+                name_en = (
+                    self._fallback_english_text(name_en)
+                    or self._fallback_english_text(original_name)
+                    or self._fallback_english_text(source_text)
+                    or original_name
+                )
+
+            if not desc_en or self._contains_cjk(desc_en):
+                desc_en = (
+                    self._fallback_english_text(desc_en)
+                    or self._fallback_english_text(source_text)
+                    or name_en
+                )
+
+            cleaned[original_name] = {
+                **trans,
+                "name_en": name_en,
+                "desc_en": desc_en,
+            }
+        return cleaned
+
     async def translate_groups(
         self, groups: list[dict], api_type: str
     ) -> list[dict]:
@@ -55,7 +138,7 @@ class AITranslator:
         # Filter groups that need translation
         groups_needing_translation = []
         for group in groups:
-            if not group.get("name_en") or not group.get("name_vi"):
+            if self._needs_translation_refresh(group):
                 groups_needing_translation.append(group)
 
         if not groups_needing_translation:
@@ -68,7 +151,10 @@ class AITranslator:
         )
 
         # Filter out already cached
-        to_translate = [g for g in groups_needing_translation if g["name"] not in cached]
+        to_translate = [
+            g for g in groups_needing_translation
+            if self._needs_translation_refresh(g, cached.get(g["name"]))
+        ]
         
         if not to_translate:
             # Apply cached translations
@@ -76,6 +162,7 @@ class AITranslator:
 
         # Call AI for new translations
         new_translations = await self._call_ai(to_translate, api_type)
+        new_translations = self._sanitize_translation_payload(new_translations, to_translate)
         
         # Save to cache
         await self._save_translations(new_translations, api_type)
@@ -148,18 +235,34 @@ class AITranslator:
         for group in groups:
             name = group.get("name", "")
             trans = translations.get(name, {})
+            source_text = group.get("translation_source") or group.get("desc") or name
             
             # Determine label_vi
             label_vi = trans.get("name_vi") or name
+            name_en = trans.get("name_en") or group.get("name_en") or name
+            if self._contains_cjk(name_en):
+                name_en = (
+                    self._fallback_english_text(name)
+                    or self._fallback_english_text(source_text)
+                    or name
+                )
+
+            desc_en = trans.get("desc_en") or group.get("desc", "")
+            if self._contains_cjk(desc_en):
+                desc_en = (
+                    self._fallback_english_text(desc_en)
+                    or self._fallback_english_text(source_text)
+                    or name_en
+                )
             
             result.append({
                 **group,
-                "name_en": trans.get("name_en") or group.get("name_en") or name,
+                "name_en": name_en,
                 "name_vi": label_vi,
-                "label_en": trans.get("name_en") or group.get("name_en") or name,
+                "label_en": name_en,
                 "label_vi": label_vi,
                 "category": trans.get("category") or "Other",
-                "desc_en": trans.get("desc_en") or group.get("desc", ""),
+                "desc_en": desc_en,
                 "desc_vi": trans.get("desc_vi", ""),
             })
         return result
@@ -187,6 +290,8 @@ For each group name, provide:
 
 Use `source_text` as the richer context when it contains Chinese text, pricing hints, route labels, or quality notes.
 Keep `name_en` concise and admin-friendly. Preserve well-known model or provider names like Azure, Claude Code, Gemini, Kimi, Grok.
+`name_en` and `desc_en` must be fully English. Do not leave any Chinese characters, untranslated fragments, or mixed Chinese-English output.
+If the original label mixes English brands with Chinese qualifiers, keep the brand and translate the qualifier into natural English.
 Do not include numeric ratios inside `name_en` unless the ratio is essential to distinguish the group.
 
 Respond in JSON format:
@@ -388,7 +493,7 @@ Respond with JSON only."""
             end = content.rfind("}") + 1
             if start >= 0 and end > start:
                 json_str = content[start:end]
-                return json.loads(json_str)
+                return self._sanitize_translation_payload(json.loads(json_str))
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI response: {e}")
         return {}

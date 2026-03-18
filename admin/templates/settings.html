@@ -1,147 +1,348 @@
 {% extends "base.html" %}
-{% block title %}Cài đặt{% endblock %}
+{% block title %}Cai dat{% endblock %}
 {% block content %}
-<div class="page-header">
-    <h1>⚙️ Cài đặt</h1>
-</div>
-<form method="POST" action="/settings/save">
-    <div class="row g-3">
-        <div class="col-md-6">
-            <div class="table-card p-3">
-                <h6>🏦 MBBank</h6>
-                {% for key in
-                ['mb_api_url','mb_api_key','mb_username','mb_password','mb_account_no','mb_account_name','mb_bank_id']
-                %}
-                <div class="mb-2">
-                    <label class="form-label small">{{ key }}</label>
-                    <input name="{{ key }}" class="form-control form-control-sm" value="{{ all_settings.get(key, '') }}"
-                        {% if 'password' in key or 'key' in key %}type="password" {% endif %}>
-                </div>
-                {% endfor %}
-            </div>
+<style>
+    :root {
+        --settings-ink: #15293f;
+        --settings-panel: rgba(255,255,255,0.96);
+        --settings-line: rgba(21, 41, 63, 0.09);
+        --settings-soft: #eef4f8;
+        --settings-accent: #f5a524;
+    }
+
+    .settings-shell {
+        display: grid;
+        gap: 1rem;
+        padding-bottom: 5rem;
+    }
+
+    .settings-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1.35rem 1.45rem;
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at top right, rgba(245,165,36,0.18), transparent 34%),
+            linear-gradient(135deg, #10263d, #23435c);
+        color: #f8fbff;
+        box-shadow: 0 20px 48px rgba(16, 38, 61, 0.16);
+    }
+
+    .settings-hero h1 {
+        margin: 0;
+        font-size: 1.9rem;
+    }
+
+    .settings-hero p {
+        margin: 0.4rem 0 0;
+        max-width: 760px;
+        color: rgba(248, 251, 255, 0.78);
+    }
+
+    .settings-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.95fr;
+        gap: 1rem;
+    }
+
+    .settings-stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .settings-card {
+        background: var(--settings-panel);
+        border: 1px solid var(--settings-line);
+        border-radius: 24px;
+        padding: 1.15rem 1.2rem;
+        box-shadow: 0 14px 34px rgba(21, 41, 63, 0.07);
+    }
+
+    .settings-card h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        color: var(--settings-ink);
+    }
+
+    .settings-card p {
+        margin: 0.3rem 0 0.95rem;
+        color: #64748b;
+        font-size: 0.92rem;
+    }
+
+    .settings-card .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .settings-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem 0.95rem;
+    }
+
+    .settings-field label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: #37516a;
+    }
+
+    .settings-field.full {
+        grid-column: 1 / -1;
+    }
+
+    .settings-field .form-text {
+        margin-top: 0.3rem;
+        font-size: 0.79rem;
+    }
+
+    .settings-messages {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+    }
+
+    .settings-message-card {
+        border-radius: 18px;
+        border: 1px solid rgba(21, 41, 63, 0.08);
+        background: linear-gradient(180deg, rgba(247,249,252,0.96), rgba(241,245,249,0.94));
+        padding: 0.95rem;
+    }
+
+    .settings-message-card h3 {
+        margin: 0 0 0.35rem;
+        font-size: 0.95rem;
+        color: var(--settings-ink);
+    }
+
+    .settings-message-card .form-text {
+        margin-top: 0.35rem;
+        font-size: 0.78rem;
+    }
+
+    .settings-savebar {
+        position: sticky;
+        bottom: 0.8rem;
+        display: flex;
+        justify-content: flex-end;
+        z-index: 20;
+    }
+
+    .settings-savebar-inner {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 0.9rem;
+        border-radius: 999px;
+        background: rgba(16, 38, 61, 0.92);
+        color: #f8fbff;
+        box-shadow: 0 18px 34px rgba(16, 38, 61, 0.24);
+    }
+
+    .settings-savebar small {
+        color: rgba(248,251,255,0.74);
+    }
+
+    @media (max-width: 1100px) {
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .settings-hero {
+            flex-direction: column;
+        }
+
+        .settings-mini-grid,
+        .settings-messages {
+            grid-template-columns: 1fr;
+        }
+
+        .settings-savebar {
+            position: static;
+        }
+    }
+</style>
+
+<form method="POST" action="/settings/save" class="settings-shell">
+    <section class="settings-hero">
+        <div>
+            <h1>Admin Control Center</h1>
+            <p>Cac nhom cai dat duoc tach thanh tung khu vuc rieng: thanh toan, van hanh bot, AI translation, va message templates. Layout nay giu duoc nhieu thong tin ma van de scan khi danh sach field dai.</p>
         </div>
-        <div class="col-md-6">
-            <div class="table-card p-3 mb-3">
-                <h6>⏱ Poller & QR</h6>
-                {% for key in ['poll_interval','order_expire_min','vietqr_template'] %}
-                <div class="mb-2">
-                    <label class="form-label small">{{ key }}</label>
-                    <input name="{{ key }}" class="form-control form-control-sm"
-                        value="{{ all_settings.get(key, '') }}">
-                </div>
-                {% endfor %}
-            </div>
-            <div class="table-card p-3 mb-3">
-                <h6>🤖 Bot</h6>
-                {% for key in
-                ['bot_name','bot_description','welcome_message','support_url','support_text','pagination_size','admin_telegram_ids']
-                %}
-                <div class="mb-2">
-                    <label class="form-label small">{{ key }}</label>
-                    <input name="{{ key }}" class="form-control form-control-sm"
-                        value="{{ all_settings.get(key, '') }}">
-                </div>
-                {% endfor %}
-            </div>
-            <div class="table-card p-3">
-                <h6>🔐 Admin</h6>
-                <div class="mb-2">
-                    <label class="form-label small">admin_password</label>
-                    <input name="admin_password" type="password" class="form-control form-control-sm"
-                        value="{{ all_settings.get('admin_password', '') }}">
-                </div>
-            </div>
+        <div class="d-flex flex-column align-items-end gap-2">
+            <span class="badge text-bg-light">Settings Dashboard</span>
+            <small>Cap nhat truc tiep vao database</small>
         </div>
-        <!-- AI Settings -->
-        <div class="col-md-6">
-            <div class="table-card p-3 mb-3">
-                <h6>🤖 AI Translation</h6>
-                <p class="text-muted small mb-3">Dịch và phân loại groups tự động bằng AI.</p>
-                <div class="mb-2">
-                    <label class="form-label small">Provider</label>
-                    <select name="ai_provider" class="form-select form-select-sm" id="ai_provider">
-                        {% for p in ai_providers %}
-                        <option value="{{ p.value }}" {% if all_settings.get('ai_provider') == p.value %}selected{% endif %}>{{ p.label }}</option>
-                        {% endfor %}
-                    </select>
+    </section>
+
+    <div class="settings-grid">
+        <div class="settings-stack">
+            <section class="settings-card">
+                <div class="section-head">
+                    <div>
+                        <h2>MBBank Gateway</h2>
+                        <p>Thong tin ket noi ngan hang va tai khoan nhan tien.</p>
+                    </div>
                 </div>
-                <div class="mb-2">
-                    <label class="form-label small">API Key</label>
-                    <input name="ai_api_key" type="password" class="form-control form-control-sm"
-                        value="{{ all_settings.get('ai_api_key', '') }}" placeholder="sk-...">
+                <div class="settings-mini-grid">
+                    {% for key in ['mb_api_url','mb_api_key','mb_username','mb_password','mb_account_no','mb_account_name','mb_bank_id'] %}
+                    <div class="settings-field {{ 'full' if key == 'mb_api_url' else '' }}">
+                        <label>{{ key }}</label>
+                        <input
+                            name="{{ key }}"
+                            class="form-control"
+                            value="{{ all_settings.get(key, '') }}"
+                            {% if 'password' in key or 'key' in key %}type="password"{% endif %}
+                        >
+                    </div>
+                    {% endfor %}
                 </div>
-                <div class="mb-2">
-                    <label class="form-label small">Model</label>
-                    <input name="ai_model" class="form-control form-control-sm" id="ai_model"
-                        list="ai_model_suggestions" value="{{ all_settings.get('ai_model', '') }}"
-                        placeholder="Nhập model, ví dụ: gpt-4o-mini hoặc llama3.1:8b">
-                    <datalist id="ai_model_suggestions">
-                        {% for m in ai_models.get(all_settings.get('ai_provider', 'openai'), []) %}
-                        <option value="{{ m }}"></option>
-                        {% endfor %}
-                    </datalist>
+            </section>
+
+            <section class="settings-card">
+                <div class="section-head">
+                    <div>
+                        <h2>Delivery Templates</h2>
+                        <p>Noi dung gui den user sau khi thanh toan hoac giao hang. Ho tro HTML Telegram.</p>
+                    </div>
                 </div>
-                <div class="mb-2" id="base_url_field" style="display: none;">
-                    <label class="form-label small">Base URL</label>
-                    <input name="ai_base_url" type="text" class="form-control form-control-sm"
-                        value="{{ all_settings.get('ai_base_url', '') }}" placeholder="http://localhost:11434">
-                    <div class="form-text">URL của OpenAI Compatible API (Ollama, LM Studio, v.v.)</div>
-                </div>
-                <div class="mb-2 form-check">
-                    <input type="checkbox" class="form-check-input" id="ai_enabled" name="ai_enabled" value="true"
-                        {% if all_settings.get('ai_enabled') == 'true' %}checked{% endif %}>
-                    <label class="form-check-label" for="ai_enabled">Bật AI Translation</label>
-                </div>
-                <button type="button" class="btn btn-outline-primary btn-sm" onclick="testAI()">🔗 Test Connection</button>
-                <span id="ai_test_result"></span>
-            </div>
-        </div>
-        <!-- Row 2: Messages -->
-        <div class="col-12">
-            <div class="table-card p-3">
-                <h6>📨 Nội dung thông báo giao hàng</h6>
-                <p class="text-muted small mb-3">Hỗ trợ HTML Telegram. Biến: xem gợi ý bên dưới mỗi ô.</p>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label small fw-bold">Key API mới (msg_key_new)</label>
-                        <textarea name="msg_key_new" class="form-control form-control-sm font-monospace"
-                            rows="6">{{ all_settings.get('msg_key_new', '') }}</textarea>
+                <div class="settings-messages">
+                    <div class="settings-message-card">
+                        <h3>Key API moi</h3>
+                        <textarea name="msg_key_new" class="form-control font-monospace" rows="7">{{ all_settings.get('msg_key_new', '') }}</textarea>
                         <div class="form-text">{order_code}, {api_key}, {dollar}, {server}</div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label small fw-bold">Nạp key cũ (msg_key_topup)</label>
-                        <textarea name="msg_key_topup" class="form-control form-control-sm font-monospace"
-                            rows="6">{{ all_settings.get('msg_key_topup', '') }}</textarea>
-                        <div class="form-text">{order_code}, {api_key}, {dollar_before}, {dollar_added}, {dollar_after}
-                        </div>
+                    <div class="settings-message-card">
+                        <h3>Nap key cu</h3>
+                        <textarea name="msg_key_topup" class="form-control font-monospace" rows="7">{{ all_settings.get('msg_key_topup', '') }}</textarea>
+                        <div class="form-text">{order_code}, {api_key}, {dollar_before}, {dollar_added}, {dollar_after}</div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label small fw-bold">ChatGPT auto (msg_chatgpt)</label>
-                        <textarea name="msg_chatgpt" class="form-control form-control-sm font-monospace"
-                            rows="6">{{ all_settings.get('msg_chatgpt', '') }}</textarea>
+                    <div class="settings-message-card">
+                        <h3>ChatGPT auto</h3>
+                        <textarea name="msg_chatgpt" class="form-control font-monospace" rows="7">{{ all_settings.get('msg_chatgpt', '') }}</textarea>
                         <div class="form-text">{order_code}, {account_data}</div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label small fw-bold">Nạp ví thành công (msg_wallet_topup)</label>
-                        <textarea name="msg_wallet_topup" class="form-control form-control-sm font-monospace"
-                            rows="6">{{ all_settings.get('msg_wallet_topup', '') }}</textarea>
+                    <div class="settings-message-card">
+                        <h3>Nap vi thanh cong</h3>
+                        <textarea name="msg_wallet_topup" class="form-control font-monospace" rows="7">{{ all_settings.get('msg_wallet_topup', '') }}</textarea>
                         <div class="form-text">{order_code}, {amount}, {balance}</div>
                     </div>
                 </div>
-            </div>
+            </section>
+        </div>
+
+        <div class="settings-stack">
+            <section class="settings-card">
+                <div class="section-head">
+                    <div>
+                        <h2>Poller & QR</h2>
+                        <p>Cac tham so cho polling, thoi gian het han va mau VietQR.</p>
+                    </div>
+                </div>
+                <div class="settings-mini-grid">
+                    {% for key in ['poll_interval','order_expire_min','vietqr_template'] %}
+                    <div class="settings-field full">
+                        <label>{{ key }}</label>
+                        <input name="{{ key }}" class="form-control" value="{{ all_settings.get(key, '') }}">
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="settings-card">
+                <div class="section-head">
+                    <div>
+                        <h2>Bot & Admin</h2>
+                        <p>Mo ta bot, support va cai dat phan trang quan tri.</p>
+                    </div>
+                </div>
+                <div class="settings-mini-grid">
+                    {% for key in ['bot_name','bot_description','welcome_message','support_url','support_text','pagination_size','admin_telegram_ids'] %}
+                    <div class="settings-field {{ 'full' if key in ['welcome_message','bot_description','support_text','admin_telegram_ids'] else '' }}">
+                        <label>{{ key }}</label>
+                        <input name="{{ key }}" class="form-control" value="{{ all_settings.get(key, '') }}">
+                    </div>
+                    {% endfor %}
+                    <div class="settings-field full">
+                        <label>admin_password</label>
+                        <input name="admin_password" type="password" class="form-control" value="{{ all_settings.get('admin_password', '') }}">
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-card">
+                <div class="section-head">
+                    <div>
+                        <h2>AI Translation</h2>
+                        <p>Dich va phan loai groups tu dong. Base URL chi hien khi dung OpenAI Compatible.</p>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="testAI()">Test Connection</button>
+                </div>
+                <div class="settings-mini-grid">
+                    <div class="settings-field full">
+                        <label>Provider</label>
+                        <select name="ai_provider" class="form-select" id="ai_provider">
+                            {% for p in ai_providers %}
+                            <option value="{{ p.value }}" {% if all_settings.get('ai_provider') == p.value %}selected{% endif %}>{{ p.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="settings-field full">
+                        <label>API Key</label>
+                        <input name="ai_api_key" type="password" class="form-control" value="{{ all_settings.get('ai_api_key', '') }}" placeholder="sk-...">
+                    </div>
+                    <div class="settings-field full">
+                        <label>Model</label>
+                        <input name="ai_model" class="form-control" id="ai_model" list="ai_model_suggestions" value="{{ all_settings.get('ai_model', '') }}" placeholder="gpt-4o-mini, llama3.1:8b, gemini-2.0-flash">
+                        <datalist id="ai_model_suggestions">
+                            {% for m in ai_models.get(all_settings.get('ai_provider', 'openai'), []) %}
+                            <option value="{{ m }}"></option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="settings-field full" id="base_url_field" style="display:none;">
+                        <label>Base URL</label>
+                        <input name="ai_base_url" type="text" class="form-control" value="{{ all_settings.get('ai_base_url', '') }}" placeholder="http://localhost:11434">
+                        <div class="form-text">URL cho OpenAI Compatible API nhu Ollama, LM Studio hoac gateway tu custom provider.</div>
+                    </div>
+                    <div class="settings-field full">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="ai_enabled" name="ai_enabled" value="true" {% if all_settings.get('ai_enabled') == 'true' %}checked{% endif %}>
+                            <label class="form-check-label" for="ai_enabled">Bat AI Translation</label>
+                        </div>
+                        <div class="form-text" id="ai_test_result">Kiem tra ket noi truoc khi luu neu thay doi provider hoac model.</div>
+                    </div>
+                </div>
+            </section>
         </div>
     </div>
-    <div class="mt-3"><button type="submit" class="btn btn-primary">💾 Lưu cài đặt</button></div>
+
+    <div class="settings-savebar">
+        <div class="settings-savebar-inner">
+            <small>Chua luu thay doi? Bam de cap nhat ngay.</small>
+            <button type="submit" class="btn btn-warning btn-sm">Luu cai dat</button>
+        </div>
+    </div>
 </form>
+
 <script>
-// Update AI models when provider changes
 document.getElementById('ai_provider').addEventListener('change', function() {
     const provider = this.value;
     const modelInput = document.getElementById('ai_model');
     const modelSuggestions = document.getElementById('ai_model_suggestions');
     const baseUrlField = document.getElementById('base_url_field');
     const models = {{ ai_models | tojson }};
-    
+
     modelSuggestions.innerHTML = '';
     (models[provider] || []).forEach(function(m) {
         const opt = document.createElement('option');
@@ -152,22 +353,14 @@ document.getElementById('ai_provider').addEventListener('change', function() {
     if (!modelInput.value.trim() && (models[provider] || []).length > 0) {
         modelInput.value = models[provider][0];
     }
-    
-    // Show/hide base_url field based on provider
-    if (provider === 'openai_compatible') {
-        baseUrlField.style.display = 'block';
-    } else {
-        baseUrlField.style.display = 'none';
-    }
+
+    baseUrlField.style.display = provider === 'openai_compatible' ? 'block' : 'none';
 });
 
-// Show base_url field on page load if provider is openai_compatible
 document.addEventListener('DOMContentLoaded', function() {
     const provider = document.getElementById('ai_provider').value;
     const baseUrlField = document.getElementById('base_url_field');
-    if (provider === 'openai_compatible') {
-        baseUrlField.style.display = 'block';
-    }
+    baseUrlField.style.display = provider === 'openai_compatible' ? 'block' : 'none';
 });
 
 async function testAI() {
@@ -176,16 +369,16 @@ async function testAI() {
     const model = document.getElementById('ai_model').value;
     const baseUrl = document.querySelector('input[name="ai_base_url"]').value;
     const resultSpan = document.getElementById('ai_test_result');
-    
-    resultSpan.textContent = ' Testing...';
-    resultSpan.className = '';
-    
+
+    resultSpan.textContent = 'Dang test ket noi...';
+    resultSpan.className = 'form-text text-muted';
+
     const formData = new FormData();
     formData.append('provider', provider);
     formData.append('api_key', apiKey);
     formData.append('model', model);
     formData.append('base_url', baseUrl);
-    
+
     try {
         const resp = await fetch('/settings/ai/test', {
             method: 'POST',
@@ -193,15 +386,15 @@ async function testAI() {
         });
         const data = await resp.json();
         if (data.success) {
-            resultSpan.textContent = ' ✅ Connected!';
-            resultSpan.className = 'text-success';
+            resultSpan.textContent = 'Ket noi thanh cong.';
+            resultSpan.className = 'form-text text-success';
         } else {
-            resultSpan.textContent = ' ❌ ' + data.message;
-            resultSpan.className = 'text-danger';
+            resultSpan.textContent = data.message || 'Khong the ket noi.';
+            resultSpan.className = 'form-text text-danger';
         }
-    } catch(e) {
-        resultSpan.textContent = ' ❌ Error: ' + e.message;
-        resultSpan.className = 'text-danger';
+    } catch (e) {
+        resultSpan.textContent = 'Loi: ' + e.message;
+        resultSpan.className = 'form-text text-danger';
     }
 }
 </script>
