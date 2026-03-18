@@ -166,9 +166,30 @@
         border-color: rgba(14,173,105,0.18);
     }
 
+    .product-chip.inherited {
+        background: rgba(33, 150, 243, 0.12);
+        border-color: rgba(33, 150, 243, 0.18);
+    }
+
     .product-meta {
         color: #667085;
         font-size: 0.86rem;
+    }
+
+    .product-group-helper {
+        margin-top: 0.55rem;
+        padding: 0.7rem 0.85rem;
+        border-radius: 14px;
+        border: 1px dashed rgba(20,33,61,0.14);
+        background: rgba(20,33,61,0.035);
+        color: #41506a;
+        font-size: 0.88rem;
+        line-height: 1.45;
+    }
+
+    .product-group-helper code {
+        color: #0f4c81;
+        font-size: 0.83rem;
     }
 
     .product-type-badge {
@@ -254,7 +275,7 @@
         <div class="product-hero-top">
             <div>
                 <h1>Product Control Deck</h1>
-                <p>The table below now exposes server, group, delivery mode, and short description directly in each row so API products are easier to distinguish.</p>
+                <p>Products now surface whether a key package uses its own group override or inherits the server default group set, so multi-group server configuration stays meaningful.</p>
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a href="/products/auto-generate" class="btn btn-light btn-sm">Auto-generate</a>
@@ -310,13 +331,20 @@
                             {% if p.srv_name and p.srv_name != '-' %}
                             <span class="product-chip server">{{ p.srv_name }}</span>
                             {% endif %}
-                            {% if p.group_name %}
-                            <span class="product-chip group">{{ p.group_name }}</span>
+                            {% if p.effective_group_name %}
+                            <span class="product-chip group {{ 'inherited' if p.uses_server_default_group else '' }}">
+                                {{ p.effective_group_name }}
+                            </span>
                             {% endif %}
                         </div>
                         <div class="product-meta">
                             {% if p.server_id %}
                             Linked API server #{{ p.server_id }}
+                            {% if p.uses_server_default_group %}
+                            <br>Group strategy: inherit from server default
+                            {% elif p.group_name %}
+                            <br>Group strategy: product override
+                            {% endif %}
                             {% else %}
                             No server linked
                             {% endif %}
@@ -431,8 +459,9 @@
 
                         <div class="mb-2" id="addGroupWrap" style="display:none;">
                             <div class="d-flex justify-content-between align-items-end mb-1">
-                                <label class="form-label mb-0">Group name</label>
+                                <label class="form-label mb-0">Group override</label>
                                 <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-dark" onclick="clearGroupOverride('add')">Use server default</button>
                                     <button type="button" class="btn btn-sm btn-outline-info" id="addFetchGroupBtn" onclick="fetchGroups('add')" style="display:none;">Reload</button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary" id="addToggleGroupModeBtn" onclick="toggleGroupInputMode('add')">List</button>
                                 </div>
@@ -440,6 +469,7 @@
                             <div id="addGroupInputContainer">
                                 <input name="group_name" id="addGroupInput" class="form-control" placeholder="Enter group name...">
                             </div>
+                            <div class="product-group-helper" id="addGroupStrategy"></div>
                         </div>
                     </div>
 
@@ -532,8 +562,9 @@
 
                 <div class="mb-2" id="editGroupWrap" style="display:none;">
                     <div class="d-flex justify-content-between align-items-end mb-1">
-                        <label class="form-label mb-0">Group name</label>
+                        <label class="form-label mb-0">Group override</label>
                         <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-dark" onclick="clearGroupOverride('edit')">Use server default</button>
                             <button type="button" class="btn btn-sm btn-outline-info" id="editFetchGroupBtn" onclick="fetchGroups('edit')" style="display:none;">Reload</button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="editToggleGroupModeBtn" onclick="toggleGroupInputMode('edit')">List</button>
                         </div>
@@ -541,6 +572,7 @@
                     <div id="editGroupInputContainer">
                         <input name="group_name" id="editGroupInput" class="form-control" value="{{ editing.group_name or '' }}" placeholder="Enter group name...">
                     </div>
+                    <div class="product-group-helper" id="editGroupStrategy"></div>
                 </div>
             </div>
 
@@ -573,6 +605,80 @@
 <script>
     let groupsDataMap = {};
     const groupInputMode = { add: 'manual', edit: 'manual' };
+    const serverMetaMap = {
+        {% for s in servers %}
+        "{{ s.id }}": {
+            name: {{ (s.name or '')|tojson }},
+            defaultGroup: {{ (s.default_group or '')|tojson }},
+            supportsMultiGroup: {{ 1 if s.supports_multi_group else 0 }}
+        },
+        {% endfor %}
+    };
+
+    function splitGroups(rawValue) {
+        return (rawValue || '')
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean);
+    }
+
+    function getServerMeta(prefix) {
+        const serverSelect = document.getElementById(`${prefix}ServerSelect`);
+        return serverSelect ? serverMetaMap[serverSelect.value] || null : null;
+    }
+
+    function attachGroupInputListeners(prefix) {
+        const input = document.getElementById(`${prefix}GroupInput`);
+        if (!input) return;
+        input.addEventListener('input', () => updateGroupStrategy(prefix));
+        input.addEventListener('change', () => updateGroupStrategy(prefix));
+    }
+
+    function updateGroupStrategy(prefix) {
+        const helper = document.getElementById(`${prefix}GroupStrategy`);
+        const typeSelect = document.getElementById(`${prefix}ProductType`);
+        if (!helper || !typeSelect) return;
+
+        if (typeSelect.value !== 'key_new') {
+            helper.innerHTML = '';
+            return;
+        }
+
+        const currentInput = document.getElementById(`${prefix}GroupInput`);
+        const currentValue = currentInput ? currentInput.value.trim() : '';
+        const serverMeta = getServerMeta(prefix);
+
+        if (!serverMeta) {
+            helper.innerHTML = 'Select a server first. If this field stays blank, no group will be sent.';
+            return;
+        }
+
+        const defaultGroups = splitGroups(serverMeta.defaultGroup);
+        const defaultLabel = defaultGroups.length ? defaultGroups.join(', ') : 'none';
+
+        if (currentValue) {
+            helper.innerHTML = `Current strategy: <strong>product override</strong> with <code>${currentValue}</code>. Clear the field to inherit server default group(s): <code>${defaultLabel}</code>.`;
+            return;
+        }
+
+        if (defaultGroups.length) {
+            const mode = defaultGroups.length > 1 || serverMeta.supportsMultiGroup
+                ? 'multi-group'
+                : 'single-group';
+            helper.innerHTML = `Current strategy: <strong>inherit server default</strong> (${mode}) from <strong>${serverMeta.name}</strong>: <code>${defaultLabel}</code>.`;
+            return;
+        }
+
+        helper.innerHTML = `Server <strong>${serverMeta.name}</strong> has no default group yet. Set one here or configure <code>Default Group</code> in Servers.`;
+    }
+
+    function clearGroupOverride(prefix) {
+        const input = document.getElementById(`${prefix}GroupInput`);
+        if (input) {
+            input.value = '';
+        }
+        updateGroupStrategy(prefix);
+    }
 
     function toggleAddFields() {
         const type = document.getElementById('addProductType').value;
@@ -595,6 +701,7 @@
         if (isKeyNew) {
             checkAndFetchGroups('add');
         }
+        updateGroupStrategy('add');
     }
 
     function toggleEditFields() {
@@ -621,6 +728,7 @@
         if (isKeyNew) {
             checkAndFetchGroups('edit');
         }
+        updateGroupStrategy('edit');
     }
 
     function toggleGroupInputMode(prefix) {
@@ -636,6 +744,7 @@
             toggleBtn.classList.replace('btn-outline-secondary', 'btn-outline-primary');
             fetchBtn.style.display = 'inline-block';
             container.innerHTML = `<select name="group_name" id="${prefix}GroupInput" class="form-select"><option value="${currentValue}" selected>${currentValue || 'Loading groups...'}</option></select>`;
+            attachGroupInputListeners(prefix);
             checkAndFetchGroups(prefix);
             return;
         }
@@ -645,6 +754,8 @@
         toggleBtn.classList.replace('btn-outline-primary', 'btn-outline-secondary');
         fetchBtn.style.display = 'none';
         container.innerHTML = `<input type="text" name="group_name" id="${prefix}GroupInput" class="form-control" value="${currentValue}" placeholder="Enter group name...">`;
+        attachGroupInputListeners(prefix);
+        updateGroupStrategy(prefix);
     }
 
     function checkAndFetchGroups(prefix) {
@@ -688,7 +799,12 @@
 
             groupsDataMap = result.data;
             let selectHtml = `<select name="group_name" id="${prefix}GroupInput" class="form-select" onchange="onGroupSelectChange('${prefix}')">`;
-            selectHtml += `<option value="">- Select group -</option>`;
+            const serverMeta = getServerMeta(prefix);
+            const defaultGroups = splitGroups(serverMeta ? serverMeta.defaultGroup : '');
+            const blankLabel = defaultGroups.length
+                ? `- Use server default: ${defaultGroups.join(', ')} -`
+                : '- Select group -';
+            selectHtml += `<option value="">${blankLabel}</option>`;
 
             let hasMatch = false;
             for (const groupName in result.data) {
@@ -705,10 +821,14 @@
 
             selectHtml += `</select>`;
             container.innerHTML = selectHtml;
+            attachGroupInputListeners(prefix);
+            updateGroupStrategy(prefix);
         } catch (error) {
             console.error('Fetch groups error:', error);
             alert(`Cannot load groups: ${error.message}`);
             container.innerHTML = `<input type="text" name="group_name" id="${prefix}GroupInput" class="form-control" value="${currentValue}" placeholder="Enter group name...">`;
+            attachGroupInputListeners(prefix);
+            updateGroupStrategy(prefix);
         }
     }
 
@@ -726,6 +846,7 @@
         if (descInput && !descInput.value.trim()) {
             descInput.value = info.desc;
         }
+        updateGroupStrategy(prefix);
     }
 
     function confirmDelete() {
@@ -735,17 +856,25 @@
     document.addEventListener('DOMContentLoaded', function () {
         const addServerSelect = document.getElementById('addServerSelect');
         if (addServerSelect) {
-            addServerSelect.addEventListener('change', () => checkAndFetchGroups('add'));
+            addServerSelect.addEventListener('change', () => {
+                checkAndFetchGroups('add');
+                updateGroupStrategy('add');
+            });
         }
 
         const editServerSelect = document.getElementById('editServerSelect');
         if (editServerSelect) {
-            editServerSelect.addEventListener('change', () => checkAndFetchGroups('edit'));
+            editServerSelect.addEventListener('change', () => {
+                checkAndFetchGroups('edit');
+                updateGroupStrategy('edit');
+            });
         }
 
+        attachGroupInputListeners('add');
         toggleAddFields();
 
         if (document.getElementById('editProductType')) {
+            attachGroupInputListeners('edit');
             toggleEditFields();
             if (document.getElementById('editProductType').value === 'key_new') {
                 toggleGroupInputMode('edit');

@@ -201,10 +201,12 @@ async def _handle_standard_product(
 
     # Lấy thông tin server nếu có
     server_name = "N/A"
+    server_default_group = ""
     if product.get("server_id"):
         server = await get_server_by_id(product["server_id"])
         if server:
             server_name = server["name"]
+            server_default_group = (server.get("default_group") or "").strip()
 
     # Lấy existing_key từ FSM nếu đang topup
     fsm_data = await state.get_data()
@@ -238,10 +240,18 @@ async def _handle_standard_product(
         lines.append(f"💵 Số dư: <b>{quota_to_dollar(product['quota_amount'])}</b>")
     if product.get("dollar_amount"):
         lines.append(f"💵 Dollar: <b>{format_dollar(product['dollar_amount'])}</b>")
+    effective_group = (product.get("group_name") or server_default_group or "").strip()
+    uses_server_default_group = (
+        ptype == "key_new"
+        and not (product.get("group_name") or "").strip()
+        and bool(server_default_group)
+    )
+
     if product.get("server_id"):
         lines.append(f"🖥 Server: <b>{server_name}</b>")
-    if product.get("group_name"):
-        lines.append(f"👥 Group: <b>{product['group_name']}</b>")
+    if effective_group:
+        group_label = "Group mặc định của server" if uses_server_default_group else "Group"
+        lines.append(f"👥 {group_label}: <b>{effective_group}</b>")
     if existing_key:
         lines.append(f"🔑 Key nạp: <code>{mask_api_key(existing_key)}</code>")
 
@@ -262,7 +272,7 @@ async def _handle_standard_product(
         amount=product["price_vnd"],
         payment_method="qr",  # Default, sẽ update khi chọn
         server_id=product.get("server_id"),
-        group_name=product.get("group_name"),
+        group_name=effective_group or None,
         existing_key=existing_key,
         expired_at=expired_at,
     )

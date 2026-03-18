@@ -97,14 +97,22 @@ def _build_flash_context(request: Request) -> dict:
 
 def _decorate_products(products: list[dict], categories: list[dict], servers: list[dict]) -> None:
     cat_map = {category["id"]: category["name"] for category in categories}
-    srv_map = {server["id"]: server["name"] for server in servers}
+    srv_map = {server["id"]: server for server in servers}
 
     for product in products:
         product["cat_name"] = cat_map.get(product["category_id"], "-")
-        product["srv_name"] = (
-            srv_map.get(product.get("server_id"), "-")
-            if product.get("server_id")
-            else "-"
+        server = srv_map.get(product.get("server_id")) if product.get("server_id") else None
+        product["srv_name"] = server["name"] if server else "-"
+        product["server_default_group"] = (server.get("default_group") or "").strip() if server else ""
+        product_group = (product.get("group_name") or "").strip()
+        uses_server_default_group = (
+            product.get("product_type") == "key_new"
+            and not product_group
+            and bool(product["server_default_group"])
+        )
+        product["uses_server_default_group"] = uses_server_default_group
+        product["effective_group_name"] = (
+            product_group if product_group else product["server_default_group"] if uses_server_default_group else ""
         )
         type_label, type_theme = PRODUCT_TYPE_META.get(
             product.get("product_type", ""),

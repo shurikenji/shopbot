@@ -202,7 +202,12 @@ async def _process_key_new(bot: Bot, order: dict) -> None:
     token_name = "key_" + "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
     # Quota: ưu tiên custom_quota từ order (khi user nhập $ tùy chọn)
     quota = order.get("custom_quota") or (product["quota_amount"] if product else 0)
-    group_name = order.get("group_name") or (product.get("group_name") if product else "") or ""
+    group_name = (
+        order.get("group_name")
+        or (product.get("group_name") if product else "")
+        or server.get("default_group")
+        or ""
+    )
 
     # Get API client based on server type
     client = get_api_client(server)
