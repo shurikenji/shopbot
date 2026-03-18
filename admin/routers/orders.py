@@ -24,6 +24,14 @@ from db.queries.wallets import refund_order_to_wallet
 router = protected_router(prefix="/orders", tags=["orders"])
 
 
+def _redirect_to_orders() -> RedirectResponse:
+    return RedirectResponse("/orders", status_code=303)
+
+
+def _redirect_to_order_detail(order_id: int) -> RedirectResponse:
+    return RedirectResponse(f"/orders/{order_id}", status_code=303)
+
+
 @router.get("", response_class=HTMLResponse)
 async def orders_list(request: Request):
     page = int(request.query_params.get("page", 0))
@@ -72,7 +80,7 @@ async def order_complete(order_id: int):
     """Đánh dấu đơn `service_upgrade` là đã hoàn thành."""
     order = await get_order_by_id(order_id)
     if not order:
-        return RedirectResponse("/orders", status_code=303)
+        return _redirect_to_orders()
 
     await update_order_status(order_id, "completed")
     await notify_user(
@@ -82,13 +90,13 @@ async def order_complete(order_id: int):
             "🎉 Cảm ơn bạn đã sử dụng dịch vụ."
         ),
     )
-    return RedirectResponse(f"/orders/{order_id}", status_code=303)
+    return _redirect_to_order_detail(order_id)
 
 
 @router.get("/{order_id}/cancel")
 async def order_cancel(order_id: int):
     await cancel_order(order_id)
-    return RedirectResponse(f"/orders/{order_id}", status_code=303)
+    return _redirect_to_order_detail(order_id)
 
 
 @router.get("/{order_id}/refund")
@@ -96,13 +104,13 @@ async def order_refund(order_id: int):
     """Hoàn tiền đơn đã thanh toán về ví của người dùng."""
     order = await get_order_by_id(order_id)
     if not order:
-        return RedirectResponse("/orders", status_code=303)
+        return _redirect_to_orders()
 
     if order["status"] not in ("paid", "processing", "completed"):
-        return RedirectResponse(f"/orders/{order_id}", status_code=303)
+        return _redirect_to_order_detail(order_id)
 
     if order["product_type"] == "wallet_topup":
-        return RedirectResponse(f"/orders/{order_id}", status_code=303)
+        return _redirect_to_order_detail(order_id)
 
     new_balance = await refund_order_to_wallet(
         order_id,
@@ -111,7 +119,7 @@ async def order_refund(order_id: int):
         description=f"Admin hoàn tiền đơn {order['order_code']}",
     )
     if new_balance is None:
-        return RedirectResponse(f"/orders/{order_id}", status_code=303)
+        return _redirect_to_order_detail(order_id)
 
     await add_log(
         f"Admin hoàn tiền đơn {order['order_code']}, số tiền {format_vnd(order['amount'])}",
@@ -120,10 +128,10 @@ async def order_refund(order_id: int):
     await notify_user(
         order["user_id"],
         (
-            f"↩️ Đơn <b>{order['order_code']}</b> đã bị huỷ.\n\n"
+            f"↩️ Đơn <b>{order['order_code']}</b> đã bị hủy.\n\n"
             f"💳 Bạn được hoàn <b>{format_vnd(order['amount'])}</b> vào số dư ví.\n"
             f"👛 Số dư mới: <b>{format_vnd(new_balance)}</b>"
         ),
     )
 
-    return RedirectResponse(f"/orders/{order_id}", status_code=303)
+    return _redirect_to_order_detail(order_id)
