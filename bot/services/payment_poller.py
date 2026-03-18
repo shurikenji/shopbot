@@ -60,14 +60,29 @@ async def _poll_cycle(bot: Bot) -> None:
     """Chạy một chu kỳ poll: expire đơn, lấy giao dịch, xử lý match."""
     await _expire_old_orders(bot)
 
-    pending_orders = await get_pending_qr_orders()
+    pending_orders = await _load_pending_qr_orders()
     if not pending_orders:
         return
 
-    transactions = await fetch_transactions()
+    transactions = await _load_recent_transactions()
     if not transactions:
         return
 
+    await _process_transactions(bot, transactions)
+
+
+async def _load_pending_qr_orders() -> list[Order]:
+    """Tải danh sách đơn QR đang chờ thanh toán."""
+    return await get_pending_qr_orders()
+
+
+async def _load_recent_transactions() -> list[dict[str, Any]]:
+    """Tải feed giao dịch mới nhất từ ngân hàng."""
+    return await fetch_transactions() or []
+
+
+async def _process_transactions(bot: Bot, transactions: list[dict[str, Any]]) -> None:
+    """Xử lý tuần tự danh sách giao dịch đã tải."""
     for transaction in transactions:
         await _handle_transaction(bot, transaction)
 
@@ -426,7 +441,7 @@ async def _refund_order(bot: Bot, order: Order, reason: str) -> None:
         order["id"],
         reason=reason,
         tx_type="refund",
-        description=f"Hoàn tiền - {reason}",
+        description=_refund_transaction_description(reason),
     )
     if new_balance is None:
         logger.warning("Order %s already refunded or missing, skipping", order["order_code"])
@@ -440,28 +455,53 @@ async def _refund_order(bot: Bot, order: Order, reason: str) -> None:
 
     await notify_user(
         user_id,
-        (
-            f"↩️ <b>Hoàn tiền đơn {order['order_code']}</b>\n\n"
-            f"💰 Số tiền hoàn: <b>{format_vnd(amount)}</b>\n"
-            f"👛 Số dư mới: <b>{format_vnd(new_balance)}</b>\n"
-            f"📝 Lý do: {reason}"
+        _refund_user_message(
+            order_code=order["order_code"],
+            amount=amount,
+            new_balance=new_balance,
+            reason=reason,
         ),
         bot=bot,
     )
     await notify_admins(
-        (
-            f"↩️ Refund order <b>{order['order_code']}</b>\n"
-            f"Amount: {format_vnd(amount)}\n"
-            f"Reason: {reason}"
-        ),
+        _refund_admin_message(order_code=order["order_code"], amount=amount, reason=reason),
         bot=bot,
     )
+
+
+def _refund_transaction_description(reason: str) -> str:
+    return f"Hoàn tiền - {reason}"
+
+
+def _refund_user_message(*, order_code: str, amount: int, new_balance: int, reason: str) -> str:
+    return (
+        f"↩️ <b>Hoàn tiền đơn {order_code}</b>\n\n"
+        f"💰 Số tiền hoàn: <b>{format_vnd(amount)}</b>\n"
+        f"👛 Số dư mới: <b>{format_vnd(new_balance)}</b>\n"
+        f"📝 Lý do: {reason}"
+    )
+
+
+def _refund_admin_message(*, order_code: str, amount: int, reason: str) -> str:
+    return (
+        f"↩️ Refund order <b>{order_code}</b>\n"
+        f"Amount: {format_vnd(amount)}\n"
+        f"Reason: {reason}"
+    )
+
+
+def _expired_order_message(order_code: str) -> str:
+    return f"⌛ Đơn <b>{order_code}</b> đã hết hạn.\nVui lòng tạo đơn mới nếu cần."
+
+
+def _wallet_payment_error_message(exc: Exception) -> str:
+    return f"❌ {exc}"
 
 
 async def _expire_old_orders(bot: Bot) -> None:
     """Đánh dấu hết hạn cho các đơn QR đã quá thời gian chờ."""
     expire_minutes = await get_setting_int("order_expire_min", env_settings.order_expire_minutes)
-    pending_orders = await get_pending_qr_orders()
+    pending_orders = await _load_pending_qr_orders()
     now = datetime.utcnow()
 
     for order in pending_orders:
@@ -484,7 +524,7 @@ async def _expire_old_orders(bot: Bot) -> None:
         )
         await notify_user(
             order["user_id"],
-            f"⌛ Đơn <b>{order['order_code']}</b> đã hết hạn.\nVui lòng tạo đơn mới nếu cần.",
+            _expired_order_message(order["order_code"]),
             bot=bot,
         )
 
@@ -498,7 +538,7 @@ async def process_wallet_payment(bot: Bot, order_id: int) -> bool:
     except ValueError as exc:
         order = await get_order_by_id(order_id)
         if order:
-            await notify_user(order["user_id"], f"❌ {exc}", bot=bot)
+            await notify_user(order["user_id"], _wallet_payment_error_message(exc), bot=bot)
         return False
 
     if not order:

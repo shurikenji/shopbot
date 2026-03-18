@@ -8,6 +8,7 @@ from typing import Optional
 from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict
 
 
+_SERVER_SELECT = "SELECT * FROM api_servers"
 _SERVER_ORDER_BY = " ORDER BY sort_order ASC, id ASC"
 
 
@@ -27,7 +28,7 @@ async def get_all_servers() -> list[dict]:
 
 async def get_server_by_id(server_id: int) -> Optional[dict]:
     """Lấy server theo ID."""
-    return await fetch_one_dict("SELECT * FROM api_servers WHERE id = ?", (server_id,))
+    return await fetch_one_dict(f"{_SERVER_SELECT} WHERE id = ?", (server_id,))
 
 
 async def create_server(

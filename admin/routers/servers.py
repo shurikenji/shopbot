@@ -57,6 +57,14 @@ async def _load_servers_for_page() -> list[dict]:
     return servers
 
 
+def _redirect_to_servers() -> RedirectResponse:
+    return RedirectResponse("/servers", status_code=303)
+
+
+def _server_not_found_payload() -> dict[str, object]:
+    return {"success": False, "message": "Server not found"}
+
+
 def _build_manual_group_rows(manual_groups: str) -> list[dict]:
     return [
         {
@@ -69,6 +77,53 @@ def _build_manual_group_rows(manual_groups: str) -> list[dict]:
         for name in manual_groups.split(",")
         if name.strip()
     ]
+
+
+def _get_supports_multi_group(server: dict) -> bool:
+    return get_api_client(server).get_supports_multi_group(server)
+
+
+async def _resolve_groups_data(server: dict) -> list[dict]:
+    manual_groups = server.get("manual_groups", "")
+    if manual_groups:
+        return _build_manual_group_rows(manual_groups)
+    return await _load_and_translate_groups(server)
+
+
+def _build_groups_lookup(groups_data: list[dict]) -> dict[str, dict]:
+    return {
+        group["name"]: group
+        for group in groups_data
+        if group.get("name")
+    }
+
+
+async def _build_groups_page_context(request: Request, server: dict) -> dict[str, object]:
+    return _server_page_context(
+        request=request,
+        servers=await _load_servers_for_page(),
+        groups_server=server,
+        groups_data=await _resolve_groups_data(server),
+        supports_multi_group=_get_supports_multi_group(server),
+    )
+
+
+def _build_groups_json_payload(server: dict, groups_data: list[dict]) -> dict[str, object]:
+    return {
+        "success": True,
+        "data": _build_groups_lookup(groups_data),
+        "supports_multi_group": _get_supports_multi_group(server),
+        "api_type": server.get("api_type", "newapi"),
+    }
+
+
+def _build_groups_preview_payload(server: dict, groups_data: list[dict]) -> dict[str, object]:
+    return {
+        "success": True,
+        "data": groups_data,
+        "supports_multi_group": _get_supports_multi_group(server),
+        "api_type": server.get("api_type", "newapi"),
+    }
 
 
 def _get_server_form_payload(form) -> dict:
@@ -184,24 +239,31 @@ def _normalize_server_for_form(server: dict) -> dict:
 async def _load_and_translate_groups(server: dict) -> list[dict]:
     client = get_api_client(server)
     groups = await client.get_groups(server)
+    groups = await _translate_groups_for_server(groups, server)
+    return _normalize_group_rows(groups)
 
+
+async def _translate_groups_for_server(groups: list[dict], server: dict) -> list[dict]:
+    """Translate group metadata when the AI translator is configured."""
     translator = await get_translator()
     if translator.is_configured:
-        groups = await translator.translate_groups(groups, server.get("api_type", "newapi"))
+        return await translator.translate_groups(groups, server.get("api_type", "newapi"))
+    return groups
 
-    parsed_groups = []
-    for group in groups:
-        parsed_groups.append(
-            {
-                "name": group.get("name", ""),
-                "label_en": group.get("label_en") or group.get("name_en") or group.get("name", ""),
-                "label_vi": group.get("label_vi") or group.get("name_vi") or group.get("name", ""),
-                "ratio": group.get("ratio", 1.0),
-                "desc": group.get("desc_en") or group.get("desc", ""),
-                "category": group.get("category", "Other"),
-            }
-        )
-    return parsed_groups
+
+def _normalize_group_rows(groups: list[dict]) -> list[dict]:
+    """Normalize group records into the shape expected by admin templates and APIs."""
+    return [
+        {
+            "name": group.get("name", ""),
+            "label_en": group.get("label_en") or group.get("name_en") or group.get("name", ""),
+            "label_vi": group.get("label_vi") or group.get("name_vi") or group.get("name", ""),
+            "ratio": group.get("ratio", 1.0),
+            "desc": group.get("desc_en") or group.get("desc", ""),
+            "category": group.get("category", "Other"),
+        }
+        for group in groups
+    ]
 
 
 @router.get("", response_class=HTMLResponse)
@@ -224,7 +286,7 @@ async def servers_add(request: Request):
 async def servers_edit_page(request: Request, server_id: int):
     server = await get_server_by_id(server_id)
     if not server:
-        return RedirectResponse("/servers", status_code=303)
+        return _redirect_to_servers()
 
     templates = get_templates()
     return templates.TemplateResponse(
@@ -243,13 +305,13 @@ async def servers_edit_submit(request: Request, server_id: int):
     payload = _get_server_form_payload(form)
     payload["is_active"] = 1 if form.get("is_active") else 0
     await update_server(server_id, **payload)
-    return RedirectResponse("/servers", status_code=303)
+    return _redirect_to_servers()
 
 
 @router.get("/{server_id}/delete")
 async def servers_delete(server_id: int):
     await delete_server(server_id)
-    return RedirectResponse("/servers", status_code=303)
+    return _redirect_to_servers()
 
 
 @router.get("/{server_id}/groups", response_class=HTMLResponse)
@@ -257,19 +319,12 @@ async def servers_groups(request: Request, server_id: int):
     """Fetch groups from a server and show them in the admin UI."""
     server = await get_server_by_id(server_id)
     if not server:
-        return RedirectResponse("/servers", status_code=303)
+        return _redirect_to_servers()
 
-    client = get_api_client(server)
     templates = get_templates()
     return templates.TemplateResponse(
         "servers.html",
-        _server_page_context(
-            request=request,
-            servers=await _load_servers_for_page(),
-            groups_server=server,
-            groups_data=await _load_and_translate_groups(server),
-            supports_multi_group=client.get_supports_multi_group(server),
-        ),
+        await _build_groups_page_context(request, server),
     )
 
 
@@ -278,31 +333,10 @@ async def api_servers_groups(server_id: int):
     """Fetch groups from a server and return JSON."""
     server = await get_server_by_id(server_id)
     if not server:
-        return JSONResponse({"success": False, "message": "Server not found"})
+        return JSONResponse(_server_not_found_payload())
 
-    client = get_api_client(server)
-    manual_groups = server.get("manual_groups", "")
-    if manual_groups:
-        groups = {group["name"]: group for group in _build_manual_group_rows(manual_groups)}
-        return JSONResponse(
-            {
-                "success": True,
-                "data": groups,
-                "supports_multi_group": client.get_supports_multi_group(server),
-            }
-        )
-
-    groups = {
-        group["name"]: group
-        for group in await _load_and_translate_groups(server)
-        if group.get("name")
-    }
     return JSONResponse(
-        {
-            "success": True,
-            "data": groups,
-            "supports_multi_group": client.get_supports_multi_group(server),
-        }
+        _build_groups_json_payload(server, await _resolve_groups_data(server))
     )
 
 
@@ -314,12 +348,7 @@ async def preview_groups(request: Request):
     if not server.get("name"):
         server["name"] = "Preview Server"
 
-    client = get_api_client(server)
+    groups_data = await _resolve_groups_data(server)
     return JSONResponse(
-        {
-            "success": True,
-            "data": await _load_and_translate_groups(server),
-            "supports_multi_group": client.get_supports_multi_group(server),
-            "api_type": server.get("api_type", "newapi"),
-        }
+        _build_groups_preview_payload(server, groups_data)
     )
