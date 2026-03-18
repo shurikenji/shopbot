@@ -74,8 +74,8 @@ def _get_server_form_payload(form) -> dict:
             {
                 "user_id_header": legacy_user_id,
                 "access_token": legacy_token,
-                "supports_multi_group": 0,
-                "manual_groups": "",
+                "supports_multi_group": 1,
+                "manual_groups": _clean_str(form.get("manual_groups")),
                 "auth_type": "header",
                 "auth_user_header": "rix-api-user",
                 "auth_user_value": legacy_user_id,
@@ -126,6 +126,9 @@ def _normalize_server_for_form(server: dict) -> dict:
     server["auth_user_value"] = legacy_user_id
 
     if api_type == "rixapi":
+        server["supports_multi_group"] = 1
+        if not server["manual_groups"] and "," in server.get("default_group", ""):
+            server["manual_groups"] = server.get("default_group", "")
         server["auth_type"] = "header"
         server["auth_user_header"] = "rix-api-user"
     elif api_type == "newapi":
@@ -150,9 +153,10 @@ async def _load_and_translate_groups(server: dict) -> list[dict]:
     for g in groups:
         parsed_groups.append({
             "name": g.get("name", ""),
+            "label_en": g.get("label_en") or g.get("name_en") or g.get("name", ""),
             "label_vi": g.get("label_vi") or g.get("name_vi") or g.get("name", ""),
             "ratio": g.get("ratio", 1.0),
-            "desc": g.get("desc", ""),
+            "desc": g.get("desc_en") or g.get("desc", ""),
             "category": g.get("category", "Other"),
         })
     return parsed_groups
@@ -164,6 +168,9 @@ async def servers_list(request: Request):
     if r:
         return r
     servers = await get_all_servers()
+    for server in servers:
+        if _clean_str(server.get("api_type", "newapi"), "newapi").lower() == "rixapi":
+            server["supports_multi_group"] = 1
     templates = get_templates()
     return templates.TemplateResponse(
         "servers.html",
@@ -259,6 +266,7 @@ async def servers_groups(request: Request, server_id: int):
     if not server:
         return RedirectResponse("/servers", status_code=303)
 
+    client = get_api_client(server)
     parsed_groups = await _load_and_translate_groups(server)
     
     templates = get_templates()
@@ -270,7 +278,7 @@ async def servers_groups(request: Request, server_id: int):
             "servers": servers,
             "groups_server": server,
             "groups_data": parsed_groups,
-            "supports_multi_group": server.get("supports_multi_group", 0),
+            "supports_multi_group": client.get_supports_multi_group(server),
             "api_types": [
                 {"value": "newapi", "label": "NewAPI"},
                 {"value": "rixapi", "label": "RixAPI"},
@@ -297,24 +305,43 @@ async def api_servers_groups(request: Request, server_id: int):
     if not server:
         return JSONResponse({"success": False, "message": "Server not found"})
 
+    client = get_api_client(server)
+
     # Check for manual groups first
     manual_groups = server.get("manual_groups", "")
     if manual_groups:
         # Parse manual groups
-        groups = []
+        groups = {}
         for name in manual_groups.split(","):
             name = name.strip()
             if name:
-                groups.append({
+                groups[name] = {
                     "name": name,
+                    "label_en": name,
                     "ratio": 1.0,
                     "desc": "",
                     "category": "Other",
-                })
-        return JSONResponse({"success": True, "data": groups})
+                }
+        return JSONResponse(
+            {
+                "success": True,
+                "data": groups,
+                "supports_multi_group": client.get_supports_multi_group(server),
+            }
+        )
 
-    groups = await _load_and_translate_groups(server)
-    return JSONResponse({"success": True, "data": groups})
+    groups = {
+        group["name"]: group
+        for group in await _load_and_translate_groups(server)
+        if group.get("name")
+    }
+    return JSONResponse(
+        {
+            "success": True,
+            "data": groups,
+            "supports_multi_group": client.get_supports_multi_group(server),
+        }
+    )
 
 
 @router.post("/preview-groups")
@@ -329,12 +356,13 @@ async def preview_groups(request: Request):
     if not server.get("name"):
         server["name"] = "Preview Server"
 
+    client = get_api_client(server)
     groups = await _load_and_translate_groups(server)
     return JSONResponse(
         {
             "success": True,
             "data": groups,
-            "supports_multi_group": bool(server.get("supports_multi_group")),
+            "supports_multi_group": client.get_supports_multi_group(server),
             "api_type": server.get("api_type", "newapi"),
         }
     )

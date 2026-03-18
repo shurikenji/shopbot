@@ -18,6 +18,11 @@ class BaseAPIClient(ABC):
     """Abstract base class for API clients."""
 
     @property
+    def supports_multi_group(self) -> bool:
+        """Whether this client natively supports selecting multiple groups."""
+        return False
+
+    @property
     @abstractmethod
     def api_type(self) -> str:
         """Return API type: newapi, rixapi, or other."""
@@ -25,7 +30,7 @@ class BaseAPIClient(ABC):
 
     def get_supports_multi_group(self, server: dict) -> bool:
         """Check if server supports multi-group."""
-        return bool(server.get("supports_multi_group"))
+        return self.supports_multi_group or bool(server.get("supports_multi_group"))
 
     def get_groups_endpoint(self, server: dict) -> str:
         """Get groups endpoint from server config or use default."""

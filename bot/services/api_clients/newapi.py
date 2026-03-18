@@ -20,12 +20,15 @@ class NewAPIClient(BaseAPIClient):
         """NewAPI uses user_id_header and access_token (legacy)."""
         user_id = server.get("auth_user_value") or server.get("user_id_header", "")
         token = server.get("auth_token") or server.get("access_token", "")
-        return {
+        headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "New-Api-User": str(user_id),
-            "Authorization": f"Bearer {token}",
         }
+        if user_id:
+            headers["New-Api-User"] = str(user_id)
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        return headers
 
     def get_groups_endpoint(self, server: dict) -> str:
         """NewAPI uses /api/user/self/groups"""
@@ -43,6 +46,21 @@ class NewAPIClient(BaseAPIClient):
         NewAPI format: {"Azure": {"desc": "...", "ratio": 0.3}, ...}
         """
         groups = []
+
+        if (
+            isinstance(data, dict)
+            and isinstance(data.get("data"), dict)
+            and isinstance(data.get("ratios"), dict)
+        ):
+            descriptions = data.get("data", {})
+            ratios = data.get("ratios", {})
+            for name, desc in descriptions.items():
+                groups.append({
+                    "name": name,
+                    "ratio": ratios.get(name, 1.0),
+                    "desc": desc if isinstance(desc, str) else "",
+                })
+            return groups
         
         if isinstance(data, dict):
             for name, info in data.items():

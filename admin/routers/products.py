@@ -10,14 +10,14 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates
+from bot.services.api_clients import get_api_client
+from bot.config import settings
 from db.queries.products import (
     get_all_products, get_product_by_id,
     create_product, update_product, delete_product, get_product_delete_dependencies,
 )
 from db.queries.categories import get_all_categories
 from db.queries.servers import get_all_servers
-from bot.config import settings
-from bot.services.newapi import get_groups
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -238,11 +238,14 @@ async def auto_generate(request: Request):
         if not server["is_active"]:
             continue
 
-        groups = await get_groups(server)
+        groups = await get_api_client(server).get_groups(server)
         if not groups:
             continue
 
-        for group_name, group_info in groups.items():
+        for group_info in groups:
+            group_name = (group_info.get("name") or "").strip()
+            if not group_name:
+                continue
             # Key mới
             await create_product(
                 category_id=key_cat["id"],
@@ -253,7 +256,7 @@ async def auto_generate(request: Request):
                 quota_amount=server["quota_per_unit"],
                 dollar_amount=server["dollar_per_unit"],
                 group_name=group_name,
-                description=group_info.get("desc", "") if isinstance(group_info, dict) else "",
+                description=group_info.get("desc", ""),
             )
             count += 1
 

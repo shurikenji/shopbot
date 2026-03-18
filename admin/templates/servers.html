@@ -224,8 +224,8 @@
             <div class="d-flex flex-wrap gap-2" id="available_groups">
                 {% for g in groups_data %}
                 <button type="button" class="btn btn-outline-secondary group-btn" 
-                    data-name="{{ g.name }}" data-ratio="{{ g.ratio }}" data-label="{{ g.label_vi }}">
-                    {{ g.label_vi }} ({{ g.ratio }}x)
+                    data-name="{{ g.name }}" data-ratio="{{ g.ratio }}" data-label="{{ g.label_en or g.name }}">
+                    {{ g.label_en or g.name }} ({{ g.ratio }}x)
                 </button>
                 {% endfor %}
             </div>
@@ -249,7 +249,7 @@
                     <input class="form-check-input" type="radio" name="group_radio" id="group_{{ loop.index }}" 
                         value="{{ g.name }}" data-ratio="{{ g.ratio }}">
                     <label class="form-check-label" for="group_{{ loop.index }}">
-                        {{ g.label_vi }} ({{ g.ratio }}x)
+                        {{ g.label_en or g.name }} ({{ g.ratio }}x)
                     </label>
                 </div>
                 {% endfor %}
@@ -410,12 +410,15 @@ function renderGroupPreview(prefix, groups, isMulti) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = selected.has(group.name) ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-secondary';
-        btn.textContent = `${group.label_vi || group.name} (${group.ratio ?? 1}x)`;
+        const label = group.label_en || group.name;
+        btn.textContent = `${label} (${group.ratio ?? 1}x)`;
         btn.addEventListener('click', function () {
             if (isMulti) {
                 if (selected.has(group.name)) selected.delete(group.name);
                 else selected.add(group.name);
-                if (manualGroupsInput) manualGroupsInput.value = Array.from(selected).join(',');
+                const selectedValue = Array.from(selected).join(',');
+                if (manualGroupsInput) manualGroupsInput.value = selectedValue;
+                if (defaultGroupInput) defaultGroupInput.value = selectedValue;
             } else {
                 if (defaultGroupInput) defaultGroupInput.value = group.name;
             }

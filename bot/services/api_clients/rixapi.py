@@ -26,12 +26,17 @@ class RixAPIClient(BaseAPIClient):
         """RixAPI uses rix-api-user and access_token (legacy)."""
         user_id = server.get("auth_user_value") or server.get("user_id_header", "")
         token = server.get("auth_token") or server.get("access_token", "")
-        return {
+        headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "Rix-Api-User": str(user_id),
-            "Authorization": f"Bearer {token}",
         }
+        if user_id:
+            headers["Rix-Api-User"] = str(user_id)
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        if server.get("auth_cookie"):
+            headers["Cookie"] = str(server["auth_cookie"])
+        return headers
 
     def get_groups_endpoint(self, server: dict) -> str:
         """RixAPI uses /api/token/group"""
@@ -46,17 +51,28 @@ class RixAPIClient(BaseAPIClient):
         """
         Parse RixAPI groups response.
         
-        RixAPI format: [{"group": "Azure", "ratio": 0.3, "desc": "..."}, ...]
+        RixAPI format can be:
+        - [{"group": "Azure", "ratio": 0.3, "desc": "..."}, ...]
+        - [{"key": "Azure - high concurrency", "value": "Azure"}, ...]
         """
         groups = []
         
         if isinstance(data, list):
             for item in data:
                 if isinstance(item, dict):
+                    name = (
+                        item.get("value")
+                        or item.get("group")
+                        or item.get("name")
+                        or item.get("key")
+                        or "unknown"
+                    )
+                    raw_label = item.get("key") or item.get("label") or ""
                     groups.append({
-                        "name": item.get("group") or item.get("name") or "unknown",
+                        "name": name,
+                        "name_en": item.get("name_en") or name,
                         "ratio": item.get("ratio") or item.get("multiplier") or 1.0,
-                        "desc": item.get("desc") or item.get("description") or "",
+                        "desc": item.get("desc") or item.get("description") or raw_label,
                     })
         elif isinstance(data, dict):
             # Sometimes RixAPI returns object with group names as keys
@@ -64,12 +80,14 @@ class RixAPIClient(BaseAPIClient):
                 if isinstance(info, dict):
                     groups.append({
                         "name": name,
+                        "name_en": info.get("name_en") or name,
                         "ratio": info.get("ratio", 1.0),
                         "desc": info.get("desc", ""),
                     })
                 else:
                     groups.append({
                         "name": name,
+                        "name_en": name,
                         "ratio": 1.0,
                         "desc": "",
                     })
@@ -93,7 +111,8 @@ class RixAPIClient(BaseAPIClient):
                 "remain_quota": quota,
                 "expired_time": kwargs.get("expired_time", -1),
                 "name": name,
-                "TokenGroup": groups,  # RixAPI uses TokenGroup array
+                "group": ",".join(groups),
+                "TokenGroup": ",".join(groups),
             }
         else:
             return {
@@ -120,7 +139,11 @@ class RixAPIClient(BaseAPIClient):
         for key in [
             "name", "group", "TokenGroup", "expired_time",
             "key", "user_id", "created_time", "updated_time",
-            "status", "is_active", "mj_mode", "rate_limits",
+            "status", "is_active", "mj_mode", "mj_cdn", "mj_cdn_addr",
+            "remain_count", "unlimited_count", "model_limits_enabled",
+            "model_limits", "allow_ips", "exclude_ips",
+            "rate_limits_enabled", "rate_limits_time", "rate_limits_count",
+            "rate_limits_content",
         ]:
             if key in current_data:
                 payload[key] = current_data[key]

@@ -114,9 +114,10 @@ class OtherAPIClient(BaseAPIClient):
             for item in data:
                 if isinstance(item, dict):
                     groups.append({
-                        "name": item.get("group") or item.get("name") or "unknown",
+                        "name": item.get("value") or item.get("group") or item.get("name") or item.get("key") or "unknown",
+                        "name_en": item.get("name_en") or item.get("value") or item.get("group") or item.get("name") or item.get("key") or "unknown",
                         "ratio": item.get("ratio") or item.get("multiplier") or 1.0,
-                        "desc": item.get("desc") or item.get("description") or "",
+                        "desc": item.get("desc") or item.get("description") or item.get("key") or "",
                     })
         
         return groups
