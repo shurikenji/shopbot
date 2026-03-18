@@ -12,3 +12,5 @@ shopbot_src.zip
 test_phase*.py
 docs.md
 AGENTS.md
+.agents
+fetch.txt
