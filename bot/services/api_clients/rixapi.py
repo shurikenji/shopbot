@@ -105,25 +105,33 @@ class RixAPIClient(BaseAPIClient):
         
         RixAPI supports TokenGroup for multi-group.
         """
-        # Check if multi-group (comma-separated)
-        is_multi = "," in group
-        
-        if is_multi:
-            groups = [g.strip() for g in group.split(",")]
-            return {
-                "remain_quota": quota,
-                "expired_time": kwargs.get("expired_time", -1),
-                "name": name,
-                "group": ",".join(groups),
-                "TokenGroup": ",".join(groups),
-            }
-        else:
-            return {
-                "remain_quota": quota,
-                "expired_time": kwargs.get("expired_time", -1),
-                "name": name,
-                "group": group,
-            }
+        groups = [g.strip() for g in group.split(",") if g.strip()]
+        normalized_group = ",".join(groups) if groups else group
+        default_cn = "\u9ed8\u8ba4"
+
+        payload = {
+            "name": name,
+            "remain_quota": quota,
+            "remain_count": 0,
+            "expired_time": kwargs.get("expired_time", -1),
+            "unlimited_quota": False,
+            "unlimited_count": True,
+            "model_limits_enabled": False,
+            "model_limits": "",
+            "rate_limits_enabled": False,
+            "rate_limits_time": 10,
+            "rate_limits_count": 900,
+            "rate_limits_content": "",
+            "allow_ips": kwargs.get("allow_ips", ""),
+            "exclude_ips": kwargs.get("exclude_ips", ""),
+            "mj_mode": kwargs.get("mj_mode", default_cn),
+            "mj_cdn": kwargs.get("mj_cdn", default_cn),
+            "mj_cdn_addr": kwargs.get("mj_cdn_addr", ""),
+            "group": normalized_group,
+        }
+        if normalized_group:
+            payload["TokenGroup"] = normalized_group
+        return payload
 
     def build_update_payload(
         self, current_data: dict, new_quota: int, **kwargs

@@ -92,15 +92,20 @@ class NewAPIClient(BaseAPIClient):
         self, quota: int, group: str, name: str, **kwargs
     ) -> dict[str, Any]:
         """Build NewAPI create payload."""
-        return {
+        groups = [g.strip() for g in group.split(",") if g.strip()]
+        payload = {
             "remain_quota": quota,
             "expired_time": kwargs.get("expired_time", -1),
             "unlimited_quota": False,
             "model_limits_enabled": False,
+            "model_limits": "",
             "name": name,
             "group": group,  # Can be comma-separated for multi-group
             "allow_ips": kwargs.get("allow_ips", ""),
         }
+        if len(groups) > 1:
+            payload["selected_groups"] = groups
+        return payload
 
     def build_update_payload(
         self, current_data: dict, new_quota: int, **kwargs
