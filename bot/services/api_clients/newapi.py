@@ -17,17 +17,13 @@ class NewAPIClient(BaseAPIClient):
         return "newapi"
 
     def get_headers(self, server: dict) -> dict[str, str]:
-        """NewAPI uses New-Api-User header."""
-        headers = super().get_headers(server)
-        
-        # Override with NewAPI-specific header
-        user_header = server.get("auth_user_header") or server.get("user_id_header") or "new-api-user"
-        user_value = server.get("auth_user_value") or server.get("user_id_header") or ""
-        
-        if user_value:
-            headers[user_header] = str(user_value)
-        
-        return headers
+        """NewAPI uses user_id_header and access_token (legacy)."""
+        return {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "New-Api-User": str(server.get("user_id_header", "")),
+            "Authorization": f"Bearer {server.get('access_token', '')}",
+        }
 
     def get_groups_endpoint(self, server: dict) -> str:
         """NewAPI uses /api/user/self/groups"""

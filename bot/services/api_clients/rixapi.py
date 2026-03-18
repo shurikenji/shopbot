@@ -23,17 +23,13 @@ class RixAPIClient(BaseAPIClient):
         return True
 
     def get_headers(self, server: dict) -> dict[str, str]:
-        """RixAPI uses Rix-Api-User header."""
-        headers = super().get_headers(server)
-        
-        # Override with RixAPI-specific header
-        user_header = server.get("auth_user_header") or server.get("user_id_header") or "rix-api-user"
-        user_value = server.get("auth_user_value") or server.get("user_id_header") or ""
-        
-        if user_value:
-            headers[user_header] = str(user_value)
-        
-        return headers
+        """RixAPI uses rix-api-user and access_token (legacy)."""
+        return {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Rix-Api-User": str(server.get("user_id_header", "")),
+            "Authorization": f"Bearer {server.get('access_token', '')}",
+        }
 
     def get_groups_endpoint(self, server: dict) -> str:
         """RixAPI uses /api/token/group"""
