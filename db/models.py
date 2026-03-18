@@ -263,9 +263,10 @@ _DEFAULT_SETTINGS = [
     ("custom_vnd_min", "10000", "VNĐ tối thiểu đơn custom $ (floor)"),
     ("wallet_topup_max", "100000000", "Nạp ví tối đa (VNĐ)"),
     # AI Translation Settings
-    ("ai_provider", "openai", "AI provider: openai, anthropic, gemini"),
+    ("ai_provider", "openai", "AI provider: openai, openai_compatible, anthropic, gemini"),
     ("ai_api_key", "", "API key for AI translation"),
     ("ai_model", "gpt-4o-mini", "Model sử dụng cho translation"),
+    ("ai_base_url", "", "Base URL for OpenAI Compatible API (Ollama, LM Studio, etc.)"),
     ("ai_enabled", "false", "Bật/tắt AI translation"),
     # Delivery message templates
     ("msg_key_new",

@@ -20,7 +20,7 @@ _EDITABLE_KEYS = [
     "bot_name", "bot_description", "welcome_message", "support_url", "support_text",
     "pagination_size", "admin_telegram_ids", "admin_password",
     # AI settings
-    "ai_provider", "ai_api_key", "ai_model", "ai_enabled",
+    "ai_provider", "ai_api_key", "ai_model", "ai_base_url", "ai_enabled",
 ]
 
 
@@ -38,11 +38,13 @@ async def settings_page(request: Request):
             "all_settings": all_settings,
             "ai_providers": [
                 {"value": "openai", "label": "OpenAI"},
+                {"value": "openai_compatible", "label": "OpenAI Compatible (Ollama, LM Studio, etc.)"},
                 {"value": "anthropic", "label": "Anthropic"},
                 {"value": "gemini", "label": "Google Gemini"},
             ],
             "ai_models": {
                 "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+                "openai_compatible": ["llama3", "mistral", "qwen", "phi3", "gemma"],
                 "anthropic": ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022"],
                 "gemini": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
             },
@@ -74,6 +76,7 @@ async def test_ai_connection(request: Request):
     api_key = form.get("api_key", "")
     provider = form.get("provider", "openai")
     model = form.get("model", "gpt-4o-mini")
+    base_url = form.get("base_url", "")
     
     # Create temporary translator for testing
     from bot.services.ai_translator import AITranslator
@@ -81,6 +84,7 @@ async def test_ai_connection(request: Request):
     translator.api_key = api_key
     translator.provider = provider
     translator.model = model
+    translator.base_url = base_url
     translator.enabled = True
     
     success, message = await translator.test_connection()

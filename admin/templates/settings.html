@@ -78,6 +78,12 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="mb-2" id="base_url_field" style="display: none;">
+                    <label class="form-label small">Base URL</label>
+                    <input name="ai_base_url" type="text" class="form-control form-control-sm"
+                        value="{{ all_settings.get('ai_base_url', '') }}" placeholder="http://localhost:11434">
+                    <div class="form-text">URL của OpenAI Compatible API (Ollama, LM Studio, v.v.)</div>
+                </div>
                 <div class="mb-2 form-check">
                     <input type="checkbox" class="form-check-input" id="ai_enabled" name="ai_enabled" value="true"
                         {% if all_settings.get('ai_enabled') == 'true' %}checked{% endif %}>
@@ -129,6 +135,7 @@
 document.getElementById('ai_provider').addEventListener('change', function() {
     const provider = this.value;
     const modelSelect = document.getElementById('ai_model');
+    const baseUrlField = document.getElementById('base_url_field');
     const models = {{ ai_models | tojson }};
     
     modelSelect.innerHTML = '';
@@ -138,12 +145,29 @@ document.getElementById('ai_provider').addEventListener('change', function() {
         opt.textContent = m;
         modelSelect.appendChild(opt);
     });
+    
+    // Show/hide base_url field based on provider
+    if (provider === 'openai_compatible') {
+        baseUrlField.style.display = 'block';
+    } else {
+        baseUrlField.style.display = 'none';
+    }
+});
+
+// Show base_url field on page load if provider is openai_compatible
+document.addEventListener('DOMContentLoaded', function() {
+    const provider = document.getElementById('ai_provider').value;
+    const baseUrlField = document.getElementById('base_url_field');
+    if (provider === 'openai_compatible') {
+        baseUrlField.style.display = 'block';
+    }
 });
 
 async function testAI() {
     const provider = document.getElementById('ai_provider').value;
     const apiKey = document.querySelector('input[name="ai_api_key"]').value;
     const model = document.getElementById('ai_model').value;
+    const baseUrl = document.querySelector('input[name="ai_base_url"]').value;
     const resultSpan = document.getElementById('ai_test_result');
     
     resultSpan.textContent = ' Testing...';
@@ -153,6 +177,7 @@ async function testAI() {
     formData.append('provider', provider);
     formData.append('api_key', apiKey);
     formData.append('model', model);
+    formData.append('base_url', baseUrl);
     
     try {
         const resp = await fetch('/settings/ai/test', {

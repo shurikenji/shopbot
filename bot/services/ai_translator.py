@@ -1,6 +1,6 @@
 """
 bot/services/ai_translator.py — AI-powered group translation service.
-Supports OpenAI, Anthropic, and Gemini compatible APIs.
+Supports OpenAI, OpenAI Compatible (Ollama, LM Studio, etc.), Anthropic, and Gemini APIs.
 """
 from __future__ import annotations
 
@@ -19,12 +19,14 @@ class AITranslator:
         self.api_key: str = ""
         self.model: str = "gpt-4o-mini"
         self.enabled: bool = False
+        self.base_url: str = ""  # For OpenAI Compatible APIs
 
     async def initialize(self) -> None:
         """Load settings from database."""
         self.provider = await settings.get_setting("ai_provider", "openai")
         self.api_key = await settings.get_setting("ai_api_key", "")
         self.model = await settings.get_setting("ai_model", "gpt-4o-mini")
+        self.base_url = await settings.get_setting("ai_base_url", "")
         enabled_str = await settings.get_setting("ai_enabled", "false")
         self.enabled = enabled_str.lower() in ("true", "1", "yes")
 
@@ -198,6 +200,8 @@ Respond with JSON only."""
         try:
             if self.provider == "openai":
                 return await self._call_openai(system_prompt, user_prompt)
+            elif self.provider == "openai_compatible":
+                return await self._call_openai_compatible(system_prompt, user_prompt)
             elif self.provider == "anthropic":
                 return await self._call_anthropic(system_prompt, user_prompt)
             elif self.provider == "gemini":
@@ -243,6 +247,48 @@ Respond with JSON only."""
                 content = data["choices"][0]["message"]["content"]
                 
                 # Extract JSON from response
+                return self._parse_ai_response(content)
+
+    async def _call_openai_compatible(self, system_prompt: str, user_prompt: str) -> dict:
+        """Call OpenAI Compatible API (Ollama, LM Studio, etc.)."""
+        import aiohttp
+        
+        if not self.base_url:
+            logger.error("OpenAI Compatible: base_url not configured")
+            return {}
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0.3,
+        }
+        
+        # Ensure base_url doesn't end with /
+        base_url = self.base_url.rstrip("/")
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{base_url}/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=60)
+            ) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    logger.error(f"OpenAI Compatible API error: {resp.status} - {text}")
+                    return {}
+                    
+                data = await resp.json()
+                content = data["choices"][0]["message"]["content"]
+                
                 return self._parse_ai_response(content)
 
     async def _call_anthropic(self, system_prompt: str, user_prompt: str) -> dict:
