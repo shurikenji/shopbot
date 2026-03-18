@@ -1,16 +1,15 @@
 """
-admin/routers/products.py - CRUD san pham.
+admin/routers/products.py - CRUD sản phẩm.
 """
 from __future__ import annotations
 
 from urllib.parse import urlencode
 
 import aiosqlite
-from fastapi import APIRouter, Request
+from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from admin.deps import get_templates
-from bot.config import settings
+from admin.deps import get_templates, protected_router
 from db.queries.categories import get_all_categories, get_category_by_id
 from db.queries.products import (
     create_product,
@@ -22,7 +21,7 @@ from db.queries.products import (
 )
 from db.queries.servers import get_all_servers
 
-router = APIRouter(prefix="/products", tags=["products"])
+router = protected_router(prefix="/products", tags=["products"])
 
 PRODUCT_TYPE_META = {
     "key_new": ("New Key", "info"),
@@ -34,37 +33,31 @@ KEY_API_PRODUCT_TYPES = {"key_new", "key_topup"}
 GENERAL_PRODUCT_TYPES = {"account_stocked", "service_upgrade"}
 
 
-def _check(request: Request):
-    if not request.session.get("admin"):
-        return RedirectResponse(settings.admin_login_path, status_code=303)
-    return None
-
-
 def _build_flash_context(request: Request) -> dict:
     msg = request.query_params.get("msg", "")
     error = request.query_params.get("error", "")
 
     if msg == "deleted":
         return {
-            "flash_message": "Da xoa san pham thanh cong.",
+            "flash_message": "Đã xoá sản phẩm thành công.",
             "flash_type": "success",
         }
 
     if error == "not_found":
         return {
-            "flash_message": "San pham khong ton tai hoac da bi xoa.",
+            "flash_message": "Sản phẩm không tồn tại hoặc đã bị xoá.",
             "flash_type": "warning",
         }
 
     if error == "invalid_category":
         return {
-            "flash_message": "Danh muc khong ton tai hoac da bi xoa.",
+            "flash_message": "Danh mục không tồn tại hoặc đã bị xoá.",
             "flash_type": "danger",
         }
 
     if error == "invalid_product_type":
         return {
-            "flash_message": "Loai san pham khong hop le voi danh muc da chon.",
+            "flash_message": "Loại sản phẩm không hợp lệ với danh mục đã chọn.",
             "flash_type": "danger",
         }
 
@@ -80,15 +73,15 @@ def _build_flash_context(request: Request) -> dict:
         if chatgpt_accounts:
             blockers.append(f"{chatgpt_accounts} legacy account")
 
-        detail = ", ".join(blockers) if blockers else "du lieu lien quan"
+        detail = ", ".join(blockers) if blockers else "dữ liệu liên quan"
         return {
-            "flash_message": f"Khong the xoa san pham vi con {detail}. Hay tat san pham thay vi xoa cung.",
+            "flash_message": f"Không thể xoá sản phẩm vì còn {detail}. Hãy tắt sản phẩm thay vì xoá cứng.",
             "flash_type": "danger",
         }
 
     if error == "delete_failed":
         return {
-            "flash_message": "Xoa san pham that bai do loi rang buoc du lieu.",
+            "flash_message": "Xoá sản phẩm thất bại do lỗi ràng buộc dữ liệu.",
             "flash_type": "danger",
         }
 
@@ -109,7 +102,10 @@ def _build_form_redirect(product_id: int | None, error: str) -> RedirectResponse
     return RedirectResponse(f"{target}{separator}error={error}", status_code=303)
 
 
-async def _build_product_payload(form, product_id: int | None = None) -> tuple[dict | None, RedirectResponse | None]:
+async def _build_product_payload(
+    form,
+    product_id: int | None = None,
+) -> tuple[dict | None, RedirectResponse | None]:
     category_id = int(form["category_id"])
     category = await get_category_by_id(category_id)
     if not category:
@@ -177,10 +173,6 @@ def _decorate_products(products: list[dict], categories: list[dict], servers: li
 
 @router.get("", response_class=HTMLResponse)
 async def products_list(request: Request):
-    r = _check(request)
-    if r:
-        return r
-
     products = await get_all_products(limit=200)
     categories = await get_all_categories()
     servers = await get_all_servers()
@@ -201,10 +193,6 @@ async def products_list(request: Request):
 
 @router.post("/add")
 async def products_add(request: Request):
-    r = _check(request)
-    if r:
-        return r
-
     form = await request.form()
     payload, error_redirect = await _build_product_payload(form)
     if error_redirect:
@@ -215,10 +203,6 @@ async def products_add(request: Request):
 
 @router.get("/{product_id}/edit", response_class=HTMLResponse)
 async def products_edit_page(request: Request, product_id: int):
-    r = _check(request)
-    if r:
-        return r
-
     product = await get_product_by_id(product_id)
     if not product:
         return RedirectResponse("/products?error=not_found", status_code=303)
@@ -244,10 +228,6 @@ async def products_edit_page(request: Request, product_id: int):
 
 @router.post("/{product_id}/edit")
 async def products_edit_submit(request: Request, product_id: int):
-    r = _check(request)
-    if r:
-        return r
-
     form = await request.form()
     payload, error_redirect = await _build_product_payload(form, product_id=product_id)
     if error_redirect:
@@ -272,11 +252,7 @@ async def products_edit_submit(request: Request, product_id: int):
 
 
 @router.get("/{product_id}/delete")
-async def products_delete(request: Request, product_id: int):
-    r = _check(request)
-    if r:
-        return r
-
+async def products_delete(product_id: int):
     product = await get_product_by_id(product_id)
     if not product:
         return RedirectResponse("/products?error=not_found", status_code=303)

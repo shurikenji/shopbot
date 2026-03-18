@@ -6,7 +6,27 @@ from __future__ import annotations
 
 from typing import Optional
 
-from db.database import get_db
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict
+
+
+def _build_user_keys_filters(
+    user_id: int,
+    *,
+    server_id: Optional[int] = None,
+    active_only: bool = True,
+) -> tuple[str, tuple[int, ...]]:
+    """Tạo phần WHERE và params dùng chung cho truy vấn user keys."""
+    clauses = ["user_id = ?"]
+    params: list[int] = [user_id]
+
+    if server_id is not None:
+        clauses.append("server_id = ?")
+        params.append(server_id)
+    if active_only:
+        clauses.append("is_active = 1")
+
+    where_clause = " WHERE " + " AND ".join(clauses)
+    return where_clause, tuple(params)
 
 
 async def get_user_keys(
@@ -15,30 +35,18 @@ async def get_user_keys(
     active_only: bool = True,
 ) -> list[dict]:
     """Lấy danh sách keys của user, optional filter theo server."""
-    db = await get_db()
-    query = "SELECT * FROM user_keys WHERE user_id = ?"
-    params: list = [user_id]
-
-    if server_id is not None:
-        query += " AND server_id = ?"
-        params.append(server_id)
-    if active_only:
-        query += " AND is_active = 1"
-
-    query += " ORDER BY id DESC"
-    cursor = await db.execute(query, tuple(params))
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    where_clause, params = _build_user_keys_filters(
+        user_id,
+        server_id=server_id,
+        active_only=active_only,
+    )
+    query = f"SELECT * FROM user_keys{where_clause} ORDER BY id DESC"
+    return await fetch_all_dicts(query, params)
 
 
 async def get_user_key_by_id(key_id: int) -> Optional[dict]:
     """Lấy user key theo ID."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM user_keys WHERE id = ?", (key_id,)
-    )
-    row = await cursor.fetchone()
-    return dict(row) if row else None
+    return await fetch_one_dict("SELECT * FROM user_keys WHERE id = ?", (key_id,))
 
 
 async def create_user_key(
@@ -49,14 +57,12 @@ async def create_user_key(
     label: Optional[str] = None,
 ) -> int:
     """Tạo user key mới, trả về ID."""
-    db = await get_db()
-    cursor = await db.execute(
+    cursor = await execute_commit(
         """INSERT INTO user_keys
            (user_id, server_id, api_key, api_token_id, label)
            VALUES (?, ?, ?, ?, ?)""",
         (user_id, server_id, api_key, api_token_id, label),
     )
-    await db.commit()
     return cursor.lastrowid  # type: ignore[return-value]
 
 
@@ -67,7 +73,6 @@ async def update_user_key(
     api_token_id: Optional[int] = None,
 ) -> None:
     """Cập nhật user key."""
-    db = await get_db()
     fields = []
     values = []
 
@@ -86,10 +91,8 @@ async def update_user_key(
 
     fields.append("updated_at = datetime('now', '+7 hours')")
     values.append(key_id)
-
     query = f"UPDATE user_keys SET {', '.join(fields)} WHERE id = ?"
-    await db.execute(query, tuple(values))
-    await db.commit()
+    await execute_commit(query, tuple(values))
 
 
 async def find_user_key_by_api_key(
@@ -97,13 +100,10 @@ async def find_user_key_by_api_key(
     api_key: str,
 ) -> Optional[dict]:
     """Tìm user key theo api_key string (kiểm tra trùng)."""
-    db = await get_db()
-    cursor = await db.execute(
+    return await fetch_one_dict(
         "SELECT * FROM user_keys WHERE user_id = ? AND api_key = ?",
         (user_id, api_key),
     )
-    row = await cursor.fetchone()
-    return dict(row) if row else None
 
 
 async def upsert_user_key(
@@ -127,6 +127,7 @@ async def upsert_user_key(
             api_token_id=api_token_id,
         )
         return existing["id"]
+
     return await create_user_key(
         user_id=user_id,
         server_id=server_id,

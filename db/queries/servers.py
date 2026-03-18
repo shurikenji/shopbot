@@ -5,39 +5,29 @@ from __future__ import annotations
 
 from typing import Optional
 
-from db.database import get_db
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict
+
+
+_SERVER_ORDER_BY = " ORDER BY sort_order ASC, id ASC"
 
 
 async def get_active_servers() -> list[dict]:
     """Lấy danh sách server đang active, sắp xếp theo sort_order."""
-    db = await get_db()
-    cursor = await db.execute(
+    return await fetch_all_dicts(
         """SELECT * FROM api_servers
-           WHERE is_active = 1
-           ORDER BY sort_order ASC, id ASC"""
+           WHERE is_active = 1"""
+        + _SERVER_ORDER_BY
     )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
 
 
 async def get_all_servers() -> list[dict]:
     """Lấy tất cả servers (admin)."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM api_servers ORDER BY sort_order ASC, id ASC"
-    )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    return await fetch_all_dicts("SELECT * FROM api_servers" + _SERVER_ORDER_BY)
 
 
 async def get_server_by_id(server_id: int) -> Optional[dict]:
     """Lấy server theo ID."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM api_servers WHERE id = ?", (server_id,)
-    )
-    row = await cursor.fetchone()
-    return dict(row) if row else None
+    return await fetch_one_dict("SELECT * FROM api_servers WHERE id = ?", (server_id,))
 
 
 async def create_server(
@@ -64,8 +54,7 @@ async def create_server(
     groups_endpoint: str = "",
 ) -> int:
     """Tạo API server mới, trả về ID."""
-    db = await get_db()
-    cursor = await db.execute(
+    cursor = await execute_commit(
         """INSERT INTO api_servers
            (name, base_url, user_id_header, access_token,
             price_per_unit, dollar_per_unit, quota_multiple, quota_per_unit,
@@ -81,7 +70,6 @@ async def create_server(
             auth_token, auth_cookie, custom_headers, groups_endpoint,
         ),
     )
-    await db.commit()
     return cursor.lastrowid  # type: ignore[return-value]
 
 
@@ -90,7 +78,6 @@ async def update_server(server_id: int, **kwargs) -> None:
     if not kwargs:
         return
 
-    db = await get_db()
     allowed_fields = {
         "name", "base_url", "user_id_header", "access_token",
         "price_per_unit", "dollar_per_unit", "quota_multiple", "quota_per_unit",
@@ -115,12 +102,9 @@ async def update_server(server_id: int, **kwargs) -> None:
     values.append(server_id)
 
     query = f"UPDATE api_servers SET {', '.join(fields)} WHERE id = ?"
-    await db.execute(query, tuple(values))
-    await db.commit()
+    await execute_commit(query, tuple(values))
 
 
 async def delete_server(server_id: int) -> None:
     """Xóa server."""
-    db = await get_db()
-    await db.execute("DELETE FROM api_servers WHERE id = ?", (server_id,))
-    await db.commit()
+    await execute_commit("DELETE FROM api_servers WHERE id = ?", (server_id,))

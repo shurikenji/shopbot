@@ -1,42 +1,34 @@
 """
-admin/routers/categories.py — CRUD danh mục.
+admin/routers/categories.py - Category CRUD routes.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from admin.deps import get_templates
-from bot.config import settings
+from admin.deps import get_templates, protected_router
 from db.queries.categories import (
-    get_all_categories, get_category_by_id,
-    create_category, update_category, delete_category,
+    create_category,
+    delete_category,
+    get_all_categories,
+    get_category_by_id,
+    update_category,
 )
 
-router = APIRouter(prefix="/categories", tags=["categories"])
-
-
-def _check(request: Request):
-    if not request.session.get("admin"):
-        return RedirectResponse(settings.admin_login_path, status_code=303)
-    return None
+router = protected_router(prefix="/categories", tags=["categories"])
 
 
 @router.get("", response_class=HTMLResponse)
 async def categories_list(request: Request):
-    r = _check(request)
-    if r: return r
-    categories = await get_all_categories()
     templates = get_templates()
     return templates.TemplateResponse(
-        "categories.html", {"request": request, "categories": categories}
+        "categories.html",
+        {"request": request, "categories": await get_all_categories()},
     )
 
 
 @router.post("/add")
 async def categories_add(request: Request):
-    r = _check(request)
-    if r: return r
     form = await request.form()
     await create_category(
         name=form["name"],
@@ -50,22 +42,23 @@ async def categories_add(request: Request):
 
 @router.get("/{cat_id}/edit", response_class=HTMLResponse)
 async def categories_edit_page(request: Request, cat_id: int):
-    r = _check(request)
-    if r: return r
-    cat = await get_category_by_id(cat_id)
-    if not cat:
+    category = await get_category_by_id(cat_id)
+    if not category:
         return RedirectResponse("/categories", status_code=303)
+
     templates = get_templates()
     return templates.TemplateResponse(
         "categories.html",
-        {"request": request, "categories": await get_all_categories(), "editing": cat},
+        {
+            "request": request,
+            "categories": await get_all_categories(),
+            "editing": category,
+        },
     )
 
 
 @router.post("/{cat_id}/edit")
 async def categories_edit_submit(request: Request, cat_id: int):
-    r = _check(request)
-    if r: return r
     form = await request.form()
     await update_category(
         cat_id,
@@ -80,8 +73,6 @@ async def categories_edit_submit(request: Request, cat_id: int):
 
 
 @router.get("/{cat_id}/delete")
-async def categories_delete(request: Request, cat_id: int):
-    r = _check(request)
-    if r: return r
+async def categories_delete(cat_id: int):
     await delete_category(cat_id)
     return RedirectResponse("/categories", status_code=303)

@@ -44,6 +44,67 @@ from db.queries.settings import get_setting_int
 router = Router(name="flow_api_key")
 
 
+async def _show_existing_keys_for_server(
+    callback: CallbackQuery,
+    *,
+    user_id: int,
+    server_id: int,
+) -> bool:
+    keys = await get_user_keys(user_id, server_id=server_id)
+    server = await get_server_by_id(server_id)
+    if not server:
+        return False
+
+    await callback.message.edit_text(
+        f"💳 <b>Nạp key cũ — {server['name']}</b>\n\n"
+        f"Chọn key bạn muốn nạp thêm quota:",
+        reply_markup=my_keys_kb(keys, server_id=server_id),
+        parse_mode="HTML",
+    )
+    return True
+
+
+async def _show_key_products_for_server(
+    callback: CallbackQuery,
+    *,
+    cat_id: int,
+    server_id: int,
+    action: str,
+) -> bool:
+    server = await get_server_by_id(server_id)
+    if not server:
+        return False
+
+    ptype = "key_new" if action == "new" else "key_topup"
+    products = await get_active_products_by_category(
+        cat_id, server_id=server_id, product_type=ptype
+    )
+    if not products:
+        await callback.message.edit_text(
+            f"📦 Chưa có gói cho server <b>{server['name']}</b>.",
+            reply_markup=back_only_kb("srv"),
+            parse_mode="HTML",
+        )
+        return True
+
+    per_page = await get_setting_int("pagination_size", 6)
+    title = "🔑 Mua key mới" if action == "new" else "💳 Nạp key cũ"
+    await callback.message.edit_text(
+        f"{title} — <b>{server['name']}</b>\n\nChọn gói:",
+        reply_markup=products_kb(
+            products,
+            cat_id=cat_id,
+            srv_id=server_id,
+            ptype=ptype,
+            page=0,
+            per_page=per_page,
+            action=action,
+        ),
+        parse_mode="HTML",
+    )
+    return True
+
+
 # ── FSM States ──────────────────────────────────────────────────────────────
 
 class ApiKeyStates(StatesGroup):
@@ -476,7 +537,7 @@ async def payment_qr(
 
     # Cập nhật payment_method
     from db.queries.orders import update_order_status
-    await update_order_status(order["id"], "pending")  # giữ pending
+    await update_order_status(order["id"], "pending", payment_method="qr")
 
     expire_min = await get_setting_int("order_expire_min", 30)
     qr_url = await build_qr_url(order["amount"], order["order_code"])
@@ -520,10 +581,6 @@ async def payment_wallet(
         )
         return
 
-    # Cập nhật payment method
-    from db.queries.orders import update_order_status
-    await update_order_status(order["id"], "pending")
-
     # Xử lý thanh toán ví ngay
     await callback.message.edit_text(
         f"⏳ Đang xử lý thanh toán đơn <b>{order['order_code']}</b>...",
@@ -534,10 +591,18 @@ async def payment_wallet(
     success = await process_wallet_payment(bot, order["id"])
 
     if not success:
+        show_qr = True
+        product_name = str(order.get("product_name") or "")
+        if product_name.startswith("Custom $"):
+            try:
+                show_qr = float(product_name.removeprefix("Custom $").replace(",", "").strip()) >= 10
+            except ValueError:
+                show_qr = True
         await callback.message.edit_text(
             f"❌ Thanh toán đơn <b>{order['order_code']}</b> thất bại.\n"
-            f"Vui lòng kiểm tra số dư ví.",
+            f"Vui lòng kiểm tra số dư ví hoặc chọn phương thức khác.",
             parse_mode="HTML",
+            reply_markup=payment_method_kb(order["id"], show_qr=show_qr),
         )
 
     await callback.answer()
@@ -584,17 +649,15 @@ async def back_from_key_input(
         await back_to_servers(callback, state)
         return
 
-    keys = await get_user_keys(db_user["id"], server_id=server_id)
-    server = await get_server_by_id(server_id)
     await state.set_state(None)
 
-    server_name = server["name"] if server else "Server"
-    await callback.message.edit_text(
-        f"💳 <b>Nạp key cũ — {server_name}</b>\n\n"
-        f"Chọn key bạn muốn nạp thêm quota:",
-        reply_markup=my_keys_kb(keys, server_id=server_id),
-        parse_mode="HTML",
-    )
+    if not await _show_existing_keys_for_server(
+        callback,
+        user_id=db_user["id"],
+        server_id=server_id,
+    ):
+        await back_to_servers(callback, state)
+        return
     await callback.answer()
 
 
@@ -608,41 +671,13 @@ async def back_from_custom_amount(
     server_id = fsm_data.get("current_server_id", 0)
     cat_id = fsm_data.get("current_cat_id", 0)
     action = fsm_data.get("key_action", "new")
-    ptype = "key_new" if action == "new" else "key_topup"
-
-    server = await get_server_by_id(server_id)
-    if not server:
-        await state.set_state(None)
+    await state.set_state(None)
+    if not await _show_key_products_for_server(
+        callback,
+        cat_id=cat_id,
+        server_id=server_id,
+        action=action,
+    ):
         await back_to_servers(callback, state)
         return
-
-    products = await get_active_products_by_category(
-        cat_id, server_id=server_id, product_type=ptype
-    )
-    await state.set_state(None)
-
-    if not products:
-        await callback.message.edit_text(
-            f"📦 Chưa có gói cho server <b>{server['name']}</b>.",
-            reply_markup=back_only_kb("srv"),
-            parse_mode="HTML",
-        )
-        await callback.answer()
-        return
-
-    per_page = await get_setting_int("pagination_size", 6)
-    title = "Mua key mới" if action == "new" else "Nạp key cũ"
-    await callback.message.edit_text(
-        f"💠 <b>{title} — {server['name']}</b>\n\nChọn gói:",
-        reply_markup=products_kb(
-            products,
-            cat_id=cat_id,
-            srv_id=server_id,
-            ptype=ptype,
-            page=0,
-            per_page=per_page,
-            action=action,
-        ),
-        parse_mode="HTML",
-    )
     await callback.answer()

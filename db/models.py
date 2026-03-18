@@ -4,11 +4,6 @@ Gọi init_db() một lần khi khởi động application.
 """
 from __future__ import annotations
 
-import logging
-
-from db.database import get_db
-
-logger = logging.getLogger(__name__)
 
 # ── DDL Statements ──────────────────────────────────────────────────────────
 
@@ -297,158 +292,16 @@ _DEFAULT_SETTINGS = [
 ]
 
 
+async def _legacy_init_db_impl() -> None:
+    """Legacy compatibility entrypoint that delegates to bootstrap."""
+    from db.bootstrap import init_db as bootstrap_init_db
+
+    await bootstrap_init_db()
+    return
+
+
 async def init_db() -> None:
-    """Tạo tables, indexes, và insert default settings."""
-    db = await get_db()
+    """Backward-compatible public entrypoint that delegates to bootstrap."""
+    from db.bootstrap import init_db as bootstrap_init_db
 
-    # Execute DDL — executescript không hỗ trợ trong aiosqlite,
-    # nên tách từng statement
-    for statement in _CREATE_TABLES.split(";"):
-        statement = statement.strip()
-        if statement:
-            await db.execute(statement)
-
-    # ── Migrations cho DB cũ ──
-    # Thêm quota_multiple nếu chưa có (DB tạo trước khi có field này)
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN quota_multiple REAL NOT NULL DEFAULT 1.0"
-        )
-    except Exception:
-        pass  # Column đã tồn tại
-
-    try:
-        await db.execute(
-            "ALTER TABLE orders ADD COLUMN custom_quota INTEGER"
-        )
-    except Exception:
-        pass
-
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN default_group TEXT"
-        )
-    except Exception:
-        pass
-
-    # format_template cho products (định dạng tài khoản: Email|Password|Cookie)
-    try:
-        await db.execute(
-            "ALTER TABLE products ADD COLUMN format_template TEXT"
-        )
-    except Exception:
-        pass
-
-    # input_prompt cho products (mẫu câu hỏi khi mua upgrade: 'Nhập email cần nâng cấp')
-    try:
-        await db.execute(
-            "ALTER TABLE products ADD COLUMN input_prompt TEXT"
-        )
-    except Exception:
-        pass
-
-    # ── Migrations for new multi-type API support ──
-    # api_type
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN api_type TEXT DEFAULT 'newapi'"
-        )
-    except Exception:
-        pass
-
-    # supports_multi_group
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN supports_multi_group INTEGER DEFAULT 0"
-        )
-    except Exception:
-        pass
-
-    # groups_cache
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN groups_cache TEXT"
-        )
-    except Exception:
-        pass
-
-    # groups_updated_at
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN groups_updated_at TEXT"
-        )
-    except Exception:
-        pass
-
-    # manual_groups
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN manual_groups TEXT"
-        )
-    except Exception:
-        pass
-
-    # auth_type
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN auth_type TEXT DEFAULT 'header'"
-        )
-    except Exception:
-        pass
-
-    # auth_user_header
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN auth_user_header TEXT"
-        )
-    except Exception:
-        pass
-
-    # auth_user_value
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN auth_user_value TEXT"
-        )
-    except Exception:
-        pass
-
-    # auth_token
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN auth_token TEXT"
-        )
-    except Exception:
-        pass
-
-    # auth_cookie
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN auth_cookie TEXT"
-        )
-    except Exception:
-        pass
-
-    # custom_headers
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN custom_headers TEXT"
-        )
-    except Exception:
-        pass
-
-    # groups_endpoint
-    try:
-        await db.execute(
-            "ALTER TABLE api_servers ADD COLUMN groups_endpoint TEXT"
-        )
-    except Exception:
-        pass
-
-    # Insert default settings (INSERT OR IGNORE để không ghi đè)
-    await db.executemany(
-        "INSERT OR IGNORE INTO settings (key, value, description) VALUES (?, ?, ?)",
-        _DEFAULT_SETTINGS,
-    )
-
-    await db.commit()
-    logger.info("Database initialized — all tables and defaults created.")
+    await bootstrap_init_db()

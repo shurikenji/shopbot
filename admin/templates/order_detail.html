@@ -26,7 +26,7 @@
                 </tr>
                 <tr>
                     <th>Thanh toán</th>
-                    <td>{{ order.payment_method }}</td>
+                    <td>{{ 'Ví nội bộ' if order.payment_method == 'wallet' else 'Chuyển khoản QR' if order.payment_method == 'qr' else order.payment_method }}</td>
                 </tr>
                 <tr>
                     <th>Trạng thái</th>

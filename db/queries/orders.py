@@ -7,6 +7,24 @@ from typing import Optional
 
 from db.database import get_db
 
+_ORDER_UPDATEABLE_FIELDS = frozenset(
+    {
+        "api_key",
+        "api_token_id",
+        "delivery_info",
+        "expired_at",
+        "is_refunded",
+        "mb_transaction_id",
+        "paid_at",
+        "payment_method",
+        "quota_after",
+        "quota_before",
+        "refund_reason",
+        "refunded_at",
+        "user_input_data",
+    }
+)
+
 
 async def create_order(
     order_code: str,
@@ -117,18 +135,11 @@ async def update_order_status(
 ) -> None:
     """Cập nhật trạng thái đơn hàng + optional fields."""
     db = await get_db()
-    allowed_fields = {
-        "api_key", "api_token_id", "quota_before", "quota_after",
-        "delivery_info", "user_input_data", "mb_transaction_id",
-        "paid_at", "is_refunded", "refund_reason", "refunded_at",
-        "expired_at",
-    }
-
     fields = ["status = ?", "updated_at = datetime('now')"]
     values: list = [status]
 
     for key, val in kwargs.items():
-        if key in allowed_fields:
+        if key in _ORDER_UPDATEABLE_FIELDS:
             fields.append(f"{key} = ?")
             values.append(val)
 

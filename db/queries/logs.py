@@ -7,6 +7,32 @@ from __future__ import annotations
 from typing import Optional
 
 from db.database import get_db
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_scalar
+
+
+def _build_logs_filters(
+    *,
+    level: Optional[str] = None,
+    module: Optional[str] = None,
+    search: Optional[str] = None,
+) -> tuple[str, list[str]]:
+    """Tạo phần WHERE dùng chung cho filter logs."""
+    clauses: list[str] = []
+    params: list[str] = []
+
+    if level:
+        clauses.append("level = ?")
+        params.append(level)
+    if module:
+        clauses.append("module = ?")
+        params.append(module)
+    if search:
+        clauses.append("(message LIKE ? OR detail LIKE ?)")
+        keyword = f"%{search}%"
+        params.extend([keyword, keyword])
+
+    where_clause = " WHERE " + " AND ".join(clauses) if clauses else ""
+    return where_clause, params
 
 
 async def add_log(
@@ -16,13 +42,11 @@ async def add_log(
     detail: Optional[str] = None,
 ) -> int:
     """Ghi log mới, trả về ID."""
-    db = await get_db()
-    cursor = await db.execute(
+    cursor = await execute_commit(
         """INSERT INTO logs (level, module, message, detail)
            VALUES (?, ?, ?, ?)""",
         (level, module, message, detail),
     )
-    await db.commit()
     return cursor.lastrowid  # type: ignore[return-value]
 
 
@@ -34,26 +58,10 @@ async def get_logs(
     search: Optional[str] = None,
 ) -> list[dict]:
     """Lấy logs (mới nhất trước, phân trang, filter)."""
-    db = await get_db()
-    query = "SELECT * FROM logs WHERE 1=1"
-    params: list = []
-
-    if level:
-        query += " AND level = ?"
-        params.append(level)
-    if module:
-        query += " AND module = ?"
-        params.append(module)
-    if search:
-        query += " AND (message LIKE ? OR detail LIKE ?)"
-        params.extend([f"%{search}%", f"%{search}%"])
-
-    query += " ORDER BY id DESC LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
-
-    cursor = await db.execute(query, tuple(params))
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    where_clause, params = _build_logs_filters(level=level, module=module, search=search)
+    query = f"SELECT * FROM logs{where_clause} ORDER BY id DESC LIMIT ? OFFSET ?"
+    query_params = [*params, limit, offset]
+    return await fetch_all_dicts(query, query_params)
 
 
 async def count_logs(
@@ -62,23 +70,9 @@ async def count_logs(
     search: Optional[str] = None,
 ) -> int:
     """Đếm tổng logs."""
-    db = await get_db()
-    query = "SELECT COUNT(*) FROM logs WHERE 1=1"
-    params: list = []
-
-    if level:
-        query += " AND level = ?"
-        params.append(level)
-    if module:
-        query += " AND module = ?"
-        params.append(module)
-    if search:
-        query += " AND (message LIKE ? OR detail LIKE ?)"
-        params.extend([f"%{search}%", f"%{search}%"])
-
-    cursor = await db.execute(query, tuple(params))
-    row = await cursor.fetchone()
-    return row[0] if row else 0
+    where_clause, params = _build_logs_filters(level=level, module=module, search=search)
+    total = await fetch_scalar(f"SELECT COUNT(*) FROM logs{where_clause}", params)
+    return int(total or 0)
 
 
 async def clear_old_logs(days: int = 30) -> int:

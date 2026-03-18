@@ -36,7 +36,7 @@
                 <td>{{ o.user_id }}</td>
                 <td>{{ o.product_name|default('—') }}</td>
                 <td>{{ format_vnd(o.amount) }}</td>
-                <td>{{ o.payment_method }}</td>
+                <td>{{ 'Ví nội bộ' if o.payment_method == 'wallet' else 'Chuyển khoản QR' if o.payment_method == 'qr' else o.payment_method }}</td>
                 <td>{{ status_emoji(o.status) }} {{ o.status }}</td>
                 <td><small>{{ o.created_at | time_vn }}</small></td>
                 <td><a href="/orders/{{ o.id }}" class="btn btn-outline-primary btn-sm">Chi tiết</a></td>

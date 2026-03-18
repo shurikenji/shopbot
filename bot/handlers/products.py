@@ -664,7 +664,7 @@ async def payment_qr(
 
     # Cập nhật payment_method
     from db.queries.orders import update_order_status
-    await update_order_status(order["id"], "pending")  # giữ pending
+    await update_order_status(order["id"], "pending", payment_method="qr")
 
     expire_min = await get_setting_int("order_expire_min", 30)
     qr_url = await build_qr_url(order["amount"], order["order_code"])
@@ -708,10 +708,6 @@ async def payment_wallet(
         )
         return
 
-    # Cập nhật payment method
-    from db.queries.orders import update_order_status
-    await update_order_status(order["id"], "pending")
-
     # Xử lý thanh toán ví ngay
     await callback.message.edit_text(
         f"⏳ Đang xử lý thanh toán đơn <b>{order['order_code']}</b>...",
@@ -722,10 +718,14 @@ async def payment_wallet(
     success = await process_wallet_payment(bot, order["id"])
 
     if not success:
+        show_qr = True
+        if str(order.get("product_name") or "").startswith("Custom $"):
+            show_qr = order["amount"] >= 1000
         await callback.message.edit_text(
             f"❌ Thanh toán đơn <b>{order['order_code']}</b> thất bại.\n"
-            f"Vui lòng kiểm tra số dư ví.",
+            f"Vui lòng kiểm tra số dư ví hoặc chọn phương thức khác.",
             parse_mode="HTML",
+            reply_markup=payment_method_kb(order["id"], show_qr=show_qr),
         )
 
     await callback.answer()

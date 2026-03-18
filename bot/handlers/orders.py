@@ -53,11 +53,11 @@ async def _show_orders(
         return
 
     orders = await get_orders_by_user(
-        db_user["id"], offset=page * per_page, limit=per_page * 10
+        db_user["id"], offset=page * per_page, limit=per_page
     )
 
     text = f"📋 <b>Đơn hàng của bạn</b> ({total} đơn)"
-    kb = orders_list_kb(orders, page=page, per_page=per_page)
+    kb = orders_list_kb(orders, page=page, per_page=per_page, total_count=total)
 
     if isinstance(target, CallbackQuery):
         await target.message.edit_text(text, reply_markup=kb, parse_mode="HTML")

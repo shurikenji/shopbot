@@ -313,9 +313,15 @@ def orders_list_kb(
     orders: Sequence[dict],
     page: int = 0,
     per_page: int = 6,
+    total_count: int | None = None,
 ) -> InlineKeyboardMarkup:
     """Inline keyboard danh sách đơn hàng có phân trang."""
-    page_items, total_pages = _paginate(orders, page, per_page)
+    if total_count is None:
+        page_items, total_pages = _paginate(orders, page, per_page)
+    else:
+        total_pages = max(1, math.ceil(total_count / per_page))
+        page = max(0, min(page, total_pages - 1))
+        page_items = list(orders)
 
     builder = InlineKeyboardBuilder()
     for order in page_items:

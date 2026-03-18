@@ -5,39 +5,26 @@ from __future__ import annotations
 
 from typing import Optional
 
-from db.database import get_db
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict
 
 
 async def get_active_categories() -> list[dict]:
     """Lấy danh mục đang active, sắp xếp theo sort_order."""
-    db = await get_db()
-    cursor = await db.execute(
+    return await fetch_all_dicts(
         """SELECT * FROM categories
            WHERE is_active = 1
            ORDER BY sort_order ASC, id ASC"""
     )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
 
 
 async def get_all_categories() -> list[dict]:
     """Lấy tất cả danh mục (admin)."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM categories ORDER BY sort_order ASC, id ASC"
-    )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    return await fetch_all_dicts("SELECT * FROM categories ORDER BY sort_order ASC, id ASC")
 
 
 async def get_category_by_id(cat_id: int) -> Optional[dict]:
     """Lấy danh mục theo ID."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM categories WHERE id = ?", (cat_id,)
-    )
-    row = await cursor.fetchone()
-    return dict(row) if row else None
+    return await fetch_one_dict("SELECT * FROM categories WHERE id = ?", (cat_id,))
 
 
 async def create_category(
@@ -48,13 +35,11 @@ async def create_category(
     sort_order: int = 0,
 ) -> int:
     """Tạo danh mục mới, trả về ID."""
-    db = await get_db()
-    cursor = await db.execute(
+    cursor = await execute_commit(
         """INSERT INTO categories (name, icon, description, cat_type, sort_order)
            VALUES (?, ?, ?, ?, ?)""",
         (name, icon, description, cat_type, sort_order),
     )
-    await db.commit()
     return cursor.lastrowid  # type: ignore[return-value]
 
 
@@ -68,7 +53,6 @@ async def update_category(
     is_active: Optional[int] = None,
 ) -> None:
     """Cập nhật danh mục."""
-    db = await get_db()
     fields = []
     values = []
 
@@ -98,12 +82,9 @@ async def update_category(
     values.append(cat_id)
 
     query = f"UPDATE categories SET {', '.join(fields)} WHERE id = ?"
-    await db.execute(query, tuple(values))
-    await db.commit()
+    await execute_commit(query, tuple(values))
 
 
 async def delete_category(cat_id: int) -> None:
     """Xóa danh mục (hard delete)."""
-    db = await get_db()
-    await db.execute("DELETE FROM categories WHERE id = ?", (cat_id,))
-    await db.commit()
+    await execute_commit("DELETE FROM categories WHERE id = ?", (cat_id,))

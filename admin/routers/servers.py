@@ -1,38 +1,74 @@
 """
-admin/routers/servers.py — CRUD API servers + fetch groups.
+admin/routers/servers.py - API server CRUD and group inspection routes.
 """
 from __future__ import annotations
 
-import json
-
-from fastapi import APIRouter, Request
+from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from admin.deps import get_templates
-from bot.config import settings
-from bot.services.api_clients import get_api_client
+from admin.deps import get_templates, protected_router
 from bot.services.ai_translator import get_translator
+from bot.services.api_clients import get_api_client
 from db.queries.servers import (
+    create_server,
+    delete_server,
     get_all_servers,
     get_server_by_id,
-    create_server,
     update_server,
-    delete_server,
 )
 
-router = APIRouter(prefix="/servers", tags=["servers"])
+router = protected_router(prefix="/servers", tags=["servers"])
 
+_API_TYPES = [
+    {"value": "newapi", "label": "NewAPI"},
+    {"value": "rixapi", "label": "RixAPI"},
+    {"value": "other", "label": "Other (Custom)"},
+]
 
-def _check(request: Request):
-    if not request.session.get("admin"):
-        return RedirectResponse(settings.admin_login_path, status_code=303)
-    return None
+_AUTH_TYPES = [
+    {"value": "header", "label": "Header + Bearer"},
+    {"value": "bearer_only", "label": "Bearer Only"},
+    {"value": "cookie", "label": "Cookie Auth"},
+    {"value": "none", "label": "No Auth"},
+]
 
 
 def _clean_str(value: object, default: str = "") -> str:
     if value is None:
         return default
     return str(value).strip()
+
+
+def _server_page_context(*, request: Request, servers: list[dict], **extra: object) -> dict[str, object]:
+    return {
+        "request": request,
+        "servers": servers,
+        "api_types": _API_TYPES,
+        "auth_types": _AUTH_TYPES,
+        **extra,
+    }
+
+
+async def _load_servers_for_page() -> list[dict]:
+    servers = await get_all_servers()
+    for server in servers:
+        if _clean_str(server.get("api_type", "newapi"), "newapi").lower() == "rixapi":
+            server["supports_multi_group"] = 1
+    return servers
+
+
+def _build_manual_group_rows(manual_groups: str) -> list[dict]:
+    return [
+        {
+            "name": name.strip(),
+            "label_en": name.strip(),
+            "ratio": 1.0,
+            "desc": "",
+            "category": "Other",
+        }
+        for name in manual_groups.split(",")
+        if name.strip()
+    ]
 
 
 def _get_server_form_payload(form) -> dict:
@@ -138,7 +174,9 @@ def _normalize_server_for_form(server: dict) -> dict:
         server["auth_user_header"] = "new-api-user"
     else:
         server["auth_type"] = server.get("auth_type", "header") or "header"
-        server["auth_user_header"] = server.get("auth_user_header", "new-api-user") or "new-api-user"
+        server["auth_user_header"] = (
+            server.get("auth_user_header", "new-api-user") or "new-api-user"
+        )
 
     return server
 
@@ -152,53 +190,31 @@ async def _load_and_translate_groups(server: dict) -> list[dict]:
         groups = await translator.translate_groups(groups, server.get("api_type", "newapi"))
 
     parsed_groups = []
-    for g in groups:
-        parsed_groups.append({
-            "name": g.get("name", ""),
-            "label_en": g.get("label_en") or g.get("name_en") or g.get("name", ""),
-            "label_vi": g.get("label_vi") or g.get("name_vi") or g.get("name", ""),
-            "ratio": g.get("ratio", 1.0),
-            "desc": g.get("desc_en") or g.get("desc", ""),
-            "category": g.get("category", "Other"),
-        })
+    for group in groups:
+        parsed_groups.append(
+            {
+                "name": group.get("name", ""),
+                "label_en": group.get("label_en") or group.get("name_en") or group.get("name", ""),
+                "label_vi": group.get("label_vi") or group.get("name_vi") or group.get("name", ""),
+                "ratio": group.get("ratio", 1.0),
+                "desc": group.get("desc_en") or group.get("desc", ""),
+                "category": group.get("category", "Other"),
+            }
+        )
     return parsed_groups
 
 
 @router.get("", response_class=HTMLResponse)
 async def servers_list(request: Request):
-    r = _check(request)
-    if r:
-        return r
-    servers = await get_all_servers()
-    for server in servers:
-        if _clean_str(server.get("api_type", "newapi"), "newapi").lower() == "rixapi":
-            server["supports_multi_group"] = 1
     templates = get_templates()
     return templates.TemplateResponse(
         "servers.html",
-        {
-            "request": request,
-            "servers": servers,
-            "api_types": [
-                {"value": "newapi", "label": "NewAPI"},
-                {"value": "rixapi", "label": "RixAPI"},
-                {"value": "other", "label": "Other (Custom)"},
-            ],
-            "auth_types": [
-                {"value": "header", "label": "Header + Bearer"},
-                {"value": "bearer_only", "label": "Bearer Only"},
-                {"value": "cookie", "label": "Cookie Auth"},
-                {"value": "none", "label": "No Auth"},
-            ],
-        },
+        _server_page_context(request=request, servers=await _load_servers_for_page()),
     )
 
 
 @router.post("/add")
 async def servers_add(request: Request):
-    r = _check(request)
-    if r:
-        return r
     form = await request.form()
     await create_server(**_get_server_form_payload(form))
     return RedirectResponse("/servers", status_code=303)
@@ -206,42 +222,23 @@ async def servers_add(request: Request):
 
 @router.get("/{server_id}/edit", response_class=HTMLResponse)
 async def servers_edit_page(request: Request, server_id: int):
-    r = _check(request)
-    if r:
-        return r
     server = await get_server_by_id(server_id)
     if not server:
         return RedirectResponse("/servers", status_code=303)
+
     templates = get_templates()
-    
-    server = _normalize_server_for_form(server)
-    
     return templates.TemplateResponse(
         "servers.html",
-        {
-            "request": request,
-            "servers": await get_all_servers(),
-            "editing": server,
-            "api_types": [
-                {"value": "newapi", "label": "NewAPI"},
-                {"value": "rixapi", "label": "RixAPI"},
-                {"value": "other", "label": "Other (Custom)"},
-            ],
-            "auth_types": [
-                {"value": "header", "label": "Header + Bearer"},
-                {"value": "bearer_only", "label": "Bearer Only"},
-                {"value": "cookie", "label": "Cookie Auth"},
-                {"value": "none", "label": "No Auth"},
-            ],
-        },
+        _server_page_context(
+            request=request,
+            servers=await _load_servers_for_page(),
+            editing=_normalize_server_for_form(server),
+        ),
     )
 
 
 @router.post("/{server_id}/edit")
 async def servers_edit_submit(request: Request, server_id: int):
-    r = _check(request)
-    if r:
-        return r
     form = await request.form()
     payload = _get_server_form_payload(form)
     payload["is_active"] = 1 if form.get("is_active") else 0
@@ -250,80 +247,43 @@ async def servers_edit_submit(request: Request, server_id: int):
 
 
 @router.get("/{server_id}/delete")
-async def servers_delete(request: Request, server_id: int):
-    r = _check(request)
-    if r:
-        return r
+async def servers_delete(server_id: int):
     await delete_server(server_id)
     return RedirectResponse("/servers", status_code=303)
 
 
 @router.get("/{server_id}/groups", response_class=HTMLResponse)
 async def servers_groups(request: Request, server_id: int):
-    """Fetch groups từ server."""
-    r = _check(request)
-    if r:
-        return r
+    """Fetch groups from a server and show them in the admin UI."""
     server = await get_server_by_id(server_id)
     if not server:
         return RedirectResponse("/servers", status_code=303)
 
     client = get_api_client(server)
-    parsed_groups = await _load_and_translate_groups(server)
-    
     templates = get_templates()
-    servers = await get_all_servers()
     return templates.TemplateResponse(
         "servers.html",
-        {
-            "request": request,
-            "servers": servers,
-            "groups_server": server,
-            "groups_data": parsed_groups,
-            "supports_multi_group": client.get_supports_multi_group(server),
-            "api_types": [
-                {"value": "newapi", "label": "NewAPI"},
-                {"value": "rixapi", "label": "RixAPI"},
-                {"value": "other", "label": "Other (Custom)"},
-            ],
-            "auth_types": [
-                {"value": "header", "label": "Header + Bearer"},
-                {"value": "bearer_only", "label": "Bearer Only"},
-                {"value": "cookie", "label": "Cookie Auth"},
-                {"value": "none", "label": "No Auth"},
-            ],
-        },
+        _server_page_context(
+            request=request,
+            servers=await _load_servers_for_page(),
+            groups_server=server,
+            groups_data=await _load_and_translate_groups(server),
+            supports_multi_group=client.get_supports_multi_group(server),
+        ),
     )
 
 
 @router.get("/{server_id}/api/groups")
-async def api_servers_groups(request: Request, server_id: int):
-    """Fetch groups từ server (JSON response)."""
-    r = _check(request)
-    if r:
-        return JSONResponse({"success": False, "message": "Unauthorized"})
-    
+async def api_servers_groups(server_id: int):
+    """Fetch groups from a server and return JSON."""
     server = await get_server_by_id(server_id)
     if not server:
         return JSONResponse({"success": False, "message": "Server not found"})
 
     client = get_api_client(server)
-
-    # Check for manual groups first
     manual_groups = server.get("manual_groups", "")
     if manual_groups:
-        # Parse manual groups
-        groups = {}
-        for name in manual_groups.split(","):
-            name = name.strip()
-            if name:
-                groups[name] = {
-                    "name": name,
-                    "label_en": name,
-                    "ratio": 1.0,
-                    "desc": "",
-                    "category": "Other",
-                }
+        groups = {group["name"]: group for group in _build_manual_group_rows(manual_groups)}
         return JSONResponse(
             {
                 "success": True,
@@ -348,22 +308,17 @@ async def api_servers_groups(request: Request, server_id: int):
 
 @router.post("/preview-groups")
 async def preview_groups(request: Request):
-    """Preview groups from form data before saving server."""
-    r = _check(request)
-    if r:
-        return JSONResponse({"success": False, "message": "Unauthorized"})
-
+    """Preview groups from unsaved form data."""
     form = await request.form()
     server = _get_server_form_payload(form)
     if not server.get("name"):
         server["name"] = "Preview Server"
 
     client = get_api_client(server)
-    groups = await _load_and_translate_groups(server)
     return JSONResponse(
         {
             "success": True,
-            "data": groups,
+            "data": await _load_and_translate_groups(server),
             "supports_multi_group": client.get_supports_multi_group(server),
             "api_type": server.get("api_type", "newapi"),
         }

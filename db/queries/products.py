@@ -6,6 +6,18 @@ from __future__ import annotations
 from typing import Optional
 
 from db.database import get_db
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict, fetch_scalar
+
+
+def _hydrate_product_stock(product: dict) -> dict:
+    if product.get("product_type") == "account_stocked":
+        product["stock"] = product.get("real_stock", 0)
+    return product
+
+
+async def _fetch_products_with_real_stock(query: str, params: tuple | list = ()) -> list[dict]:
+    products = await fetch_all_dicts(query, tuple(params))
+    return [_hydrate_product_stock(product) for product in products]
 
 
 async def get_active_products_by_category(
@@ -31,37 +43,23 @@ async def get_active_products_by_category(
         params.append(product_type)
 
     query += " ORDER BY p.sort_order ASC, p.id ASC"
-    cursor = await db.execute(query, tuple(params))
-    rows = await cursor.fetchall()
-    
-    result = []
-    for r in rows:
-        d = dict(r)
-        if d.get("product_type") == "account_stocked":
-            d["stock"] = d.get("real_stock", 0)
-        result.append(d)
-    return result
+    return await _fetch_products_with_real_stock(query, params)
 
 
 async def get_product_by_id(product_id: int) -> Optional[dict]:
     """Lấy sản phẩm theo ID."""
-    db = await get_db()
-    cursor = await db.execute(
+    product = await fetch_one_dict(
         """
         SELECT p.*,
                (SELECT COUNT(id) FROM account_stocks WHERE product_id = p.id AND is_sold = 0) as real_stock
         FROM products p
         WHERE p.id = ?
         """,
-        (product_id,)
+        (product_id,),
     )
-    row = await cursor.fetchone()
-    if not row:
+    if not product:
         return None
-    d = dict(row)
-    if d.get("product_type") == "account_stocked":
-        d["stock"] = d.get("real_stock", 0)
-    return d
+    return _hydrate_product_stock(product)
 
 
 async def get_all_products(
@@ -90,16 +88,7 @@ async def get_all_products(
     query += " ORDER BY p.sort_order ASC, p.id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
-    cursor = await db.execute(query, tuple(params))
-    rows = await cursor.fetchall()
-    
-    result = []
-    for r in rows:
-        d = dict(r)
-        if d.get("product_type") == "account_stocked":
-            d["stock"] = d.get("real_stock", 0)
-        result.append(d)
-    return result
+    return await _fetch_products_with_real_stock(query, params)
 
 
 async def count_products(
@@ -142,8 +131,7 @@ async def create_product(
     input_prompt: Optional[str] = None,
 ) -> int:
     """Tạo sản phẩm mới, trả về ID."""
-    db = await get_db()
-    cursor = await db.execute(
+    cursor = await execute_commit(
         """INSERT INTO products
            (category_id, server_id, name, description, price_vnd, product_type,
             quota_amount, dollar_amount, group_name, delivery_type, delivery_data,
@@ -155,7 +143,6 @@ async def create_product(
             stock, sort_order, meta_json, format_template, input_prompt,
         ),
     )
-    await db.commit()
     return cursor.lastrowid  # type: ignore[return-value]
 
 
@@ -164,7 +151,6 @@ async def update_product(product_id: int, **kwargs) -> None:
     if not kwargs:
         return
 
-    db = await get_db()
     allowed_fields = {
         "category_id", "server_id", "name", "description", "price_vnd",
         "product_type", "quota_amount", "dollar_amount", "group_name",
@@ -186,38 +172,25 @@ async def update_product(product_id: int, **kwargs) -> None:
     values.append(product_id)
 
     query = f"UPDATE products SET {', '.join(fields)} WHERE id = ?"
-    await db.execute(query, tuple(values))
-    await db.commit()
+    await execute_commit(query, tuple(values))
 
 
 async def delete_product(product_id: int) -> None:
     """Xóa sản phẩm."""
-    db = await get_db()
-    await db.execute("DELETE FROM products WHERE id = ?", (product_id,))
-    await db.commit()
+    await execute_commit("DELETE FROM products WHERE id = ?", (product_id,))
 
 
 async def get_product_delete_dependencies(product_id: int) -> dict:
     """Äáº¿m cÃ¡c báº£n ghi Ä‘ang tham chiáº¿u tá»›i sáº£n pháº©m."""
-    db = await get_db()
-
-    cursor = await db.execute(
-        "SELECT COUNT(*) FROM orders WHERE product_id = ?",
-        (product_id,),
+    orders_count = int(
+        await fetch_scalar("SELECT COUNT(*) FROM orders WHERE product_id = ?", (product_id,)) or 0
     )
-    orders_count = (await cursor.fetchone())[0]
-
-    cursor = await db.execute(
-        "SELECT COUNT(*) FROM account_stocks WHERE product_id = ?",
-        (product_id,),
+    account_stocks_count = int(
+        await fetch_scalar("SELECT COUNT(*) FROM account_stocks WHERE product_id = ?", (product_id,)) or 0
     )
-    account_stocks_count = (await cursor.fetchone())[0]
-
-    cursor = await db.execute(
-        "SELECT COUNT(*) FROM chatgpt_accounts WHERE product_id = ?",
-        (product_id,),
+    legacy_accounts_count = int(
+        await fetch_scalar("SELECT COUNT(*) FROM chatgpt_accounts WHERE product_id = ?", (product_id,)) or 0
     )
-    legacy_accounts_count = (await cursor.fetchone())[0]
 
     return {
         "orders": orders_count,
@@ -244,9 +217,8 @@ async def decrement_stock(product_id: int) -> bool:
     if stock <= 0:
         return False
 
-    await db.execute(
+    await execute_commit(
         "UPDATE products SET stock = stock - 1, updated_at = datetime('now', '+7 hours') WHERE id = ? AND stock > 0",
         (product_id,),
     )
-    await db.commit()
     return True

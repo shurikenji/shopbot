@@ -1,29 +1,24 @@
 """
-admin/routers/dashboard.py — Dashboard thống kê tổng quan.
+admin/routers/dashboard.py - Dashboard statistics overview.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Request
+from fastapi.responses import HTMLResponse
 
-from admin.deps import get_templates, require_admin
-from bot.config import settings
+from admin.deps import get_templates, protected_router
 from db.queries.orders import get_order_stats
-from db.queries.users import count_users
 from db.queries.servers import get_all_servers
+from db.queries.users import count_users
 
-router = APIRouter(tags=["dashboard"])
+router = protected_router(tags=["dashboard"])
 
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    if not request.session.get("admin"):
-        return RedirectResponse(settings.admin_login_path, status_code=303)
-
     stats = await get_order_stats()
     stats["total_users"] = await count_users()
-    servers = await get_all_servers()
-    stats["servers"] = servers
+    stats["servers"] = await get_all_servers()
 
     templates = get_templates()
     return templates.TemplateResponse(

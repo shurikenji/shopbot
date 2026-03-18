@@ -11,29 +11,22 @@ Flow service_upgrade:
 """
 from __future__ import annotations
 from bot.utils.time_utils import get_now_vn
-
-import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from bot.callback_data.factories import (
-    ProductSelectCB, PaymentMethodCB, OrderCancelCB, BackCB,
-)
+from bot.callback_data.factories import BackCB
 from bot.keyboards.inline_kb import payment_method_kb, products_kb, back_only_kb
 from bot.utils.formatting import format_vnd
 from bot.utils.order_code import generate_order_code
 
-logger = logging.getLogger(__name__)
-
 from db.queries.products import get_product_by_id, get_active_products_by_category
-from db.queries.orders import create_order, get_order_by_id, update_order_status
+from db.queries.orders import create_order, update_order_status
 from db.queries.wallets import get_balance
 from db.queries.settings import get_setting_int
-from db.queries.account_stocks import count_stock
 
 router = Router(name="flow_accounts")
 
@@ -62,25 +55,7 @@ class UpgradeStates(StatesGroup):
 # Approach: Export hàm handle_upgrade_product cho catalog.py import.
 
 
-async def handle_upgrade_product(
-    callback: CallbackQuery,
-    product: dict,
-    state: FSMContext,
-    db_user: dict,
-) -> None:
-    """
-    Xử lý sản phẩm dạng service_upgrade.
-    Hỏi user nhập thông tin (email, OTP, etc.) trước khi tạo order.
-    """
-    input_prompt = product.get("input_prompt") or "Vui lòng nhập thông tin cần thiết:"
-
-    await state.update_data(
-        upgrade_product_id=product["id"],
-        upgrade_product_name=product["name"],
-        upgrade_price_vnd=product["price_vnd"],
-        upgrade_product_type=product["product_type"],
-    )
-
+def _build_upgrade_prompt_lines(product: dict, input_prompt: str) -> list[str]:
     lines = [
         f"🔧 <b>{product['name']}</b>",
         f"━━━━━━━━━━━━━━━━━━━━",
@@ -95,9 +70,80 @@ async def handle_upgrade_product(
         "",
         "✏️ Nhập thông tin bên dưới:",
     ])
+    return lines
+
+
+def _build_upgrade_payment_lines(
+    product_name: str,
+    price_vnd: int,
+    user_input: str,
+    order_code: str,
+    balance: int,
+    *,
+    show_qr: bool,
+) -> list[str]:
+    lines = [
+        f"🔧 <b>{product_name}</b>",
+        f"━━━━━━━━━━━━━━━━━━━━",
+        f"💰 Giá: <b>{format_vnd(price_vnd)}</b>",
+        f"📝 Thông tin của bạn: <code>{user_input}</code>",
+        f"━━━━━━━━━━━━━━━━━━━━",
+        f"🔖 Mã đơn: <code>{order_code}</code>",
+        "",
+        "Chọn phương thức thanh toán:",
+        f"👛 Số dư ví: <b>{format_vnd(balance)}</b>",
+    ]
+    if not show_qr:
+        lines.append("⚠️ Dưới 1.000đ chỉ hỗ trợ thanh toán bằng ví.")
+    return lines
+
+
+async def _show_category_products(callback: CallbackQuery, cat_id: int) -> None:
+    if not cat_id:
+        await callback.message.edit_text(
+            "🛒 Danh mục sản phẩm",
+            reply_markup=back_only_kb("cat"),
+        )
+        return
+
+    products = await get_active_products_by_category(cat_id)
+    if not products:
+        await callback.message.edit_text(
+            "📦 Danh mục trống.",
+            reply_markup=back_only_kb("cat"),
+        )
+        return
+
+    per_page = await get_setting_int("pagination_size", 6)
+    await callback.message.edit_text(
+        "📦 <b>Chọn sản phẩm</b>",
+        reply_markup=products_kb(
+            products,
+            cat_id=cat_id,
+            srv_id=0,
+            ptype="general",
+            page=0,
+            per_page=per_page,
+        ),
+        parse_mode="HTML",
+    )
+
+
+async def handle_upgrade_product(
+    callback: CallbackQuery,
+    product: dict,
+    state: FSMContext,
+    _db_user: dict,
+) -> None:
+    """
+    Xử lý sản phẩm dạng service_upgrade.
+    Hỏi user nhập thông tin (email, OTP, etc.) trước khi tạo order.
+    """
+    input_prompt = product.get("input_prompt") or "Vui lòng nhập thông tin cần thiết:"
+    await state.update_data(upgrade_product_id=product["id"])
 
     await callback.message.edit_text(
-        "\n".join(lines),
+        "\n".join(_build_upgrade_prompt_lines(product, input_prompt)),
         reply_markup=back_only_kb("upgrade_back"),
         parse_mode="HTML",
     )
@@ -123,9 +169,6 @@ async def upgrade_user_input_received(
 
     fsm_data = await state.get_data()
     product_id = fsm_data.get("upgrade_product_id")
-    product_name = fsm_data.get("upgrade_product_name", "Dịch vụ")
-    price_vnd = fsm_data.get("upgrade_price_vnd", 0)
-    product_type = fsm_data.get("upgrade_product_type", "service_upgrade")
 
     product = await get_product_by_id(product_id) if product_id else None
     if not product:
@@ -137,6 +180,9 @@ async def upgrade_user_input_received(
         return
 
     await state.set_state(None)
+    product_name = product.get("name") or "Dịch vụ"
+    price_vnd = int(product.get("price_vnd") or 0)
+    product_type = product.get("product_type") or "service_upgrade"
 
     # Tạo order
     order_code = generate_order_code()
@@ -151,6 +197,7 @@ async def upgrade_user_input_received(
         product_type=product_type,
         amount=price_vnd,
         payment_method="qr",
+        expired_at=expired_at,
     )
 
     # Lưu user_input vào order
@@ -163,22 +210,20 @@ async def upgrade_user_input_received(
 
     # Hiện balance ví
     balance = await get_balance(db_user["id"])
-
-    lines = [
-        f"🔧 <b>{product_name}</b>",
-        f"━━━━━━━━━━━━━━━━━━━━",
-        f"💰 Giá: <b>{format_vnd(price_vnd)}</b>",
-        f"📝 Thông tin của bạn: <code>{user_input}</code>",
-        f"━━━━━━━━━━━━━━━━━━━━",
-        f"🔖 Mã đơn: <code>{order_code}</code>",
-        f"",
-        f"Chọn phương thức thanh toán:",
-        f"👛 Số dư ví: <b>{format_vnd(balance)}</b>",
-    ]
+    show_qr = price_vnd >= 1000
 
     await message.answer(
-        "\n".join(lines),
-        reply_markup=payment_method_kb(order_id),
+        "\n".join(
+            _build_upgrade_payment_lines(
+                product_name,
+                price_vnd,
+                user_input,
+                order_code,
+                balance,
+                show_qr=show_qr,
+            )
+        ),
+        reply_markup=payment_method_kb(order_id, show_qr=show_qr),
         parse_mode="HTML",
     )
 
@@ -193,35 +238,5 @@ async def back_from_upgrade_prompt(
     cat_id = fsm_data.get("current_cat_id", 0)
 
     await state.set_state(None)
-
-    if not cat_id:
-        await callback.message.edit_text(
-            "🛒 Danh mục sản phẩm",
-            reply_markup=back_only_kb("cat"),
-        )
-        await callback.answer()
-        return
-
-    products = await get_active_products_by_category(cat_id)
-    if not products:
-        await callback.message.edit_text(
-            "📦 Danh mục trống.",
-            reply_markup=back_only_kb("cat"),
-        )
-        await callback.answer()
-        return
-
-    per_page = await get_setting_int("pagination_size", 6)
-    await callback.message.edit_text(
-        "📦 <b>Chọn sản phẩm</b>",
-        reply_markup=products_kb(
-            products,
-            cat_id=cat_id,
-            srv_id=0,
-            ptype="general",
-            page=0,
-            per_page=per_page,
-        ),
-        parse_mode="HTML",
-    )
+    await _show_category_products(callback, cat_id)
     await callback.answer()

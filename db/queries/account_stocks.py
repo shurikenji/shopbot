@@ -7,19 +7,17 @@ from __future__ import annotations
 from typing import Optional
 
 from db.database import get_db
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict
 
 
 async def get_available_account(product_id: int) -> Optional[dict]:
     """Lấy 1 tài khoản chưa bán & CHƯA ĐẶT CHỖ cho product_id (FIFO)."""
-    db = await get_db()
-    cursor = await db.execute(
+    return await fetch_one_dict(
         """SELECT * FROM account_stocks
            WHERE product_id = ? AND is_sold = 0 AND (sold_order_id IS NULL OR sold_order_id = 0)
            ORDER BY id ASC LIMIT 1""",
         (product_id,),
     )
-    row = await cursor.fetchone()
-    return dict(row) if row else None
 
 async def reserve_account(product_id: int, order_id: int) -> Optional[dict]:
     """
@@ -95,28 +93,24 @@ async def mark_account_sold(
     product_id: int = 0,
 ) -> None:
     """Đánh dấu tài khoản đã bán."""
-    db = await get_db()
-    await db.execute(
+    await execute_commit(
         """UPDATE account_stocks
            SET is_sold = 1, sold_to_user = ?, sold_order_id = ?,
                sold_at = datetime('now', '+7 hours')
            WHERE id = ?""",
         (user_id, order_id, account_id),
     )
-    await db.commit()
 
 
 async def unmark_account_sold(account_id: int, product_id: int = 0) -> None:
     """Hoàn lại tài khoản (khi refund)."""
-    db = await get_db()
-    await db.execute(
+    await execute_commit(
         """UPDATE account_stocks
            SET is_sold = 0, sold_to_user = NULL, sold_order_id = NULL,
                sold_at = NULL
            WHERE id = ?""",
         (account_id,),
     )
-    await db.commit()
 
 
 async def add_account(
@@ -124,13 +118,11 @@ async def add_account(
     account_data: str,
 ) -> int:
     """Thêm 1 tài khoản vào stock, trả về ID."""
-    db = await get_db()
-    cursor = await db.execute(
+    cursor = await execute_commit(
         """INSERT INTO account_stocks (product_id, account_data)
            VALUES (?, ?)""",
         (product_id, account_data),
     )
-    await db.commit()
     return cursor.lastrowid  # type: ignore[return-value]
 
 
@@ -178,7 +170,6 @@ async def get_accounts_by_product(
     show_sold: bool = True,
 ) -> list[dict]:
     """Lấy danh sách tài khoản theo product (admin)."""
-    db = await get_db()
     query = "SELECT * FROM account_stocks WHERE product_id = ?"
     params: list = [product_id]
 
@@ -188,15 +179,11 @@ async def get_accounts_by_product(
     query += " ORDER BY id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
-    cursor = await db.execute(query, tuple(params))
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    return await fetch_all_dicts(query, tuple(params))
 
 
 async def delete_account(account_id: int) -> None:
     """Xóa tài khoản khỏi stock."""
-    db = await get_db()
-    await db.execute(
+    await execute_commit(
         "DELETE FROM account_stocks WHERE id = ?", (account_id,)
     )
-    await db.commit()

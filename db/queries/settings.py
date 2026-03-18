@@ -7,18 +7,14 @@ from __future__ import annotations
 
 from typing import Optional
 
-from db.database import get_db
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_scalar
 
 
 async def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
     """Lấy giá trị setting theo key."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT value FROM settings WHERE key = ?", (key,)
-    )
-    row = await cursor.fetchone()
-    if row and row[0]:
-        return row[0]
+    value = await fetch_scalar("SELECT value FROM settings WHERE key = ?", (key,))
+    if value:
+        return str(value)
     return default
 
 
@@ -35,9 +31,8 @@ async def get_setting_int(key: str, default: int = 0) -> int:
 
 async def set_setting(key: str, value: str, description: Optional[str] = None) -> None:
     """Tạo hoặc cập nhật setting."""
-    db = await get_db()
     if description is not None:
-        await db.execute(
+        await execute_commit(
             """INSERT INTO settings (key, value, description, updated_at)
                VALUES (?, ?, ?, datetime('now', '+7 hours'))
                ON CONFLICT(key) DO UPDATE
@@ -46,36 +41,29 @@ async def set_setting(key: str, value: str, description: Optional[str] = None) -
                    updated_at = datetime('now', '+7 hours')""",
             (key, value, description),
         )
-    else:
-        await db.execute(
-            """INSERT INTO settings (key, value, updated_at)
-               VALUES (?, ?, datetime('now', '+7 hours'))
-               ON CONFLICT(key) DO UPDATE
-               SET value = excluded.value,
-                   updated_at = datetime('now', '+7 hours')""",
-            (key, value),
-        )
-    await db.commit()
+        return
+
+    await execute_commit(
+        """INSERT INTO settings (key, value, updated_at)
+           VALUES (?, ?, datetime('now', '+7 hours'))
+           ON CONFLICT(key) DO UPDATE
+           SET value = excluded.value,
+               updated_at = datetime('now', '+7 hours')""",
+        (key, value),
+    )
 
 
 async def get_all_settings() -> list[dict]:
     """Lấy tất cả settings."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM settings ORDER BY key ASC"
-    )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    return await fetch_all_dicts("SELECT * FROM settings ORDER BY key ASC")
 
 
 async def get_settings_dict() -> dict[str, str]:
     """Lấy tất cả settings dưới dạng dict key→value."""
     settings = await get_all_settings()
-    return {s["key"]: s["value"] for s in settings}
+    return {setting["key"]: setting["value"] for setting in settings}
 
 
 async def delete_setting(key: str) -> None:
     """Xóa setting."""
-    db = await get_db()
-    await db.execute("DELETE FROM settings WHERE key = ?", (key,))
-    await db.commit()
+    await execute_commit("DELETE FROM settings WHERE key = ?", (key,))

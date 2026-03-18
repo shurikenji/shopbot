@@ -1,61 +1,49 @@
 """
-admin/routers/account_stock.py — CRUD kho tài khoản chung.
-Chỉ hỗ trợ product_type = account_stocked.
+admin/routers/account_stock.py - Shared account stock management routes.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from admin.deps import get_templates
-from bot.config import settings
+from admin.deps import get_templates, protected_router
 from db.queries.account_stocks import (
-    get_accounts_by_product, count_stock,
-    add_account, bulk_add_accounts, delete_account,
+    add_account,
+    bulk_add_accounts,
+    count_stock,
+    delete_account,
+    get_accounts_by_product,
 )
-from db.queries.products import get_all_products
-from db.queries.products import get_product_by_id
 from db.queries.categories import get_all_categories
+from db.queries.products import get_all_products, get_product_by_id
 
-router = APIRouter(prefix="/account-stock", tags=["account_stock"])
+router = protected_router(prefix="/account-stock", tags=["account_stock"])
 
 _STOCK_TYPES = ("account_stocked",)
 
 
-def _check(request: Request):
-    if not request.session.get("admin"):
-        return RedirectResponse(settings.admin_login_path, status_code=303)
-    return None
-
-
 @router.get("", response_class=HTMLResponse)
 async def account_stock_page(request: Request):
-    r = _check(request)
-    if r: return r
-
-    # Lấy danh mục (để hiện badge)
     categories = await get_all_categories()
-    cat_map = {c["id"]: c for c in categories}
+    cat_map = {category["id"]: category for category in categories}
 
-    # Lấy tất cả sản phẩm thuộc nhóm có stock
-    all_products = await get_all_products(limit=200)
     stock_products = [
-        p for p in all_products
-        if p["product_type"] in _STOCK_TYPES
+        product
+        for product in await get_all_products(limit=200)
+        if product["product_type"] in _STOCK_TYPES
     ]
 
-    # Lấy stock cho từng product, gắn thông tin danh mục
     stock_by_product = {}
-    for p in stock_products:
-        stock_info = await count_stock(p["id"])
-        accounts = await get_accounts_by_product(p["id"], limit=50)
-        cat = cat_map.get(p.get("category_id"), {})
-        stock_by_product[p["id"]] = {
-            "product_name": p["name"],
-            "product_type": p["product_type"],
-            "format_template": p.get("format_template") or "",
-            "cat_name": cat.get("name", ""),
-            "cat_icon": cat.get("icon", "📁"),
+    for product in stock_products:
+        stock_info = await count_stock(product["id"])
+        accounts = await get_accounts_by_product(product["id"], limit=50)
+        category = cat_map.get(product.get("category_id"), {})
+        stock_by_product[product["id"]] = {
+            "product_name": product["name"],
+            "product_type": product["product_type"],
+            "format_template": product.get("format_template") or "",
+            "cat_name": category.get("name", ""),
+            "cat_icon": category.get("icon", "📁"),
             **stock_info,
             "accounts": accounts,
         }
@@ -63,18 +51,18 @@ async def account_stock_page(request: Request):
     templates = get_templates()
     return templates.TemplateResponse(
         "account_stock.html",
-        {"request": request,
-         "stock_by_product": stock_by_product,
-         "stock_products": stock_products,
-         "cat_map": cat_map},
+        {
+            "request": request,
+            "stock_by_product": stock_by_product,
+            "stock_products": stock_products,
+            "cat_map": cat_map,
+        },
     )
 
 
 @router.post("/add")
 async def account_stock_add(request: Request):
-    """Thêm tài khoản — hỗ trợ bulk (mỗi dòng 1 account)."""
-    r = _check(request)
-    if r: return r
+    """Add one or many accounts to stock for a product."""
     form = await request.form()
     product_id = int(form["product_id"])
     raw_data = form.get("accounts_data", "")
@@ -82,9 +70,7 @@ async def account_stock_add(request: Request):
     if not product or product.get("product_type") not in _STOCK_TYPES:
         return RedirectResponse("/account-stock", status_code=303)
 
-    # Tách từng dòng (hỗ trợ bulk add)
-    lines = [line.strip() for line in raw_data.strip().split("\n") if line.strip()]
-
+    lines = [line.strip() for line in raw_data.strip().splitlines() if line.strip()]
     if len(lines) == 1:
         await add_account(product_id, lines[0])
     elif len(lines) > 1:
@@ -94,8 +80,6 @@ async def account_stock_add(request: Request):
 
 
 @router.get("/{account_id}/delete")
-async def account_stock_delete(request: Request, account_id: int):
-    r = _check(request)
-    if r: return r
+async def account_stock_delete(account_id: int):
     await delete_account(account_id)
     return RedirectResponse("/account-stock", status_code=303)
