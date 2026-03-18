@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Optional
 
 from db.database import get_db
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict, fetch_scalar
 
 _ORDER_UPDATEABLE_FIELDS = frozenset(
     {
@@ -26,6 +27,24 @@ _ORDER_UPDATEABLE_FIELDS = frozenset(
 )
 
 
+def _build_order_admin_filters(
+    *,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+) -> tuple[str, list[str]]:
+    query = " FROM orders WHERE 1=1"
+    params: list[str] = []
+
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    if search:
+        query += " AND (order_code LIKE ? OR product_name LIKE ?)"
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    return query, params
+
+
 async def create_order(
     order_code: str,
     user_id: int,
@@ -42,8 +61,7 @@ async def create_order(
     expired_at: Optional[str] = None,
 ) -> int:
     """Tạo đơn hàng mới, trả về ID."""
-    db = await get_db()
-    cursor = await db.execute(
+    cursor = await execute_commit(
         """INSERT INTO orders
            (order_code, user_id, product_id, product_name, product_type,
             amount, payment_method, server_id, group_name, existing_key,
@@ -55,28 +73,17 @@ async def create_order(
             custom_quota, qr_content, expired_at,
         ),
     )
-    await db.commit()
     return cursor.lastrowid  # type: ignore[return-value]
 
 
 async def get_order_by_id(order_id: int) -> Optional[dict]:
     """Lấy đơn hàng theo ID."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM orders WHERE id = ?", (order_id,)
-    )
-    row = await cursor.fetchone()
-    return dict(row) if row else None
+    return await fetch_one_dict("SELECT * FROM orders WHERE id = ?", (order_id,))
 
 
 async def get_order_by_code(order_code: str) -> Optional[dict]:
     """Lấy đơn hàng theo mã đơn."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM orders WHERE order_code = ?", (order_code,)
-    )
-    row = await cursor.fetchone()
-    return dict(row) if row else None
+    return await fetch_one_dict("SELECT * FROM orders WHERE order_code = ?", (order_code,))
 
 
 async def get_orders_by_user(
@@ -85,47 +92,31 @@ async def get_orders_by_user(
     limit: int = 10,
 ) -> list[dict]:
     """Lấy đơn hàng của user (mới nhất trước)."""
-    db = await get_db()
-    cursor = await db.execute(
+    return await fetch_all_dicts(
         """SELECT * FROM orders
            WHERE user_id = ?
            ORDER BY id DESC LIMIT ? OFFSET ?""",
         (user_id, limit, offset),
     )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
 
 
 async def count_orders_by_user(user_id: int) -> int:
     """Đếm tổng đơn của user."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT COUNT(*) FROM orders WHERE user_id = ?", (user_id,)
-    )
-    row = await cursor.fetchone()
-    return row[0] if row else 0
+    return int(await fetch_scalar("SELECT COUNT(*) FROM orders WHERE user_id = ?", (user_id,)) or 0)
 
 
 async def get_pending_orders() -> list[dict]:
     """Lấy tất cả đơn pending (chưa thanh toán)."""
-    db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM orders WHERE status = 'pending' ORDER BY id ASC"
-    )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    return await fetch_all_dicts("SELECT * FROM orders WHERE status = 'pending' ORDER BY id ASC")
 
 
 async def get_pending_qr_orders() -> list[dict]:
     """Lấy đơn pending thanh toán QR (dùng cho payment poller)."""
-    db = await get_db()
-    cursor = await db.execute(
+    return await fetch_all_dicts(
         """SELECT * FROM orders
            WHERE status = 'pending' AND payment_method = 'qr'
            ORDER BY id ASC"""
     )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
 
 
 async def update_order_status(
@@ -171,15 +162,13 @@ async def mark_refunded(
     reason: Optional[str] = None,
 ) -> None:
     """Đánh dấu đã hoàn tiền (chống hoàn 2 lần)."""
-    db = await get_db()
-    await db.execute(
+    await execute_commit(
         """UPDATE orders
            SET is_refunded = 1, refund_reason = ?, refunded_at = datetime('now'),
                status = 'refunded', updated_at = datetime('now')
            WHERE id = ? AND is_refunded = 0""",
         (reason, order_id),
     )
-    await db.commit()
 
 
 async def get_all_orders(
@@ -189,23 +178,10 @@ async def get_all_orders(
     search: Optional[str] = None,
 ) -> list[dict]:
     """Lấy tất cả đơn hàng (admin, phân trang)."""
-    db = await get_db()
-    query = "SELECT * FROM orders WHERE 1=1"
-    params: list = []
-
-    if status:
-        query += " AND status = ?"
-        params.append(status)
-    if search:
-        query += " AND (order_code LIKE ? OR product_name LIKE ?)"
-        params.extend([f"%{search}%", f"%{search}%"])
-
-    query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+    query, params = _build_order_admin_filters(status=status, search=search)
+    query = "SELECT *" + query + " ORDER BY id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
-
-    cursor = await db.execute(query, tuple(params))
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    return await fetch_all_dicts(query, tuple(params))
 
 
 async def count_all_orders(
@@ -213,20 +189,8 @@ async def count_all_orders(
     search: Optional[str] = None,
 ) -> int:
     """Đếm tổng đơn hàng (admin)."""
-    db = await get_db()
-    query = "SELECT COUNT(*) FROM orders WHERE 1=1"
-    params: list = []
-
-    if status:
-        query += " AND status = ?"
-        params.append(status)
-    if search:
-        query += " AND (order_code LIKE ? OR product_name LIKE ?)"
-        params.extend([f"%{search}%", f"%{search}%"])
-
-    cursor = await db.execute(query, tuple(params))
-    row = await cursor.fetchone()
-    return row[0] if row else 0
+    query, params = _build_order_admin_filters(status=status, search=search)
+    return int(await fetch_scalar("SELECT COUNT(*)" + query, tuple(params)) or 0)
 
 
 async def get_order_stats() -> dict:
@@ -234,10 +198,12 @@ async def get_order_stats() -> dict:
     db = await get_db()
 
     # Tổng doanh thu đơn completed
-    cursor = await db.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'completed'"
+    total_revenue = int(
+        await fetch_scalar(
+            "SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'completed'"
+        )
+        or 0
     )
-    total_revenue = (await cursor.fetchone())[0]
 
     # Đếm theo status
     cursor = await db.execute(
@@ -247,18 +213,22 @@ async def get_order_stats() -> dict:
     status_counts = {row[0]: row[1] for row in await cursor.fetchall()}
 
     # Đơn hôm nay (shift cả 2 vế sang VN time để so sánh đúng ngày VN)
-    cursor = await db.execute(
-        """SELECT COUNT(*) FROM orders
-           WHERE date(created_at, '+7 hours') = date('now', '+7 hours')"""
+    today_orders = int(
+        await fetch_scalar(
+            """SELECT COUNT(*) FROM orders
+               WHERE date(created_at, '+7 hours') = date('now', '+7 hours')"""
+        )
+        or 0
     )
-    today_orders = (await cursor.fetchone())[0]
 
     # Doanh thu hôm nay
-    cursor = await db.execute(
-        """SELECT COALESCE(SUM(amount), 0) FROM orders
-           WHERE status = 'completed' AND date(created_at, '+7 hours') = date('now', '+7 hours')"""
+    today_revenue = int(
+        await fetch_scalar(
+            """SELECT COALESCE(SUM(amount), 0) FROM orders
+               WHERE status = 'completed' AND date(created_at, '+7 hours') = date('now', '+7 hours')"""
+        )
+        or 0
     )
-    today_revenue = (await cursor.fetchone())[0]
 
     return {
         "total_revenue": total_revenue,
