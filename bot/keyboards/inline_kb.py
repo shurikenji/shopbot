@@ -204,10 +204,11 @@ def products_kb(
         builder.row(*nav_buttons)
 
     # Back
+    back_target = "srv" if srv_id > 0 else "cat"
     builder.row(
         InlineKeyboardButton(
             text="⬅️ Quay lại",
-            callback_data=BackCB(target="srv").pack(),
+            callback_data=BackCB(target=back_target).pack(),
         )
     )
     return builder.as_markup()
@@ -365,4 +366,30 @@ def order_cancel_kb(order_id: int) -> InlineKeyboardMarkup:
         text="❌ Hủy đơn hàng",
         callback_data=OrderCancelCB(order_id=order_id),
     )
+    return builder.as_markup()
+
+
+def order_detail_kb(
+    order_id: int,
+    can_cancel: bool = False,
+) -> InlineKeyboardMarkup:
+    """Nút cho màn chi tiết đơn hàng."""
+    builder = InlineKeyboardBuilder()
+    if can_cancel:
+        builder.button(
+            text="❌ Hủy đơn hàng",
+            callback_data=OrderCancelCB(order_id=order_id),
+        )
+    builder.button(text="⬅️ Quay lại", callback_data=BackCB(target="orders_back"))
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def back_only_kb(
+    target: str,
+    text: str = "⬅️ Quay lại",
+) -> InlineKeyboardMarkup:
+    """Inline keyboard chỉ gồm 1 nút quay lại."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text=text, callback_data=BackCB(target=target))
     return builder.as_markup()

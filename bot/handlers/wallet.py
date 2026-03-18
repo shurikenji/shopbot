@@ -13,7 +13,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from bot.callback_data.factories import WalletActionCB, WalletTopupAmountCB, BackCB
-from bot.keyboards.inline_kb import wallet_menu_kb, wallet_topup_amounts_kb
+from bot.keyboards.inline_kb import wallet_menu_kb, wallet_topup_amounts_kb, back_only_kb
 from bot.utils.formatting import format_vnd, status_emoji, format_time_vn
 from bot.utils.order_code import generate_order_code
 from bot.services.vietqr import build_qr_url, build_qr_caption
@@ -79,6 +79,7 @@ async def wallet_topup_custom_prompt(
         f"✏️ <b>Nhập số tiền muốn nạp</b>\n\n"
         f"Nhập số tiền (VNĐ, tối thiểu 10.000đ):\n"
         f"Ví dụ: <code>50000</code> hoặc <code>100000</code>",
+        reply_markup=back_only_kb("wallet"),
         parse_mode="HTML",
     )
     await state.set_state(WalletTopupStates.waiting_custom_amount)
@@ -92,8 +93,6 @@ async def wallet_topup_custom_input(
     db_user: dict,
 ) -> None:
     """Xử lý input số tiền custom."""
-    await state.clear()
-
     # Parse số tiền
     text = message.text.strip().replace(".", "").replace(",", "").replace(" ", "")
     if not text.isdigit():
@@ -101,6 +100,7 @@ async def wallet_topup_custom_input(
             "❌ Số tiền không hợp lệ. Vui lòng nhập số nguyên.\n"
             "Ví dụ: <code>50000</code>",
             parse_mode="HTML",
+            reply_markup=back_only_kb("wallet"),
         )
         return
 
@@ -110,6 +110,7 @@ async def wallet_topup_custom_input(
         await message.answer(
             f"❌ Số tiền tối thiểu là <b>{format_vnd(wallet_min)}</b>",
             parse_mode="HTML",
+            reply_markup=back_only_kb("wallet"),
         )
         return
     wallet_max = 100_000_000
@@ -117,8 +118,11 @@ async def wallet_topup_custom_input(
         await message.answer(
             f"❌ Số tiền tối đa là <b>{format_vnd(wallet_max)}</b>",
             parse_mode="HTML",
+            reply_markup=back_only_kb("wallet"),
         )
         return
+
+    await state.clear()
 
     # Tạo đơn nạp ví
     order_code = generate_order_code()
@@ -193,6 +197,7 @@ async def wallet_history(callback: CallbackQuery, db_user: dict) -> None:
     if not txs:
         await callback.message.edit_text(
             "📜 <b>Lịch sử giao dịch</b>\n\nChưa có giao dịch nào.",
+            reply_markup=back_only_kb("wallet"),
             parse_mode="HTML",
         )
         await callback.answer()
@@ -220,6 +225,7 @@ async def wallet_history(callback: CallbackQuery, db_user: dict) -> None:
 
     await callback.message.edit_text(
         "\n".join(lines),
+        reply_markup=back_only_kb("wallet"),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -228,8 +234,13 @@ async def wallet_history(callback: CallbackQuery, db_user: dict) -> None:
 # ── Back to wallet ──────────────────────────────────────────────────────────
 
 @router.callback_query(BackCB.filter(F.target == "wallet"))
-async def back_to_wallet(callback: CallbackQuery, db_user: dict) -> None:
+async def back_to_wallet(
+    callback: CallbackQuery,
+    state: FSMContext,
+    db_user: dict,
+) -> None:
     """Quay lại menu ví."""
+    await state.clear()
     balance = await get_balance(db_user["id"])
     text = (
         f"👛 <b>Ví của bạn</b>\n"

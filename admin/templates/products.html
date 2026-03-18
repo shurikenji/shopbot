@@ -275,10 +275,9 @@
         <div class="product-hero-top">
             <div>
                 <h1>Product Control Deck</h1>
-                <p>Products now surface whether a key package uses its own group override or inherits the server default group set, so multi-group server configuration stays meaningful.</p>
+                <p>Products now separate API key packages from stock/service products by category, while still showing whether a key package inherits server default groups or overrides them.</p>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <a href="/products/auto-generate" class="btn btn-light btn-sm">Auto-generate</a>
                 <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Them SP</button>
             </div>
         </div>
@@ -408,9 +407,9 @@
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label">Danh muc</label>
-                            <select name="category_id" class="form-select">
+                            <select name="category_id" class="form-select" id="addCategorySelect" onchange="syncProductTypeOptions('add')">
                                 {% for c in categories %}
-                                <option value="{{ c.id }}">{{ c.icon }} {{ c.name }}</option>
+                                <option value="{{ c.id }}" data-cat-type="{{ c.cat_type }}">{{ c.icon }} {{ c.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -511,9 +510,9 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Danh muc</label>
-                    <select name="category_id" class="form-select">
+                    <select name="category_id" class="form-select" id="editCategorySelect" onchange="syncProductTypeOptions('edit')">
                         {% for c in categories %}
-                        <option value="{{ c.id }}" {% if c.id == editing.category_id %}selected{% endif %}>{{ c.icon }} {{ c.name }}</option>
+                        <option value="{{ c.id }}" data-cat-type="{{ c.cat_type }}" {% if c.id == editing.category_id %}selected{% endif %}>{{ c.icon }} {{ c.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -605,6 +604,16 @@
 <script>
     let groupsDataMap = {};
     const groupInputMode = { add: 'manual', edit: 'manual' };
+    const productTypeOptions = {
+        key_api: [
+            { value: 'key_new', label: 'Key moi' },
+            { value: 'key_topup', label: 'Nap them key' },
+        ],
+        general: [
+            { value: 'account_stocked', label: 'Tai khoan co san' },
+            { value: 'service_upgrade', label: 'Dich vu / Nang cap' },
+        ],
+    };
     const serverMetaMap = {
         {% for s in servers %}
         "{{ s.id }}": {
@@ -625,6 +634,39 @@
     function getServerMeta(prefix) {
         const serverSelect = document.getElementById(`${prefix}ServerSelect`);
         return serverSelect ? serverMetaMap[serverSelect.value] || null : null;
+    }
+
+    function getCategoryType(prefix) {
+        const categorySelect = document.getElementById(`${prefix}CategorySelect`);
+        if (!categorySelect) return 'general';
+        const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+        return selectedOption ? selectedOption.getAttribute('data-cat-type') || 'general' : 'general';
+    }
+
+    function syncProductTypeOptions(prefix) {
+        const typeSelect = document.getElementById(`${prefix}ProductType`);
+        if (!typeSelect) return;
+
+        const categoryType = getCategoryType(prefix);
+        const options = categoryType === 'key_api'
+            ? productTypeOptions.key_api
+            : productTypeOptions.general;
+        const currentValue = typeSelect.value;
+
+        typeSelect.innerHTML = options.map(option => {
+            const selected = option.value === currentValue ? 'selected' : '';
+            return `<option value="${option.value}" ${selected}>${option.label}</option>`;
+        }).join('');
+
+        if (!options.some(option => option.value === currentValue)) {
+            typeSelect.value = options[0].value;
+        }
+
+        if (prefix === 'add') {
+            toggleAddFields();
+            return;
+        }
+        toggleEditFields();
     }
 
     function attachGroupInputListeners(prefix) {
@@ -871,11 +913,11 @@
         }
 
         attachGroupInputListeners('add');
-        toggleAddFields();
+        syncProductTypeOptions('add');
 
         if (document.getElementById('editProductType')) {
             attachGroupInputListeners('edit');
-            toggleEditFields();
+            syncProductTypeOptions('edit');
             if (document.getElementById('editProductType').value === 'key_new') {
                 toggleGroupInputMode('edit');
             }

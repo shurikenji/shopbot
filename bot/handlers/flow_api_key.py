@@ -23,7 +23,7 @@ from bot.callback_data.factories import (
     MyKeySelectCB, MyKeyInputCB, CustomAmountCB, BackCB,
 )
 from bot.keyboards.inline_kb import (
-    servers_kb, products_kb, payment_method_kb, my_keys_kb,
+    servers_kb, products_kb, payment_method_kb, my_keys_kb, back_only_kb,
 )
 from bot.services.api_clients import get_api_client
 from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar
@@ -65,7 +65,10 @@ async def key_action(
 
     servers = await get_active_servers()
     if not servers:
-        await callback.message.edit_text("🖥 Chưa có server nào được cấu hình.")
+        await callback.message.edit_text(
+            "🖥 Chưa có server nào được cấu hình.",
+            reply_markup=back_only_kb("cat"),
+        )
         await callback.answer()
         return
 
@@ -118,6 +121,7 @@ async def select_server(
         if not products:
             await callback.message.edit_text(
                 f"📦 Chưa có gói cho server <b>{server['name']}</b>.",
+                reply_markup=back_only_kb("srv"),
                 parse_mode="HTML",
             )
             await callback.answer()
@@ -165,7 +169,10 @@ async def select_my_key(
         cat_id, server_id=server_id, product_type="key_topup"
     )
     if not products:
-        await callback.message.edit_text("📦 Chưa có gói nạp cho server này.")
+        await callback.message.edit_text(
+            "📦 Chưa có gói nạp cho server này.",
+            reply_markup=back_only_kb("srv"),
+        )
         await callback.answer()
         return
 
@@ -196,6 +203,7 @@ async def input_key_prompt(
         "✏️ <b>Nhập API Key</b>\n\n"
         "Nhập API key bạn muốn nạp thêm quota:\n"
         "Ví dụ: <code>sk-abcdefghijklmn...</code>",
+        reply_markup=back_only_kb("key_input_back"),
         parse_mode="HTML",
     )
     await state.set_state(ApiKeyStates.waiting_existing_key)
@@ -212,7 +220,10 @@ async def input_key_received(
     api_key = message.text.strip()
 
     if len(api_key) < 30:
-        await message.answer("❌ Key (mã token) quá ngắn. Vui lòng copy và dán đầy đủ key.")
+        await message.answer(
+            "❌ Key (mã token) quá ngắn. Vui lòng copy và dán đầy đủ key.",
+            reply_markup=back_only_kb("key_input_back"),
+        )
         return
 
     fsm_data = await state.get_data()
@@ -222,7 +233,10 @@ async def input_key_received(
     # Validate key tồn tại trên server
     server = await get_server_by_id(server_id)
     if not server:
-        await message.answer("❌ Server không tồn tại.")
+        await message.answer(
+            "❌ Server không tồn tại.",
+            reply_markup=back_only_kb("srv"),
+        )
         await state.clear()
         return
 
@@ -232,6 +246,7 @@ async def input_key_received(
             "❌ <b>Key không tồn tại</b> trên server này.\n\n"
             "Vui lòng kiểm tra lại key và nhập lại.",
             parse_mode="HTML",
+            reply_markup=back_only_kb("key_input_back"),
         )
         return  # Giữ FSM state để user nhập lại
 
@@ -243,7 +258,10 @@ async def input_key_received(
         cat_id, server_id=server_id, product_type="key_topup"
     )
     if not products:
-        await message.answer("📦 Chưa có gói nạp cho server này.")
+        await message.answer(
+            "📦 Chưa có gói nạp cho server này.",
+            reply_markup=back_only_kb("srv"),
+        )
         return
 
     # Hiện số dư hiện tại của key
@@ -281,6 +299,7 @@ async def custom_amount_prompt(
         "💵 <b>Nhập số dollar ($)</b>\n\n"
         "Nhập số $ bạn muốn nạp vào key:\n"
         "Ví dụ: <code>10</code> hoặc <code>25.5</code>",
+        reply_markup=back_only_kb("custom_amount_back"),
         parse_mode="HTML",
     )
     await state.set_state(ApiKeyStates.waiting_custom_dollar)
@@ -299,11 +318,19 @@ async def custom_dollar_received(
     try:
         dollar_amount = float(text)
     except ValueError:
-        await message.answer("❌ Vui lòng nhập số hợp lệ. Ví dụ: <code>10</code>", parse_mode="HTML")
+        await message.answer(
+            "❌ Vui lòng nhập số hợp lệ. Ví dụ: <code>10</code>",
+            parse_mode="HTML",
+            reply_markup=back_only_kb("custom_amount_back"),
+        )
         return
 
     if dollar_amount <= 0:
-        await message.answer("❌ Số tiền phải lớn hơn 0.", parse_mode="HTML")
+        await message.answer(
+            "❌ Số tiền phải lớn hơn 0.",
+            parse_mode="HTML",
+            reply_markup=back_only_kb("custom_amount_back"),
+        )
         return
 
     fsm_data = await state.get_data()
@@ -312,16 +339,27 @@ async def custom_dollar_received(
     existing_key = fsm_data.get("existing_key")
 
     if action == "new" and dollar_amount < 10:
-        await message.answer("❌ Số tiền tối thiểu mua key mới là $10.", parse_mode="HTML")
+        await message.answer(
+            "❌ Số tiền tối thiểu mua key mới là $10.",
+            parse_mode="HTML",
+            reply_markup=back_only_kb("custom_amount_back"),
+        )
         return
 
     if action == "topup" and dollar_amount < 1:
-        await message.answer("❌ Số tiền tối thiểu nạp key cũ là $1.", parse_mode="HTML")
+        await message.answer(
+            "❌ Số tiền tối thiểu nạp key cũ là $1.",
+            parse_mode="HTML",
+            reply_markup=back_only_kb("custom_amount_back"),
+        )
         return
 
     server = await get_server_by_id(server_id)
     if not server:
-        await message.answer("❌ Server không tồn tại.")
+        await message.answer(
+            "❌ Server không tồn tại.",
+            reply_markup=back_only_kb("srv"),
+        )
         await state.clear()
         return
 
@@ -515,7 +553,10 @@ async def back_to_servers(callback: CallbackQuery, state: FSMContext) -> None:
 
     servers = await get_active_servers()
     if not servers:
-        await callback.message.edit_text("🖥 Chưa có server nào.")
+        await callback.message.edit_text(
+            "🖥 Chưa có server nào.",
+            reply_markup=back_only_kb("cat"),
+        )
         await callback.answer()
         return
 
@@ -523,6 +564,85 @@ async def back_to_servers(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_text(
         f"{action_text}\n\nChọn server:",
         reply_markup=servers_kb(servers, action=action),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(BackCB.filter(F.target == "key_input_back"))
+async def back_from_key_input(
+    callback: CallbackQuery,
+    state: FSMContext,
+    db_user: dict,
+) -> None:
+    """Quay từ màn nhập key về danh sách key/server topup."""
+    fsm_data = await state.get_data()
+    server_id = fsm_data.get("current_server_id", 0)
+
+    if not server_id:
+        await state.set_state(None)
+        await back_to_servers(callback, state)
+        return
+
+    keys = await get_user_keys(db_user["id"], server_id=server_id)
+    server = await get_server_by_id(server_id)
+    await state.set_state(None)
+
+    server_name = server["name"] if server else "Server"
+    await callback.message.edit_text(
+        f"💳 <b>Nạp key cũ — {server_name}</b>\n\n"
+        f"Chọn key bạn muốn nạp thêm quota:",
+        reply_markup=my_keys_kb(keys, server_id=server_id),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(BackCB.filter(F.target == "custom_amount_back"))
+async def back_from_custom_amount(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    """Quay từ màn nhập số $ về danh sách gói của server hiện tại."""
+    fsm_data = await state.get_data()
+    server_id = fsm_data.get("current_server_id", 0)
+    cat_id = fsm_data.get("current_cat_id", 0)
+    action = fsm_data.get("key_action", "new")
+    ptype = "key_new" if action == "new" else "key_topup"
+
+    server = await get_server_by_id(server_id)
+    if not server:
+        await state.set_state(None)
+        await back_to_servers(callback, state)
+        return
+
+    products = await get_active_products_by_category(
+        cat_id, server_id=server_id, product_type=ptype
+    )
+    await state.set_state(None)
+
+    if not products:
+        await callback.message.edit_text(
+            f"📦 Chưa có gói cho server <b>{server['name']}</b>.",
+            reply_markup=back_only_kb("srv"),
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
+
+    per_page = await get_setting_int("pagination_size", 6)
+    title = "Mua key mới" if action == "new" else "Nạp key cũ"
+    await callback.message.edit_text(
+        f"💠 <b>{title} — {server['name']}</b>\n\nChọn gói:",
+        reply_markup=products_kb(
+            products,
+            cat_id=cat_id,
+            srv_id=server_id,
+            ptype=ptype,
+            page=0,
+            per_page=per_page,
+            action=action,
+        ),
         parse_mode="HTML",
     )
     await callback.answer()

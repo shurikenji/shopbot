@@ -22,7 +22,7 @@ from bot.callback_data.factories import (
     ProductPageCB, ProductSelectCB, BackCB,
 )
 from bot.keyboards.inline_kb import (
-    categories_kb, key_action_kb, products_kb,
+    categories_kb, key_action_kb, products_kb, back_only_kb,
 )
 from db.queries.categories import get_active_categories, get_category_by_id
 from db.queries.products import get_active_products_by_category, get_product_by_id
@@ -101,7 +101,10 @@ async def select_category(
         # General: Hiện danh sách sản phẩm trực tiếp
         products = await get_active_products_by_category(cat["id"])
         if not products:
-            await callback.message.edit_text("📦 Danh mục trống.")
+            await callback.message.edit_text(
+                "📦 Danh mục trống.",
+                reply_markup=back_only_kb("cat"),
+            )
             await callback.answer()
             return
 

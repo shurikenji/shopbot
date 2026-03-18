@@ -7,8 +7,8 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
-from bot.callback_data.factories import OrderListPageCB, OrderDetailCB
-from bot.keyboards.inline_kb import orders_list_kb, order_cancel_kb
+from bot.callback_data.factories import OrderListPageCB, OrderDetailCB, BackCB
+from bot.keyboards.inline_kb import orders_list_kb, order_detail_kb
 from bot.utils.formatting import (
     format_vnd, status_emoji, status_text_vi,
     payment_method_text, mask_api_key, quota_to_dollar,
@@ -139,9 +139,7 @@ async def order_detail(
     text = "\n".join(lines)
 
     # Nút hủy nếu đang pending
-    kb = None
-    if order["status"] == "pending":
-        kb = order_cancel_kb(order["id"])
+    kb = order_detail_kb(order["id"], can_cancel=order["status"] == "pending")
 
     await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     await callback.answer()
@@ -180,3 +178,9 @@ async def cancel_order_cb(
             parse_mode="HTML",
         )
     await callback.answer("Đã hủy đơn hàng.")
+
+
+@router.callback_query(BackCB.filter(F.target == "orders_back"))
+async def back_to_orders(callback: CallbackQuery, db_user: dict) -> None:
+    """Quay từ chi tiết đơn hàng về danh sách đơn."""
+    await _show_orders(callback, db_user, page=0)

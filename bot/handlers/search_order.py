@@ -9,6 +9,7 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+from bot.keyboards.inline_kb import back_only_kb
 from bot.utils.formatting import (
     format_vnd, status_emoji, status_text_vi,
     payment_method_text, format_time_vn
@@ -30,6 +31,7 @@ async def search_order_prompt(message: Message, state: FSMContext) -> None:
         "🔎 <b>Tìm đơn hàng</b>\n\n"
         "Nhập mã đơn hàng (vd: <code>ORD1A2B3C4D</code>):",
         parse_mode="HTML",
+        reply_markup=back_only_kb("main"),
     )
     await state.set_state(SearchOrderStates.waiting_order_code)
 
@@ -41,14 +43,13 @@ async def search_order_input(
     db_user: dict,
 ) -> None:
     """Tìm đơn hàng theo mã được nhập."""
-    await state.clear()
-
     code = message.text.strip().upper()
     if not code.startswith("ORD") or len(code) != 11:
         await message.answer(
             "❌ Mã đơn không hợp lệ.\n"
             "Mã đơn có format: <code>ORDxxxxxxxx</code> (ORD + 8 ký tự)",
             parse_mode="HTML",
+            reply_markup=back_only_kb("main"),
         )
         return
 
@@ -58,6 +59,7 @@ async def search_order_input(
         await message.answer(
             f"❌ Không tìm thấy đơn hàng <b>{code}</b>",
             parse_mode="HTML",
+            reply_markup=back_only_kb("main"),
         )
         return
 
@@ -66,6 +68,7 @@ async def search_order_input(
         await message.answer(
             f"❌ Đơn hàng <b>{code}</b> không thuộc về bạn.",
             parse_mode="HTML",
+            reply_markup=back_only_kb("main"),
         )
         return
 
@@ -89,4 +92,5 @@ async def search_order_input(
     if order.get("delivery_info"):
         lines.append(f"\n📦 Giao hàng:\n<code>{order['delivery_info']}</code>")
 
+    await state.clear()
     await message.answer("\n".join(lines), parse_mode="HTML")

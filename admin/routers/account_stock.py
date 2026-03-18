@@ -14,6 +14,7 @@ from db.queries.account_stocks import (
     add_account, bulk_add_accounts, delete_account,
 )
 from db.queries.products import get_all_products
+from db.queries.products import get_product_by_id
 from db.queries.categories import get_all_categories
 
 router = APIRouter(prefix="/account-stock", tags=["account_stock"])
@@ -77,6 +78,9 @@ async def account_stock_add(request: Request):
     form = await request.form()
     product_id = int(form["product_id"])
     raw_data = form.get("accounts_data", "")
+    product = await get_product_by_id(product_id)
+    if not product or product.get("product_type") not in _STOCK_TYPES:
+        return RedirectResponse("/account-stock", status_code=303)
 
     # Tách từng dòng (hỗ trợ bulk add)
     lines = [line.strip() for line in raw_data.strip().split("\n") if line.strip()]

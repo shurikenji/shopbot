@@ -1,5 +1,5 @@
 """
-admin/routers/products.py - CRUD san pham + auto-generate tu server.
+admin/routers/products.py - CRUD san pham.
 """
 from __future__ import annotations
 
@@ -11,8 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates
 from bot.config import settings
-from bot.services.api_clients import get_api_client
-from db.queries.categories import get_all_categories
+from db.queries.categories import get_all_categories, get_category_by_id
 from db.queries.products import (
     create_product,
     delete_product,
@@ -31,6 +30,8 @@ PRODUCT_TYPE_META = {
     "account_stocked": ("Stock Account", "warning"),
     "service_upgrade": ("Service", "secondary"),
 }
+KEY_API_PRODUCT_TYPES = {"key_new", "key_topup"}
+GENERAL_PRODUCT_TYPES = {"account_stocked", "service_upgrade"}
 
 
 def _check(request: Request):
@@ -49,23 +50,22 @@ def _build_flash_context(request: Request) -> dict:
             "flash_type": "success",
         }
 
-    if msg.startswith("generated_"):
-        generated_count = msg.split("_", 1)[1]
-        return {
-            "flash_message": f"Da tao tu dong {generated_count} san pham tu server.",
-            "flash_type": "success",
-        }
-
     if error == "not_found":
         return {
             "flash_message": "San pham khong ton tai hoac da bi xoa.",
             "flash_type": "warning",
         }
 
-    if error == "no_key_category":
+    if error == "invalid_category":
         return {
-            "flash_message": "Khong tim thay danh muc co cat_type = key_api de auto-generate.",
-            "flash_type": "warning",
+            "flash_message": "Danh muc khong ton tai hoac da bi xoa.",
+            "flash_type": "danger",
+        }
+
+    if error == "invalid_product_type":
+        return {
+            "flash_message": "Loai san pham khong hop le voi danh muc da chon.",
+            "flash_type": "danger",
         }
 
     if error == "in_use":
@@ -93,6 +93,52 @@ def _build_flash_context(request: Request) -> dict:
         }
 
     return {}
+
+
+def _get_allowed_product_types(category: dict | None) -> set[str]:
+    if not category:
+        return set()
+    if category.get("cat_type") == "key_api":
+        return KEY_API_PRODUCT_TYPES
+    return GENERAL_PRODUCT_TYPES
+
+
+def _build_form_redirect(product_id: int | None, error: str) -> RedirectResponse:
+    target = f"/products/{product_id}/edit" if product_id else "/products"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}error={error}", status_code=303)
+
+
+async def _build_product_payload(form, product_id: int | None = None) -> tuple[dict | None, RedirectResponse | None]:
+    category_id = int(form["category_id"])
+    category = await get_category_by_id(category_id)
+    if not category:
+        return None, _build_form_redirect(product_id, "invalid_category")
+
+    product_type = (form.get("product_type") or "").strip()
+    if product_type not in _get_allowed_product_types(category):
+        return None, _build_form_redirect(product_id, "invalid_product_type")
+
+    is_key = product_type in KEY_API_PRODUCT_TYPES
+    is_key_new = product_type == "key_new"
+    is_account = product_type == "account_stocked"
+    is_service = product_type == "service_upgrade"
+
+    payload = {
+        "category_id": category_id,
+        "name": form["name"],
+        "price_vnd": int(form["price_vnd"]),
+        "product_type": product_type,
+        "server_id": int(form["server_id"]) if is_key and form.get("server_id") else None,
+        "description": form.get("description"),
+        "quota_amount": int(form.get("quota_amount", 0)) if is_key else 0,
+        "dollar_amount": float(form.get("dollar_amount", 0)) if is_key else 0.0,
+        "group_name": (form.get("group_name") or None) if is_key_new else None,
+        "stock": int(form.get("stock", -1)),
+        "format_template": (form.get("format_template") or None) if is_account else None,
+        "input_prompt": (form.get("input_prompt") or None) if is_service else None,
+    }
+    return payload, None
 
 
 def _decorate_products(products: list[dict], categories: list[dict], servers: list[dict]) -> None:
@@ -160,20 +206,10 @@ async def products_add(request: Request):
         return r
 
     form = await request.form()
-    await create_product(
-        category_id=int(form["category_id"]),
-        name=form["name"],
-        price_vnd=int(form["price_vnd"]),
-        product_type=form["product_type"],
-        server_id=int(form["server_id"]) if form.get("server_id") else None,
-        description=form.get("description"),
-        quota_amount=int(form.get("quota_amount", 0)),
-        dollar_amount=float(form.get("dollar_amount", 0)),
-        group_name=form.get("group_name") or None,
-        stock=int(form.get("stock", -1)),
-        format_template=form.get("format_template") or None,
-        input_prompt=form.get("input_prompt") or None,
-    )
+    payload, error_redirect = await _build_product_payload(form)
+    if error_redirect:
+        return error_redirect
+    await create_product(**payload)
     return RedirectResponse("/products", status_code=303)
 
 
@@ -213,21 +249,24 @@ async def products_edit_submit(request: Request, product_id: int):
         return r
 
     form = await request.form()
+    payload, error_redirect = await _build_product_payload(form, product_id=product_id)
+    if error_redirect:
+        return error_redirect
     await update_product(
         product_id,
-        category_id=int(form["category_id"]) if form.get("category_id") else None,
-        name=form.get("name"),
-        price_vnd=int(form["price_vnd"]) if form.get("price_vnd") else None,
-        product_type=form.get("product_type"),
-        server_id=int(form["server_id"]) if form.get("server_id") else None,
-        description=form.get("description"),
-        quota_amount=int(form.get("quota_amount", 0)),
-        dollar_amount=float(form.get("dollar_amount", 0)),
-        group_name=form.get("group_name") or None,
-        stock=int(form.get("stock", -1)),
+        category_id=payload["category_id"],
+        name=payload["name"],
+        price_vnd=payload["price_vnd"],
+        product_type=payload["product_type"],
+        server_id=payload["server_id"],
+        description=payload["description"],
+        quota_amount=payload["quota_amount"],
+        dollar_amount=payload["dollar_amount"],
+        group_name=payload["group_name"],
+        stock=payload["stock"],
         is_active=1 if form.get("is_active") else 0,
-        format_template=form.get("format_template") or None,
-        input_prompt=form.get("input_prompt") or None,
+        format_template=payload["format_template"],
+        input_prompt=payload["input_prompt"],
     )
     return RedirectResponse("/products", status_code=303)
 
@@ -271,65 +310,3 @@ async def products_delete(request: Request, product_id: int):
         return RedirectResponse("/products?error=delete_failed", status_code=303)
 
     return RedirectResponse("/products?msg=deleted", status_code=303)
-
-
-@router.get("/auto-generate", response_class=HTMLResponse)
-async def auto_generate(request: Request):
-    """
-    Auto-generate san pham tu server.
-    Lay groups tu moi active server -> tao san pham key_new + key_topup cho moi group.
-    """
-    r = _check(request)
-    if r:
-        return r
-
-    servers = await get_all_servers()
-    categories = await get_all_categories()
-
-    key_category = next((category for category in categories if category["cat_type"] == "key_api"), None)
-    if not key_category:
-        return RedirectResponse("/products?error=no_key_category", status_code=303)
-
-    count = 0
-    for server in servers:
-        if not server["is_active"]:
-            continue
-
-        groups = await get_api_client(server).get_groups(server)
-        if not groups:
-            continue
-
-        for group_info in groups:
-            group_name = (group_info.get("name") or "").strip()
-            if not group_name:
-                continue
-
-            description = group_info.get("desc_en") or group_info.get("desc") or ""
-
-            await create_product(
-                category_id=key_category["id"],
-                name=f"{server['name']} - {group_name}",
-                price_vnd=server["price_per_unit"],
-                product_type="key_new",
-                server_id=server["id"],
-                quota_amount=server["quota_per_unit"],
-                dollar_amount=server["dollar_per_unit"],
-                group_name=group_name,
-                description=description,
-            )
-            count += 1
-
-            await create_product(
-                category_id=key_category["id"],
-                name=f"{server['name']} - {group_name} (Top Up)",
-                price_vnd=server["price_per_unit"],
-                product_type="key_topup",
-                server_id=server["id"],
-                quota_amount=server["quota_per_unit"],
-                dollar_amount=server["dollar_per_unit"],
-                group_name=None,
-                description=description,
-            )
-            count += 1
-
-    return RedirectResponse(f"/products?msg=generated_{count}", status_code=303)
