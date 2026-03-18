@@ -72,11 +72,14 @@
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Model</label>
-                    <select name="ai_model" class="form-select form-select-sm" id="ai_model">
+                    <input name="ai_model" class="form-control form-control-sm" id="ai_model"
+                        list="ai_model_suggestions" value="{{ all_settings.get('ai_model', '') }}"
+                        placeholder="Nhập model, ví dụ: gpt-4o-mini hoặc llama3.1:8b">
+                    <datalist id="ai_model_suggestions">
                         {% for m in ai_models.get(all_settings.get('ai_provider', 'openai'), []) %}
-                        <option value="{{ m }}" {% if all_settings.get('ai_model') == m %}selected{% endif %}>{{ m }}</option>
+                        <option value="{{ m }}"></option>
                         {% endfor %}
-                    </select>
+                    </datalist>
                 </div>
                 <div class="mb-2" id="base_url_field" style="display: none;">
                     <label class="form-label small">Base URL</label>
@@ -134,17 +137,21 @@
 // Update AI models when provider changes
 document.getElementById('ai_provider').addEventListener('change', function() {
     const provider = this.value;
-    const modelSelect = document.getElementById('ai_model');
+    const modelInput = document.getElementById('ai_model');
+    const modelSuggestions = document.getElementById('ai_model_suggestions');
     const baseUrlField = document.getElementById('base_url_field');
     const models = {{ ai_models | tojson }};
     
-    modelSelect.innerHTML = '';
+    modelSuggestions.innerHTML = '';
     (models[provider] || []).forEach(function(m) {
         const opt = document.createElement('option');
         opt.value = m;
-        opt.textContent = m;
-        modelSelect.appendChild(opt);
+        modelSuggestions.appendChild(opt);
     });
+
+    if (!modelInput.value.trim() && (models[provider] || []).length > 0) {
+        modelInput.value = models[provider][0];
+    }
     
     // Show/hide base_url field based on provider
     if (provider === 'openai_compatible') {

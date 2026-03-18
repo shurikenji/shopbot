@@ -15,11 +15,13 @@ logger = logging.getLogger(__name__)
 
 def _headers(server: dict) -> dict[str, str]:
     """Tạo headers cho NewAPI request."""
+    user_id = server.get("auth_user_value") or server.get("user_id_header", "")
+    token = server.get("auth_token") or server.get("access_token", "")
     return {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "New-Api-User": str(server["user_id_header"]),
-        "Authorization": f"Bearer {server['access_token']}",
+        "New-Api-User": str(user_id),
+        "Authorization": f"Bearer {token}",
     }
 
 

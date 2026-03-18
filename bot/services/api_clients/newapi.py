@@ -18,11 +18,13 @@ class NewAPIClient(BaseAPIClient):
 
     def get_headers(self, server: dict) -> dict[str, str]:
         """NewAPI uses user_id_header and access_token (legacy)."""
+        user_id = server.get("auth_user_value") or server.get("user_id_header", "")
+        token = server.get("auth_token") or server.get("access_token", "")
         return {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "New-Api-User": str(server.get("user_id_header", "")),
-            "Authorization": f"Bearer {server.get('access_token', '')}",
+            "New-Api-User": str(user_id),
+            "Authorization": f"Bearer {token}",
         }
 
     def get_groups_endpoint(self, server: dict) -> str:

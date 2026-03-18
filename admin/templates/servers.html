@@ -55,7 +55,7 @@
                     <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control" required></div>
                     <div class="mb-2"><label class="form-label">Base URL</label><input name="base_url" class="form-control" required placeholder="https://api.example.com"></div>
                     
-                    <div class="mb-2">
+                    <div class="mb-2" id="add_auth_type_wrap">
                         <label class="form-label">API Type</label>
                         <select name="api_type" class="form-select" id="add_api_type">
                             {% for t in api_types %}
@@ -67,7 +67,7 @@
                     <hr>
                     <!-- Authentication -->
                     <h6 class="text-muted mb-2">🔐 Xác thực</h6>
-                    <div class="mb-2">
+                    <div class="mb-2" id="add_auth_type_wrap">
                         <label class="form-label">Method</label>
                         <select name="auth_type" class="form-select" id="add_auth_type">
                             {% for a in auth_types %}
@@ -77,27 +77,29 @@
                     </div>
                     
                     <div id="add_auth_fields">
-                        <div class="mb-2"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" placeholder="new-api-user"></div>
-                        <div class="mb-2"><label class="form-label">User ID Value</label><input name="auth_user_value" class="form-control" placeholder="User ID"></div>
-                        <div class="mb-2"><label class="form-label">Bearer Token</label><input name="auth_token" class="form-control"></div>
+                        <div class="mb-2" id="add_header_wrap"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" placeholder="new-api-user"></div>
+                        <div class="mb-2"><label class="form-label" id="add_user_value_label">User ID</label><input name="auth_user_value" class="form-control" placeholder="User ID"></div>
+                        <div class="mb-2"><label class="form-label" id="add_token_label">Access Token</label><input name="auth_token" class="form-control"></div>
                     </div>
                     
                     <div id="add_cookie_field" class="mb-2" style="display:none;">
                         <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" placeholder="session=abc123; user_id=456">
                     </div>
                     
-                    <div class="form-check mb-2">
+                    <div class="form-check mb-2" id="add_multi_group_wrap">
                         <input class="form-check-input" type="checkbox" name="supports_multi_group" id="add_multi_group" value="1">
                         <label class="form-check-label" for="add_multi_group">Enable Multi-Group Support</label>
                     </div>
                     
                     <hr>
                     <!-- Advanced -->
+                    <div id="add_advanced_block">
                     <h6 class="text-muted mb-2">⚙️ Nâng cao (Optional)</h6>
                     <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" placeholder="/api/user/self/groups"></div>
                     <div class="mb-2"><label class="form-label">Manual Groups (comma-separated)</label><input name="manual_groups" class="form-control" placeholder="default,azure,gemini,claude"></div>
                     <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2" placeholder='[{"key": "X-Custom", "value": "固定值"}]'></textarea></div>
                     
+                    </div>
                     <hr>
                     <!-- Pricing -->
                     <h6 class="text-muted mb-2">💰 Pricing</h6>
@@ -132,7 +134,7 @@
                 <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
             </div>
             
-            <div class="mb-2">
+            <div class="mb-2" id="edit_auth_type_wrap">
                 <label class="form-label">API Type</label>
                 <select name="api_type" class="form-select" id="edit_api_type">
                     {% for t in api_types %}
@@ -143,7 +145,7 @@
             
             <hr>
             <h6 class="text-muted mb-2">🔐 Xác thực</h6>
-            <div class="mb-2">
+            <div class="mb-2" id="edit_auth_type_wrap">
                 <label class="form-label">Method</label>
                 <select name="auth_type" class="form-select" id="edit_auth_type">
                     {% for a in auth_types %}
@@ -153,25 +155,27 @@
             </div>
             
             <div id="edit_auth_fields">
-                <div class="mb-2"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
-                <div class="mb-2"><label class="form-label">User ID Value</label><input name="auth_user_value" class="form-control" value="{{ editing.auth_user_value or '' }}"></div>
-                <div class="mb-2"><label class="form-label">Bearer Token</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
+                <div class="mb-2" id="edit_header_wrap"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
+                <div class="mb-2"><label class="form-label" id="edit_user_value_label">User ID</label><input name="auth_user_value" class="form-control" value="{{ editing.auth_user_value or '' }}"></div>
+                <div class="mb-2"><label class="form-label" id="edit_token_label">Access Token</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
             </div>
             
             <div id="edit_cookie_field" class="mb-2" style="display:none;">
                 <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" value="{{ editing.auth_cookie or '' }}">
             </div>
             
-            <div class="form-check mb-2">
+            <div class="form-check mb-2" id="edit_multi_group_wrap">
                 <input class="form-check-input" type="checkbox" name="supports_multi_group" id="edit_multi_group" value="1" {% if editing.supports_multi_group %}checked{% endif %}>
                 <label class="form-check-label" for="edit_multi_group">Enable Multi-Group Support</label>
             </div>
             
             <hr>
+            <div id="edit_advanced_block">
             <h6 class="text-muted mb-2">⚙️ Nâng cao</h6>
             <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" value="{{ editing.groups_endpoint or '' }}"></div>
             <div class="mb-2"><label class="form-label">Manual Groups</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
             <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2">{{ editing.custom_headers or '' }}</textarea></div>
+            </div>
             
             <hr>
             <h6 class="text-muted mb-2">💰 Pricing</h6>
@@ -264,6 +268,9 @@ function setupAuthType(prefix) {
     const cookieField = document.getElementById(prefix + '_cookie_field');
     
     function toggle() {
+        if (!authType || !authFields || !cookieField) {
+            return;
+        }
         if (authType.value === 'cookie') {
             authFields.style.display = 'none';
             cookieField.style.display = 'block';
@@ -286,14 +293,51 @@ setupAuthType('edit');
 // Auto-set header based on API type
 function setupApiType(prefix) {
     const apiType = document.getElementById(prefix + '_api_type');
+    const authType = document.getElementById(prefix + '_auth_type');
     const authHeader = document.querySelector(`#${prefix}Form input[name="auth_user_header"]`);
+    const authTypeWrap = document.getElementById(prefix + '_auth_type_wrap');
+    const headerWrap = document.getElementById(prefix + '_header_wrap');
+    const multiGroupWrap = document.getElementById(prefix + '_multi_group_wrap');
+    const advancedBlock = document.getElementById(prefix + '_advanced_block');
+    const userValueLabel = document.getElementById(prefix + '_user_value_label');
+    const tokenLabel = document.getElementById(prefix + '_token_label');
     
     function setHeader() {
-        if (apiType.value === 'newapi' && authHeader && !authHeader.value) {
+        if (!apiType) {
+            return;
+        }
+
+        const isOther = apiType.value === 'other';
+
+        if (authTypeWrap) {
+            authTypeWrap.style.display = isOther ? '' : 'none';
+        }
+        if (headerWrap) {
+            headerWrap.style.display = isOther ? '' : 'none';
+        }
+        if (multiGroupWrap) {
+            multiGroupWrap.style.display = isOther ? '' : 'none';
+        }
+        if (advancedBlock) {
+            advancedBlock.style.display = isOther ? '' : 'none';
+        }
+        if (userValueLabel) {
+            userValueLabel.textContent = isOther ? 'User ID Value' : 'User ID';
+        }
+        if (tokenLabel) {
+            tokenLabel.textContent = isOther ? 'Bearer Token' : 'Access Token';
+        }
+        if (!isOther && authType) {
+            authType.value = 'header';
+        }
+
+        if (apiType.value === 'newapi' && authHeader) {
             authHeader.value = 'new-api-user';
-        } else if (apiType.value === 'rixapi' && authHeader && !authHeader.value) {
+        } else if (apiType.value === 'rixapi' && authHeader) {
             authHeader.value = 'rix-api-user';
         }
+
+        setupAuthType(prefix);
     }
     
     if (apiType) {

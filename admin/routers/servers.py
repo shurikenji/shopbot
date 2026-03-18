@@ -29,6 +29,115 @@ def _check(request: Request):
     return None
 
 
+def _clean_str(value: object, default: str = "") -> str:
+    if value is None:
+        return default
+    return str(value).strip()
+
+
+def _get_server_form_payload(form) -> dict:
+    api_type = _clean_str(form.get("api_type", "newapi"), "newapi").lower()
+    legacy_user_id = _clean_str(form.get("auth_user_value") or form.get("user_id_header"))
+    legacy_token = _clean_str(form.get("auth_token") or form.get("access_token"))
+
+    payload = {
+        "name": _clean_str(form.get("name")),
+        "base_url": _clean_str(form.get("base_url")),
+        "price_per_unit": int(form["price_per_unit"]) if form.get("price_per_unit") else None,
+        "quota_per_unit": int(form["quota_per_unit"]) if form.get("quota_per_unit") else None,
+        "dollar_per_unit": float(form.get("dollar_per_unit", 10.0)),
+        "quota_multiple": float(form.get("quota_multiple", 1.0)),
+        "default_group": _clean_str(form.get("default_group")),
+        "api_type": api_type,
+    }
+
+    if api_type == "newapi":
+        payload.update(
+            {
+                "user_id_header": legacy_user_id,
+                "access_token": legacy_token,
+                "supports_multi_group": 0,
+                "manual_groups": "",
+                "auth_type": "header",
+                "auth_user_header": "new-api-user",
+                "auth_user_value": legacy_user_id,
+                "auth_token": legacy_token,
+                "auth_cookie": "",
+                "custom_headers": "",
+                "groups_endpoint": "",
+            }
+        )
+        return payload
+
+    if api_type == "rixapi":
+        payload.update(
+            {
+                "user_id_header": legacy_user_id,
+                "access_token": legacy_token,
+                "supports_multi_group": 0,
+                "manual_groups": "",
+                "auth_type": "header",
+                "auth_user_header": "rix-api-user",
+                "auth_user_value": legacy_user_id,
+                "auth_token": legacy_token,
+                "auth_cookie": "",
+                "custom_headers": "",
+                "groups_endpoint": "",
+            }
+        )
+        return payload
+
+    auth_type = _clean_str(form.get("auth_type", "header"), "header")
+    auth_user_header = _clean_str(form.get("auth_user_header"), "new-api-user")
+    auth_user_value = _clean_str(form.get("auth_user_value"))
+    auth_token = _clean_str(form.get("auth_token"))
+    auth_cookie = _clean_str(form.get("auth_cookie"))
+
+    payload.update(
+        {
+            "user_id_header": auth_user_value,
+            "access_token": auth_token,
+            "supports_multi_group": 1 if form.get("supports_multi_group") else 0,
+            "manual_groups": _clean_str(form.get("manual_groups")),
+            "auth_type": auth_type,
+            "auth_user_header": auth_user_header,
+            "auth_user_value": auth_user_value,
+            "auth_token": auth_token,
+            "auth_cookie": auth_cookie,
+            "custom_headers": _clean_str(form.get("custom_headers")),
+            "groups_endpoint": _clean_str(form.get("groups_endpoint")),
+        }
+    )
+    return payload
+
+
+def _normalize_server_for_form(server: dict) -> dict:
+    api_type = _clean_str(server.get("api_type", "newapi"), "newapi").lower()
+    legacy_user_id = _clean_str(server.get("auth_user_value") or server.get("user_id_header"))
+    token = _clean_str(server.get("auth_token") or server.get("access_token"))
+
+    server["api_type"] = api_type
+    server["supports_multi_group"] = server.get("supports_multi_group", 0)
+    server["manual_groups"] = server.get("manual_groups", "") or ""
+    server["custom_headers"] = server.get("custom_headers", "") or ""
+    server["groups_endpoint"] = server.get("groups_endpoint", "") or ""
+    server["auth_cookie"] = server.get("auth_cookie", "") or ""
+    server["auth_token"] = token
+    server["auth_user_value"] = legacy_user_id
+
+    if api_type == "rixapi":
+        server["auth_type"] = "header"
+        server["auth_user_header"] = "rix-api-user"
+    elif api_type == "newapi":
+        server["auth_type"] = "header"
+        server["auth_user_header"] = "new-api-user"
+    else:
+        server["auth_type"] = server.get("auth_type", "header") or "header"
+        server["auth_user_header"] = server.get("auth_user_header", "new-api-user") or "new-api-user"
+
+    return server
+
+
 @router.get("", response_class=HTMLResponse)
 async def servers_list(request: Request):
     r = _check(request)
@@ -62,50 +171,7 @@ async def servers_add(request: Request):
     if r:
         return r
     form = await request.form()
-    
-    # Get auth values
-    api_type = form.get("api_type", "newapi")
-    auth_type = form.get("auth_type", "header")
-    
-    # Get auth fields based on auth_type
-    auth_user_header = form.get("auth_user_header", "")
-    auth_user_value = form.get("auth_user_value", "")
-    auth_token = form.get("auth_token", "")
-    auth_cookie = form.get("auth_cookie", "")
-    
-    # Legacy fields fallback
-    if not auth_user_header:
-        auth_user_header = form.get("user_id_header", "new-api-user")
-    if not auth_user_value:
-        auth_user_value = form.get("user_id_header", "")
-    if not auth_token:
-        auth_token = form.get("access_token", "")
-    
-    # Custom headers (JSON)
-    custom_headers = form.get("custom_headers", "")
-    
-    await create_server(
-        name=form["name"],
-        base_url=form["base_url"],
-        user_id_header=auth_user_header,
-        access_token=auth_token,
-        price_per_unit=int(form["price_per_unit"]),
-        quota_per_unit=int(form["quota_per_unit"]),
-        dollar_per_unit=float(form.get("dollar_per_unit", 10.0)),
-        quota_multiple=float(form.get("quota_multiple", 1.0)),
-        default_group=form.get("default_group", ""),
-        # New fields
-        api_type=api_type,
-        supports_multi_group=1 if form.get("supports_multi_group") else 0,
-        manual_groups=form.get("manual_groups", ""),
-        auth_type=auth_type,
-        auth_user_header=auth_user_header,
-        auth_user_value=auth_user_value,
-        auth_token=auth_token,
-        auth_cookie=auth_cookie,
-        custom_headers=custom_headers,
-        groups_endpoint=form.get("groups_endpoint", ""),
-    )
+    await create_server(**_get_server_form_payload(form))
     return RedirectResponse("/servers", status_code=303)
 
 
@@ -119,14 +185,7 @@ async def servers_edit_page(request: Request, server_id: int):
         return RedirectResponse("/servers", status_code=303)
     templates = get_templates()
     
-    # Ensure defaults for new fields
-    server.setdefault("api_type", "newapi")
-    server.setdefault("supports_multi_group", 0)
-    server.setdefault("auth_type", "header")
-    server.setdefault("auth_user_header", "new-api-user")
-    server.setdefault("manual_groups", "")
-    server.setdefault("custom_headers", "")
-    server.setdefault("groups_endpoint", "")
+    server = _normalize_server_for_form(server)
     
     return templates.TemplateResponse(
         "servers.html",
@@ -155,52 +214,9 @@ async def servers_edit_submit(request: Request, server_id: int):
     if r:
         return r
     form = await request.form()
-    
-    # Get auth values
-    api_type = form.get("api_type", "newapi")
-    auth_type = form.get("auth_type", "header")
-    
-    # Get auth fields based on auth_type
-    auth_user_header = form.get("auth_user_header", "")
-    auth_user_value = form.get("auth_user_value", "")
-    auth_token = form.get("auth_token", "")
-    auth_cookie = form.get("auth_cookie", "")
-    
-    # Legacy fields fallback
-    if not auth_user_header:
-        auth_user_header = form.get("user_id_header", "new-api-user")
-    if not auth_user_value:
-        auth_user_value = form.get("user_id_header", "")
-    if not auth_token:
-        auth_token = form.get("access_token", "")
-    
-    # Custom headers (JSON)
-    custom_headers = form.get("custom_headers", "")
-    
-    await update_server(
-        server_id,
-        name=form.get("name"),
-        base_url=form.get("base_url"),
-        user_id_header=auth_user_header,
-        access_token=auth_token,
-        price_per_unit=int(form["price_per_unit"]) if form.get("price_per_unit") else None,
-        quota_per_unit=int(form["quota_per_unit"]) if form.get("quota_per_unit") else None,
-        dollar_per_unit=float(form["dollar_per_unit"]) if form.get("dollar_per_unit") else None,
-        quota_multiple=float(form["quota_multiple"]) if form.get("quota_multiple") else None,
-        default_group=form.get("default_group"),
-        is_active=1 if form.get("is_active") else 0,
-        # New fields
-        api_type=api_type,
-        supports_multi_group=1 if form.get("supports_multi_group") else 0,
-        manual_groups=form.get("manual_groups"),
-        auth_type=auth_type,
-        auth_user_header=auth_user_header,
-        auth_user_value=auth_user_value,
-        auth_token=auth_token,
-        auth_cookie=auth_cookie,
-        custom_headers=custom_headers,
-        groups_endpoint=form.get("groups_endpoint"),
-    )
+    payload = _get_server_form_payload(form)
+    payload["is_active"] = 1 if form.get("is_active") else 0
+    await update_server(server_id, **payload)
     return RedirectResponse("/servers", status_code=303)
 
 

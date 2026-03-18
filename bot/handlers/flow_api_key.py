@@ -25,11 +25,11 @@ from bot.callback_data.factories import (
 from bot.keyboards.inline_kb import (
     servers_kb, products_kb, payment_method_kb, my_keys_kb,
 )
+from bot.services.api_clients import get_api_client
 from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar
 from bot.utils.order_code import generate_order_code
 from bot.services.vietqr import build_qr_url, build_qr_caption
 from bot.services.payment_poller import process_wallet_payment
-from bot.services.newapi import search_token
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ async def input_key_received(
         await state.clear()
         return
 
-    token_data = await search_token(server, api_key)
+    token_data = await get_api_client(server).search_token(server, api_key)
     if not token_data:
         await message.answer(
             "❌ <b>Key không tồn tại</b> trên server này.\n\n"
