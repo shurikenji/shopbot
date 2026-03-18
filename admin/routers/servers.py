@@ -65,6 +65,20 @@ def _server_not_found_payload() -> dict[str, object]:
     return {"success": False, "message": "Server not found"}
 
 
+async def _get_server_or_redirect(server_id: int) -> dict | RedirectResponse:
+    server = await get_server_by_id(server_id)
+    if server:
+        return server
+    return _redirect_to_servers()
+
+
+async def _get_server_or_json(server_id: int) -> dict | JSONResponse:
+    server = await get_server_by_id(server_id)
+    if server:
+        return server
+    return JSONResponse(_server_not_found_payload())
+
+
 def _build_manual_group_rows(manual_groups: str) -> list[dict]:
     return [
         {
@@ -237,10 +251,14 @@ def _normalize_server_for_form(server: dict) -> dict:
 
 
 async def _load_and_translate_groups(server: dict) -> list[dict]:
-    client = get_api_client(server)
-    groups = await client.get_groups(server)
+    groups = await _load_remote_groups(server)
     groups = await _translate_groups_for_server(groups, server)
     return _normalize_group_rows(groups)
+
+
+async def _load_remote_groups(server: dict) -> list[dict]:
+    client = get_api_client(server)
+    return await client.get_groups(server)
 
 
 async def _translate_groups_for_server(groups: list[dict], server: dict) -> list[dict]:
@@ -284,9 +302,9 @@ async def servers_add(request: Request):
 
 @router.get("/{server_id}/edit", response_class=HTMLResponse)
 async def servers_edit_page(request: Request, server_id: int):
-    server = await get_server_by_id(server_id)
-    if not server:
-        return _redirect_to_servers()
+    server = await _get_server_or_redirect(server_id)
+    if isinstance(server, RedirectResponse):
+        return server
 
     templates = get_templates()
     return templates.TemplateResponse(
@@ -317,9 +335,9 @@ async def servers_delete(server_id: int):
 @router.get("/{server_id}/groups", response_class=HTMLResponse)
 async def servers_groups(request: Request, server_id: int):
     """Fetch groups from a server and show them in the admin UI."""
-    server = await get_server_by_id(server_id)
-    if not server:
-        return _redirect_to_servers()
+    server = await _get_server_or_redirect(server_id)
+    if isinstance(server, RedirectResponse):
+        return server
 
     templates = get_templates()
     return templates.TemplateResponse(
@@ -331,9 +349,9 @@ async def servers_groups(request: Request, server_id: int):
 @router.get("/{server_id}/api/groups")
 async def api_servers_groups(server_id: int):
     """Fetch groups from a server and return JSON."""
-    server = await get_server_by_id(server_id)
-    if not server:
-        return JSONResponse(_server_not_found_payload())
+    server = await _get_server_or_json(server_id)
+    if isinstance(server, JSONResponse):
+        return server
 
     return JSONResponse(
         _build_groups_json_payload(server, await _resolve_groups_data(server))

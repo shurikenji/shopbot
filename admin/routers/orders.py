@@ -22,6 +22,7 @@ from db.queries.orders import (
 from db.queries.wallets import refund_order_to_wallet
 
 router = protected_router(prefix="/orders", tags=["orders"])
+_REFUNDABLE_ORDER_STATUSES = frozenset({"paid", "processing", "completed"})
 
 
 def _redirect_to_orders() -> RedirectResponse:
@@ -30,6 +31,35 @@ def _redirect_to_orders() -> RedirectResponse:
 
 def _redirect_to_order_detail(order_id: int) -> RedirectResponse:
     return RedirectResponse(f"/orders/{order_id}", status_code=303)
+
+
+async def _get_order_or_redirect(order_id: int) -> dict | RedirectResponse:
+    order = await get_order_by_id(order_id)
+    if order:
+        return order
+    return _redirect_to_orders()
+
+
+def _can_refund_order(order: dict) -> bool:
+    return (
+        order["status"] in _REFUNDABLE_ORDER_STATUSES
+        and order["product_type"] != "wallet_topup"
+    )
+
+
+def _completed_service_upgrade_message(order: dict) -> str:
+    return (
+        f"✅ Đơn dịch vụ <b>{order['order_code']}</b> của bạn đã được Admin xử lý hoàn tất!\n\n"
+        "🎉 Cảm ơn bạn đã sử dụng dịch vụ."
+    )
+
+
+def _refund_notification_message(order: dict, new_balance: int) -> str:
+    return (
+        f"↩️ Đơn <b>{order['order_code']}</b> đã bị hủy.\n\n"
+        f"💳 Bạn được hoàn <b>{format_vnd(order['amount'])}</b> vào số dư ví.\n"
+        f"👛 Số dư mới: <b>{format_vnd(new_balance)}</b>"
+    )
 
 
 @router.get("", response_class=HTMLResponse)
@@ -78,18 +108,12 @@ async def order_detail(request: Request, order_id: int):
 @router.post("/{order_id}/complete")
 async def order_complete(order_id: int):
     """Đánh dấu đơn `service_upgrade` là đã hoàn thành."""
-    order = await get_order_by_id(order_id)
-    if not order:
-        return _redirect_to_orders()
+    order = await _get_order_or_redirect(order_id)
+    if isinstance(order, RedirectResponse):
+        return order
 
     await update_order_status(order_id, "completed")
-    await notify_user(
-        order["user_id"],
-        (
-            f"✅ Đơn dịch vụ <b>{order['order_code']}</b> của bạn đã được Admin xử lý hoàn tất!\n\n"
-            "🎉 Cảm ơn bạn đã sử dụng dịch vụ."
-        ),
-    )
+    await notify_user(order["user_id"], _completed_service_upgrade_message(order))
     return _redirect_to_order_detail(order_id)
 
 
@@ -102,14 +126,11 @@ async def order_cancel(order_id: int):
 @router.get("/{order_id}/refund")
 async def order_refund(order_id: int):
     """Hoàn tiền đơn đã thanh toán về ví của người dùng."""
-    order = await get_order_by_id(order_id)
-    if not order:
-        return _redirect_to_orders()
+    order = await _get_order_or_redirect(order_id)
+    if isinstance(order, RedirectResponse):
+        return order
 
-    if order["status"] not in ("paid", "processing", "completed"):
-        return _redirect_to_order_detail(order_id)
-
-    if order["product_type"] == "wallet_topup":
+    if not _can_refund_order(order):
         return _redirect_to_order_detail(order_id)
 
     new_balance = await refund_order_to_wallet(
@@ -125,13 +146,6 @@ async def order_refund(order_id: int):
         f"Admin hoàn tiền đơn {order['order_code']}, số tiền {format_vnd(order['amount'])}",
         module="admin",
     )
-    await notify_user(
-        order["user_id"],
-        (
-            f"↩️ Đơn <b>{order['order_code']}</b> đã bị hủy.\n\n"
-            f"💳 Bạn được hoàn <b>{format_vnd(order['amount'])}</b> vào số dư ví.\n"
-            f"👛 Số dư mới: <b>{format_vnd(new_balance)}</b>"
-        ),
-    )
+    await notify_user(order["user_id"], _refund_notification_message(order, new_balance))
 
     return _redirect_to_order_detail(order_id)

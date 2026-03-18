@@ -62,6 +62,14 @@ class AITranslator:
     def _contains_cjk(self, text: object) -> bool:
         return bool(text and CJK_RE.search(str(text)))
 
+    def _group_source_text(self, group: dict) -> str:
+        return str(
+            group.get("translation_source")
+            or group.get("desc")
+            or group.get("name")
+            or ""
+        ).strip()
+
     def _needs_translation_refresh(self, group: dict, cached: dict | None = None) -> bool:
         current = cached or group
         return (
@@ -85,36 +93,71 @@ class AITranslator:
         value = re.sub(r"\s+", " ", value).strip(" -_,")
         return value
 
+    def _resolve_english_name(
+        self,
+        *,
+        preferred: object,
+        original_name: str,
+        source_text: str,
+    ) -> str:
+        name_en = str(preferred or "").strip()
+        if name_en and not self._contains_cjk(name_en):
+            return name_en
+        return (
+            self._fallback_english_text(name_en)
+            or self._fallback_english_text(original_name)
+            or self._fallback_english_text(source_text)
+            or original_name
+        )
+
+    def _resolve_english_description(
+        self,
+        *,
+        preferred: object,
+        source_text: str,
+        fallback_name: str,
+    ) -> str:
+        desc_en = str(preferred or "").strip()
+        if desc_en and not self._contains_cjk(desc_en):
+            return desc_en
+        return (
+            self._fallback_english_text(desc_en)
+            or self._fallback_english_text(source_text)
+            or fallback_name
+        )
+
+    def _build_translation_fields(self, group: dict, translation: dict) -> dict[str, str]:
+        original_name = str(group.get("name") or "")
+        source_text = self._group_source_text(group) or original_name
+        name_en = self._resolve_english_name(
+            preferred=translation.get("name_en") or group.get("name_en"),
+            original_name=original_name,
+            source_text=source_text,
+        )
+        desc_en = self._resolve_english_description(
+            preferred=translation.get("desc_en") or group.get("desc_en") or group.get("desc"),
+            source_text=source_text,
+            fallback_name=name_en,
+        )
+        return {
+            "name_en": name_en,
+            "name_vi": str(translation.get("name_vi") or group.get("name_vi") or original_name),
+            "category": str(translation.get("category") or group.get("category") or "Other"),
+            "desc_en": desc_en,
+            "desc_vi": str(translation.get("desc_vi") or group.get("desc_vi") or ""),
+        }
+
     def _sanitize_translation_payload(self, translations: dict[str, dict], groups: list[dict] | None = None) -> dict[str, dict]:
         source_map = {
             (group.get("name") or ""): group for group in (groups or [])
         }
         cleaned: dict[str, dict] = {}
         for original_name, trans in translations.items():
-            group = source_map.get(original_name, {})
-            source_text = group.get("translation_source") or group.get("desc") or original_name
-            name_en = (trans.get("name_en") or "").strip()
-            desc_en = (trans.get("desc_en") or "").strip()
-
-            if not name_en or self._contains_cjk(name_en):
-                name_en = (
-                    self._fallback_english_text(name_en)
-                    or self._fallback_english_text(original_name)
-                    or self._fallback_english_text(source_text)
-                    or original_name
-                )
-
-            if not desc_en or self._contains_cjk(desc_en):
-                desc_en = (
-                    self._fallback_english_text(desc_en)
-                    or self._fallback_english_text(source_text)
-                    or name_en
-                )
-
+            group = source_map.get(original_name, {"name": original_name})
+            normalized = self._build_translation_fields(group, trans)
             cleaned[original_name] = {
                 **trans,
-                "name_en": name_en,
-                "desc_en": desc_en,
+                **normalized,
             }
         return cleaned
 
@@ -235,35 +278,12 @@ class AITranslator:
         for group in groups:
             name = group.get("name", "")
             trans = translations.get(name, {})
-            source_text = group.get("translation_source") or group.get("desc") or name
-            
-            # Determine label_vi
-            label_vi = trans.get("name_vi") or name
-            name_en = trans.get("name_en") or group.get("name_en") or name
-            if self._contains_cjk(name_en):
-                name_en = (
-                    self._fallback_english_text(name)
-                    or self._fallback_english_text(source_text)
-                    or name
-                )
-
-            desc_en = trans.get("desc_en") or group.get("desc", "")
-            if self._contains_cjk(desc_en):
-                desc_en = (
-                    self._fallback_english_text(desc_en)
-                    or self._fallback_english_text(source_text)
-                    or name_en
-                )
-            
+            normalized = self._build_translation_fields(group, trans)
             result.append({
                 **group,
-                "name_en": name_en,
-                "name_vi": label_vi,
-                "label_en": name_en,
-                "label_vi": label_vi,
-                "category": trans.get("category") or "Other",
-                "desc_en": desc_en,
-                "desc_vi": trans.get("desc_vi", ""),
+                **normalized,
+                "label_en": normalized["name_en"],
+                "label_vi": normalized["name_vi"],
             })
         return result
 
@@ -274,7 +294,7 @@ class AITranslator:
 
         group_lines = []
         for group in groups:
-            source_text = group.get("translation_source") or group.get("desc") or group["name"]
+            source_text = self._group_source_text(group) or group["name"]
             group_lines.append(
                 f"- original_name: {group['name']} | source_text: {source_text}"
             )
@@ -298,10 +318,10 @@ Respond in JSON format:
 {
   "GroupName": {
     "name_en": "English Name",
-    "name_vi": "Tên Tiếng Việt",
+    "name_vi": "Vietnamese Name",
     "category": "Category",
     "desc_en": "English description",
-    "desc_vi": "Mô tả Tiếng Việt"
+    "desc_vi": "Vietnamese description"
   }
 }
 

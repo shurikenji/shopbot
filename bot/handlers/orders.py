@@ -25,6 +25,30 @@ from bot.callback_data.factories import OrderCancelCB
 router = Router(name="orders")
 
 
+def _order_not_found_text() -> str:
+    return "❌ Đơn hàng không tồn tại."
+
+
+def _cannot_cancel_order_text() -> str:
+    return "❌ Chỉ có thể hủy đơn đang chờ thanh toán."
+
+
+def _cancelled_order_text(order: dict) -> str:
+    return f"🚫 Đơn <b>{order['order_code']}</b> đã được hủy."
+
+
+async def _get_owned_order_or_alert(
+    callback: CallbackQuery,
+    order_id: int,
+    user_id: int,
+) -> dict | None:
+    order = await get_order_by_id(order_id)
+    if not order or order["user_id"] != user_id:
+        await callback.answer(_order_not_found_text(), show_alert=True)
+        return None
+    return order
+
+
 # ── Reply keyboard trigger ──────────────────────────────────────────────────
 
 @router.message(Command("orders"))
@@ -154,19 +178,16 @@ async def cancel_order_cb(
     db_user: dict,
 ) -> None:
     """Hủy đơn hàng pending."""
-    order = await get_order_by_id(callback_data.order_id)
-
-    if not order or order["user_id"] != db_user["id"]:
-        await callback.answer("❌ Đơn không tồn tại.", show_alert=True)
+    order = await _get_owned_order_or_alert(callback, callback_data.order_id, db_user["id"])
+    if not order:
         return
 
     if order["status"] != "pending":
-        await callback.answer("❌ Chỉ có thể hủy đơn đang chờ thanh toán.", show_alert=True)
+        await callback.answer(_cannot_cancel_order_text(), show_alert=True)
         return
 
     await cancel_order(order["id"])
-    
-    cancel_text = f"🚫 Đơn <b>{order['order_code']}</b> đã được hủy."
+    cancel_text = _cancelled_order_text(order)
     if callback.message.photo:
         await callback.message.edit_caption(
             caption=cancel_text,
