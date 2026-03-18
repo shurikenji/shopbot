@@ -55,7 +55,7 @@ class AITranslator:
         # Filter groups that need translation
         groups_needing_translation = []
         for group in groups:
-            if not group.get("name_en") and not group.get("name_vi"):
+            if not group.get("name_en") or not group.get("name_vi"):
                 groups_needing_translation.append(group)
 
         if not groups_needing_translation:
@@ -154,11 +154,12 @@ class AITranslator:
             
             result.append({
                 **group,
-                "name_en": trans.get("name_en") or name,
+                "name_en": trans.get("name_en") or group.get("name_en") or name,
                 "name_vi": label_vi,
+                "label_en": trans.get("name_en") or group.get("name_en") or name,
                 "label_vi": label_vi,
                 "category": trans.get("category") or "Other",
-                "desc_en": trans.get("desc_en", ""),
+                "desc_en": trans.get("desc_en") or group.get("desc", ""),
                 "desc_vi": trans.get("desc_vi", ""),
             })
         return result
@@ -168,7 +169,13 @@ class AITranslator:
         if not self.api_key:
             return {}
 
-        group_list = "\n".join([f"- {g['name']}" for g in groups])
+        group_lines = []
+        for group in groups:
+            source_text = group.get("translation_source") or group.get("desc") or group["name"]
+            group_lines.append(
+                f"- original_name: {group['name']} | source_text: {source_text}"
+            )
+        group_list = "\n".join(group_lines)
         
         system_prompt = """You are a helpful assistant that translates and categorizes API group names.
 For each group name, provide:
@@ -177,6 +184,10 @@ For each group name, provide:
 3. Category (one of: Azure, OpenAI, Claude, Gemini, DeepSeek, Anthropic, Google, Microsoft, Meta, Other)
 4. Brief English description (desc_en)
 5. Brief Vietnamese description (desc_vi)
+
+Use `source_text` as the richer context when it contains Chinese text, pricing hints, route labels, or quality notes.
+Keep `name_en` concise and admin-friendly. Preserve well-known model or provider names like Azure, Claude Code, Gemini, Kimi, Grok.
+Do not include numeric ratios inside `name_en` unless the ratio is essential to distinguish the group.
 
 Respond in JSON format:
 {

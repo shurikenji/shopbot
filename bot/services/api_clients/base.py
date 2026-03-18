@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
@@ -31,6 +32,26 @@ class BaseAPIClient(ABC):
     def get_supports_multi_group(self, server: dict) -> bool:
         """Check if server supports multi-group."""
         return self.supports_multi_group or bool(server.get("supports_multi_group"))
+
+    def extract_ratio_hint(self, *texts: object, default: float = 1.0) -> float:
+        """Extract ratio-like numeric hints from descriptive group labels."""
+        patterns = (
+            r"(\d+(?:\.\d+)?)\s*元\s*/\s*[刀次]",
+            r"(\d+(?:\.\d+)?)\s*倍率",
+            r"\((\d+(?:\.\d+)?)[^)]*\)",
+        )
+        for text in texts:
+            if not text:
+                continue
+            value = str(text)
+            for pattern in patterns:
+                match = re.search(pattern, value, flags=re.IGNORECASE)
+                if match:
+                    try:
+                        return float(match.group(1))
+                    except (TypeError, ValueError):
+                        continue
+        return default
 
     def get_groups_endpoint(self, server: dict) -> str:
         """Get groups endpoint from server config or use default."""

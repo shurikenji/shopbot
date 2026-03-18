@@ -113,11 +113,13 @@ class OtherAPIClient(BaseAPIClient):
         elif isinstance(data, list):
             for item in data:
                 if isinstance(item, dict):
+                    raw_label = item.get("key") or item.get("label") or item.get("description") or ""
                     groups.append({
                         "name": item.get("value") or item.get("group") or item.get("name") or item.get("key") or "unknown",
-                        "name_en": item.get("name_en") or item.get("value") or item.get("group") or item.get("name") or item.get("key") or "unknown",
-                        "ratio": item.get("ratio") or item.get("multiplier") or 1.0,
-                        "desc": item.get("desc") or item.get("description") or item.get("key") or "",
+                        "name_en": item.get("name_en"),
+                        "ratio": item.get("ratio") or item.get("multiplier") or self.extract_ratio_hint(raw_label),
+                        "desc": item.get("desc") or item.get("description") or raw_label,
+                        "translation_source": raw_label or item.get("value") or item.get("group") or item.get("name") or item.get("key") or "unknown",
                     })
         
         return groups

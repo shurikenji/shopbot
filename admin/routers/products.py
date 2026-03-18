@@ -1,5 +1,5 @@
 """
-admin/routers/products.py — CRUD sản phẩm + auto-generate từ server.
+admin/routers/products.py - CRUD san pham + auto-generate tu server.
 """
 from __future__ import annotations
 
@@ -10,16 +10,27 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates
-from bot.services.api_clients import get_api_client
 from bot.config import settings
-from db.queries.products import (
-    get_all_products, get_product_by_id,
-    create_product, update_product, delete_product, get_product_delete_dependencies,
-)
+from bot.services.api_clients import get_api_client
 from db.queries.categories import get_all_categories
+from db.queries.products import (
+    create_product,
+    delete_product,
+    get_all_products,
+    get_product_by_id,
+    get_product_delete_dependencies,
+    update_product,
+)
 from db.queries.servers import get_all_servers
 
 router = APIRouter(prefix="/products", tags=["products"])
+
+PRODUCT_TYPE_META = {
+    "key_new": ("New Key", "info"),
+    "key_topup": ("Top Up", "success"),
+    "account_stocked": ("Stock Account", "warning"),
+    "service_upgrade": ("Service", "secondary"),
+}
 
 
 def _check(request: Request):
@@ -84,33 +95,62 @@ def _build_flash_context(request: Request) -> dict:
     return {}
 
 
+def _decorate_products(products: list[dict], categories: list[dict], servers: list[dict]) -> None:
+    cat_map = {category["id"]: category["name"] for category in categories}
+    srv_map = {server["id"]: server["name"] for server in servers}
+
+    for product in products:
+        product["cat_name"] = cat_map.get(product["category_id"], "-")
+        product["srv_name"] = (
+            srv_map.get(product.get("server_id"), "-")
+            if product.get("server_id")
+            else "-"
+        )
+        type_label, type_theme = PRODUCT_TYPE_META.get(
+            product.get("product_type", ""),
+            ("Other", "secondary"),
+        )
+        product["type_label"] = type_label
+        product["type_theme"] = type_theme
+
+        description = (product.get("description") or "").strip()
+        product["description_short"] = (
+            description[:96] + ("..." if len(description) > 96 else "")
+            if description
+            else ""
+        )
+
+
 @router.get("", response_class=HTMLResponse)
 async def products_list(request: Request):
     r = _check(request)
-    if r: return r
+    if r:
+        return r
+
     products = await get_all_products(limit=200)
     categories = await get_all_categories()
     servers = await get_all_servers()
-
-    # Enrich products với tên danh mục và server
-    cat_map = {c["id"]: c["name"] for c in categories}
-    srv_map = {s["id"]: s["name"] for s in servers}
-    for p in products:
-        p["cat_name"] = cat_map.get(p["category_id"], "—")
-        p["srv_name"] = srv_map.get(p.get("server_id"), "—") if p.get("server_id") else "—"
+    _decorate_products(products, categories, servers)
 
     templates = get_templates()
     return templates.TemplateResponse(
         "products.html",
-        {"request": request, "products": products,
-         "categories": categories, "servers": servers, **_build_flash_context(request)},
+        {
+            "request": request,
+            "products": products,
+            "categories": categories,
+            "servers": servers,
+            **_build_flash_context(request),
+        },
     )
 
 
 @router.post("/add")
 async def products_add(request: Request):
     r = _check(request)
-    if r: return r
+    if r:
+        return r
+
     form = await request.form()
     await create_product(
         category_id=int(form["category_id"]),
@@ -132,31 +172,38 @@ async def products_add(request: Request):
 @router.get("/{product_id}/edit", response_class=HTMLResponse)
 async def products_edit_page(request: Request, product_id: int):
     r = _check(request)
-    if r: return r
+    if r:
+        return r
+
     product = await get_product_by_id(product_id)
     if not product:
         return RedirectResponse("/products?error=not_found", status_code=303)
+
     products = await get_all_products(limit=200)
     categories = await get_all_categories()
     servers = await get_all_servers()
-    cat_map = {c["id"]: c["name"] for c in categories}
-    srv_map = {s["id"]: s["name"] for s in servers}
-    for p in products:
-        p["cat_name"] = cat_map.get(p["category_id"], "—")
-        p["srv_name"] = srv_map.get(p.get("server_id"), "—") if p.get("server_id") else "—"
+    _decorate_products(products, categories, servers)
+
     templates = get_templates()
     return templates.TemplateResponse(
         "products.html",
-        {"request": request, "products": products,
-         "categories": categories, "servers": servers, "editing": product,
-         **_build_flash_context(request)},
+        {
+            "request": request,
+            "products": products,
+            "categories": categories,
+            "servers": servers,
+            "editing": product,
+            **_build_flash_context(request),
+        },
     )
 
 
 @router.post("/{product_id}/edit")
 async def products_edit_submit(request: Request, product_id: int):
     r = _check(request)
-    if r: return r
+    if r:
+        return r
+
     form = await request.form()
     await update_product(
         product_id,
@@ -180,7 +227,9 @@ async def products_edit_submit(request: Request, product_id: int):
 @router.get("/{product_id}/delete")
 async def products_delete(request: Request, product_id: int):
     r = _check(request)
-    if r: return r
+    if r:
+        return r
+
     product = await get_product_by_id(product_id)
     if not product:
         return RedirectResponse("/products?error=not_found", status_code=303)
@@ -219,18 +268,18 @@ async def products_delete(request: Request, product_id: int):
 @router.get("/auto-generate", response_class=HTMLResponse)
 async def auto_generate(request: Request):
     """
-    Auto-generate sản phẩm từ server.
-    Lấy groups từ mỗi active server → tạo sản phẩm key_new + key_topup cho mỗi group.
+    Auto-generate san pham tu server.
+    Lay groups tu moi active server -> tao san pham key_new + key_topup cho moi group.
     """
     r = _check(request)
-    if r: return r
+    if r:
+        return r
 
     servers = await get_all_servers()
     categories = await get_all_categories()
 
-    # Tìm hoặc dùng danh mục key_api đầu tiên
-    key_cat = next((c for c in categories if c["cat_type"] == "key_api"), None)
-    if not key_cat:
+    key_category = next((category for category in categories if category["cat_type"] == "key_api"), None)
+    if not key_category:
         return RedirectResponse("/products?error=no_key_category", status_code=303)
 
     count = 0
@@ -246,30 +295,32 @@ async def auto_generate(request: Request):
             group_name = (group_info.get("name") or "").strip()
             if not group_name:
                 continue
-            # Key mới
+
+            description = group_info.get("desc_en") or group_info.get("desc") or ""
+
             await create_product(
-                category_id=key_cat["id"],
-                name=f"{server['name']} — {group_name}",
+                category_id=key_category["id"],
+                name=f"{server['name']} - {group_name}",
                 price_vnd=server["price_per_unit"],
                 product_type="key_new",
                 server_id=server["id"],
                 quota_amount=server["quota_per_unit"],
                 dollar_amount=server["dollar_per_unit"],
                 group_name=group_name,
-                description=group_info.get("desc", ""),
+                description=description,
             )
             count += 1
 
-            # Key topup (cùng giá)
             await create_product(
-                category_id=key_cat["id"],
-                name=f"{server['name']} — {group_name} (Nạp thêm)",
+                category_id=key_category["id"],
+                name=f"{server['name']} - {group_name} (Top Up)",
                 price_vnd=server["price_per_unit"],
                 product_type="key_topup",
                 server_id=server["id"],
                 quota_amount=server["quota_per_unit"],
                 dollar_amount=server["dollar_per_unit"],
                 group_name=None,
+                description=description,
             )
             count += 1
 

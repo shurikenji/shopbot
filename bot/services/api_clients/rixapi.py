@@ -70,9 +70,10 @@ class RixAPIClient(BaseAPIClient):
                     raw_label = item.get("key") or item.get("label") or ""
                     groups.append({
                         "name": name,
-                        "name_en": item.get("name_en") or name,
-                        "ratio": item.get("ratio") or item.get("multiplier") or 1.0,
+                        "name_en": item.get("name_en"),
+                        "ratio": item.get("ratio") or item.get("multiplier") or self.extract_ratio_hint(raw_label, name),
                         "desc": item.get("desc") or item.get("description") or raw_label,
+                        "translation_source": raw_label or name,
                     })
         elif isinstance(data, dict):
             # Sometimes RixAPI returns object with group names as keys
@@ -80,16 +81,18 @@ class RixAPIClient(BaseAPIClient):
                 if isinstance(info, dict):
                     groups.append({
                         "name": name,
-                        "name_en": info.get("name_en") or name,
-                        "ratio": info.get("ratio", 1.0),
+                        "name_en": info.get("name_en"),
+                        "ratio": info.get("ratio") or self.extract_ratio_hint(info.get("desc"), name),
                         "desc": info.get("desc", ""),
+                        "translation_source": info.get("desc") or name,
                     })
                 else:
                     groups.append({
                         "name": name,
-                        "name_en": name,
+                        "name_en": None,
                         "ratio": 1.0,
                         "desc": "",
+                        "translation_source": name,
                     })
         
         return groups

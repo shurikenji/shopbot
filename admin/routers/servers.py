@@ -56,8 +56,8 @@ def _get_server_form_payload(form) -> dict:
             {
                 "user_id_header": legacy_user_id,
                 "access_token": legacy_token,
-                "supports_multi_group": 0,
-                "manual_groups": "",
+                "supports_multi_group": 1 if form.get("supports_multi_group") else 0,
+                "manual_groups": _clean_str(form.get("manual_groups")),
                 "auth_type": "header",
                 "auth_user_header": "new-api-user",
                 "auth_user_value": legacy_user_id,
@@ -132,6 +132,8 @@ def _normalize_server_for_form(server: dict) -> dict:
         server["auth_type"] = "header"
         server["auth_user_header"] = "rix-api-user"
     elif api_type == "newapi":
+        if not server["manual_groups"] and "," in server.get("default_group", ""):
+            server["manual_groups"] = server.get("default_group", "")
         server["auth_type"] = "header"
         server["auth_user_header"] = "new-api-user"
     else:
