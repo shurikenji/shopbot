@@ -783,6 +783,15 @@ textarea.form-control {
     color: var(--text-secondary);
 }
 
+.badge-primary,
+.badge-success,
+.badge-warning,
+.badge-danger,
+.badge-info {
+    background: var(--primary-50);
+    color: var(--primary-dark);
+}
+
 /* Status badges */
 .status-badge {
     display: inline-flex;
@@ -1300,3 +1309,306 @@ textarea.form-control {
 .toast.success { border-left-color: var(--success); }
 .toast.warning { border-left-color: var(--warning); }
 .toast.error { border-left-color: var(--danger); }
+
+/* ============================================
+   PRODUCTS PAGE
+   ============================================ */
+.product-hero {
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.95), rgba(16, 185, 129, 0.9));
+    color: #fff;
+    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+    box-shadow: 0 20px 50px rgba(5, 150, 105, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+.product-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.product-hero::after {
+    content: "";
+    position: absolute;
+    bottom: -30%;
+    right: -5%;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.3), transparent);
+    pointer-events: none;
+}
+
+.product-hero-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    position: relative;
+    z-index: 1;
+}
+
+.product-hero h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    letter-spacing: -0.01em;
+}
+
+.product-hero p {
+    margin: 0.5rem 0 0;
+    max-width: 700px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.product-kpis {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+    position: relative;
+    z-index: 1;
+}
+
+.product-kpi {
+    min-width: 140px;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.product-kpi-label {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 0.2rem;
+}
+
+.product-kpi-value {
+    display: block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.product-board {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.product-table {
+    margin: 0;
+    vertical-align: middle;
+}
+
+.product-table thead th {
+    background: var(--background-subtle);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1rem;
+    font-weight: 600;
+}
+
+.product-table tbody td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+}
+
+.product-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.product-table tbody tr:hover {
+    background: var(--primary-50);
+}
+
+.product-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.product-description {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    max-width: 280px;
+}
+
+.product-empty {
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.product-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+}
+
+.product-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    background: var(--background-subtle);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    border: 1px solid var(--border);
+}
+
+.product-chip.server {
+    background: var(--warning-bg);
+    border-color: rgba(245, 158, 11, 0.2);
+    color: #b45309;
+}
+
+.product-chip.group {
+    background: var(--success-bg);
+    border-color: rgba(16, 185, 129, 0.2);
+    color: var(--primary-dark);
+}
+
+.product-chip.inherited {
+    background: var(--info-bg);
+    border-color: rgba(14, 165, 233, 0.2);
+    color: #0369a1;
+}
+
+.product-meta {
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+
+.product-group-helper {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    border-radius: var(--radius);
+    border: 1px dashed var(--border);
+    background: var(--background-subtle);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.product-group-helper code {
+    background: var(--surface);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--primary-dark);
+}
+
+.product-type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.product-delivery {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 140px;
+}
+
+.product-delivery code {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.product-price {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.product-price-meta {
+    color: var(--text-tertiary);
+    font-size: 0.78rem;
+    margin-top: 0.2rem;
+}
+
+.product-status {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 80px;
+}
+
+.product-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.product-flash {
+    border-radius: var(--radius);
+    padding: 0.875rem 1rem;
+}
+
+@media (max-width: 991px) {
+    .product-hero-top {
+        flex-direction: column;
+    }
+
+    .product-table thead {
+        display: none;
+    }
+
+    .product-table,
+    .product-table tbody,
+    .product-table tr,
+    .product-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .product-table tr {
+        padding: 0.5rem 0;
+    }
+
+    .product-table tbody td {
+        border-bottom: none;
+        padding: 0.5rem 1rem;
+    }
+
+    .product-table tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .product-table tbody tr:not(:last-child) {
+        border-bottom: 1px solid var(--border-light);
+    }
+}
