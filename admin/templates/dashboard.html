@@ -215,35 +215,34 @@
 <script>
 (function() {
     function sendLog(data) {
-        fetch('http://127.0.0.1:7852/ingest/09cabcf7-1336-422b-9a9c-83b902d59eff', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a53287' },
-            body: JSON.stringify({ sessionId: 'a53287', location: 'dashboard.html:stagger', message: 'Dashboard stat cards visibility check', data: data, timestamp: Date.now() })
-        }).catch(function() {});
+        console.log('[DEBUG]', JSON.stringify(data));
     }
-    setTimeout(function() {
-        var row = document.querySelector('.stagger-children');
-        var firstCol = row ? row.querySelector(':scope > *') : null;
-        var firstCard = row ? row.querySelector('.stat-card') : null;
-        var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var checks = 0;
+    var interval = setInterval(function() {
+        checks++;
+        var row = document.querySelector('.row.g-4.mb-4');
+        var cards = document.querySelectorAll('.stat-card');
         var data = {
-            reducedMotion: reducedMotion,
+            checkNumber: checks,
             rowExists: !!row,
             rowHeight: row ? row.clientHeight : 0,
-            childCount: row ? row.children.length : 0
+            rowOffsetTop: row ? row.offsetTop : -1,
+            statCardCount: cards.length,
+            reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
         };
-        if (firstCol) {
-            var s = getComputedStyle(firstCol);
-            data.firstColOpacity = s.opacity;
-            data.firstColVisibility = s.visibility;
-            data.firstColDisplay = s.display;
-        }
-        if (firstCard) {
-            var s2 = getComputedStyle(firstCard);
-            data.statCardOpacity = s2.opacity;
+        if (cards.length > 0) {
+            var card = cards[0];
+            var s = getComputedStyle(card);
+            data.firstCardDisplay = s.display;
+            data.firstCardOpacity = s.opacity;
+            data.firstCardVisibility = s.visibility;
+            data.firstCardHeight = card.clientHeight;
+            data.firstCardOffsetTop = card.offsetTop;
+            data.firstCardRect = JSON.stringify(card.getBoundingClientRect());
         }
         sendLog(data);
-    }, 500);
+        if (checks >= 10) clearInterval(interval);
+    }, 300);
 })();
 </script>
 <!-- #endregion -->
