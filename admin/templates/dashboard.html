@@ -211,40 +211,4 @@
     </div>
 </div>
 
-<!-- #region agent log -->
-<script>
-(function() {
-    function sendLog(data) {
-        console.log('[DEBUG]', JSON.stringify(data));
-    }
-    var checks = 0;
-    var interval = setInterval(function() {
-        checks++;
-        var row = document.querySelector('.row.g-4.mb-4');
-        var cards = document.querySelectorAll('.stat-card');
-        var data = {
-            checkNumber: checks,
-            rowExists: !!row,
-            rowHeight: row ? row.clientHeight : 0,
-            rowOffsetTop: row ? row.offsetTop : -1,
-            statCardCount: cards.length,
-            reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        };
-        if (cards.length > 0) {
-            var card = cards[0];
-            var s = getComputedStyle(card);
-            data.firstCardDisplay = s.display;
-            data.firstCardOpacity = s.opacity;
-            data.firstCardVisibility = s.visibility;
-            data.firstCardHeight = card.clientHeight;
-            data.firstCardOffsetTop = card.offsetTop;
-            data.firstCardRect = JSON.stringify(card.getBoundingClientRect());
-        }
-        sendLog(data);
-        if (checks >= 10) clearInterval(interval);
-    }, 300);
-})();
-</script>
-<!-- #endregion -->
-
 {% endblock %}
