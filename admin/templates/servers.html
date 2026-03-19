@@ -1,12 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Servers{% endblock %}
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <h1>🖥 API Servers</h1>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Thêm server</button>
+<div class="page-header">
+    <h1>
+        <span class="icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+        </span>
+        API Servers
+    </h1>
+    <div class="page-actions">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Thêm server
+        </button>
+    </div>
 </div>
+
+<!-- Servers Table -->
 <div class="table-card">
-    <table class="table table-hover">
+    <table class="table">
         <thead>
             <tr>
                 <th>#</th>
@@ -23,16 +43,49 @@
             {% for s in servers %}
             <tr>
                 <td>{{ s.id }}</td>
-                <td>{{ s.name }}</td>
-                <td><span class="badge bg-{{ 'info' if s.api_type == 'newapi' else ('warning' if s.api_type == 'rixapi' else 'secondary') }}">{{ s.api_type or 'newapi' }}</span></td>
-                <td><small>{{ s.base_url }}</small></td>
-                <td>{{ format_vnd(s.price_per_unit) }}</td>
-                <td><span class="badge {{ 'bg-success' if s.supports_multi_group else 'bg-secondary' }}">{{ 'ON' if s.supports_multi_group else 'OFF' }}</span></td>
-                <td><span class="badge {{ 'bg-success' if s.is_active else 'bg-secondary' }}">{{ 'Active' if s.is_active else 'Off' }}</span></td>
                 <td>
-                    <a href="/servers/{{ s.id }}/groups" class="btn btn-outline-info btn-sm">Groups</a>
-                    <a href="/servers/{{ s.id }}/edit" class="btn btn-outline-primary btn-sm">Sửa</a>
-                    <a href="/servers/{{ s.id }}/delete" class="btn btn-outline-danger btn-sm" onclick="return confirmDelete()">Xóa</a>
+                    <span class="fw-bold">{{ s.name }}</span>
+                </td>
+                <td>
+                    <span class="badge {{ 'badge-info' if s.api_type == 'newapi' else ('badge-warning' if s.api_type == 'rixapi' else 'badge-secondary') }}">
+                        {{ s.api_type or 'newapi' }}
+                    </span>
+                </td>
+                <td>
+                    <code style="font-size: 0.8rem;">{{ s.base_url }}</code>
+                </td>
+                <td>
+                    <span class="fw-bold">{{ format_vnd(s.price_per_unit) }}</span>
+                </td>
+                <td>
+                    {% if s.supports_multi_group %}
+                    <span class="badge badge-success">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        ON
+                    </span>
+                    {% else %}
+                    <span class="badge badge-secondary">OFF</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="status-badge {{ 'paid' if s.is_active else 'cancelled' }}">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor;"></span>
+                        {{ 'Active' if s.is_active else 'Off' }}
+                    </span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <a href="/servers/{{ s.id }}/groups" class="btn btn-sm btn-outline-secondary" title="Groups">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </a>
+                        <a href="/servers/{{ s.id }}/edit" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        <a href="/servers/{{ s.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -50,11 +103,10 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Basic Info -->
-                    <h6 class="text-muted mb-2">📋 Thông tin cơ bản</h6>
+                    <h6 class="text-muted mb-2">Thông tin cơ bản</h6>
                     <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control" required></div>
                     <div class="mb-2"><label class="form-label">Base URL</label><input name="base_url" class="form-control" required placeholder="https://api.example.com"></div>
-                    
+
                     <div class="mb-2">
                         <label class="form-label">API Type</label>
                         <select name="api_type" class="form-select" id="add_api_type">
@@ -63,10 +115,9 @@
                             {% endfor %}
                         </select>
                     </div>
-                    
+
                     <hr>
-                    <!-- Authentication -->
-                    <h6 class="text-muted mb-2">🔐 Xác thực</h6>
+                    <h6 class="text-muted mb-2">Xác thực</h6>
                     <div class="mb-2" id="add_auth_type_wrap">
                         <label class="form-label">Method</label>
                         <select name="auth_type" class="form-select" id="add_auth_type">
@@ -75,35 +126,31 @@
                             {% endfor %}
                         </select>
                     </div>
-                    
+
                     <div id="add_auth_fields">
                         <div class="mb-2" id="add_header_wrap"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" placeholder="new-api-user"></div>
                         <div class="mb-2"><label class="form-label" id="add_user_value_label">User ID</label><input name="auth_user_value" class="form-control" placeholder="User ID"></div>
                         <div class="mb-2"><label class="form-label" id="add_token_label">Access Token</label><input name="auth_token" class="form-control"></div>
                     </div>
-                    
+
                     <div id="add_cookie_field" class="mb-2" style="display:none;">
                         <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" placeholder="session=abc123; user_id=456">
                     </div>
-                    
+
                     <div class="form-check mb-2" id="add_multi_group_wrap">
                         <input class="form-check-input" type="checkbox" name="supports_multi_group" id="add_multi_group" value="1">
                         <label class="form-check-label" for="add_multi_group">Enable Multi-Group Support</label>
                     </div>
-                    <div class="form-text mb-2" id="add_multi_group_hint">Use "Tai groups" below to select one or many groups for this server.</div>
-                    
+
                     <hr>
-                    <!-- Advanced -->
                     <div id="add_advanced_block">
-                    <h6 class="text-muted mb-2">⚙️ Nâng cao (Optional)</h6>
-                    <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" placeholder="/api/user/self/groups"></div>
-                    <div class="mb-2"><label class="form-label">Manual Groups (comma-separated)</label><input name="manual_groups" class="form-control" placeholder="default,azure,gemini,claude"></div>
-                    <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2" placeholder='[{"key": "X-Custom", "value": "固定值"}]'></textarea></div>
-                    
+                        <h6 class="text-muted mb-2">Nâng cao (Optional)</h6>
+                        <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" placeholder="/api/user/self/groups"></div>
+                        <div class="mb-2"><label class="form-label">Manual Groups (comma-separated)</label><input name="manual_groups" class="form-control" placeholder="default,azure,gemini,claude"></div>
+                        <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2" placeholder='[{"key": "X-Custom", "value": "固定值"}]'></textarea></div>
                     </div>
                     <hr>
-                    <!-- Pricing -->
-                    <h6 class="text-muted mb-2">💰 Pricing</h6>
+                    <h6 class="text-muted mb-2">Pricing</h6>
                     <div class="row">
                         <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit" type="number" class="form-control" required></div>
                         <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" required></div>
@@ -113,7 +160,7 @@
                         <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="1.0"></div>
                     </div>
                     <div class="mb-2 mt-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" placeholder="default"></div>
-                    <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('add')">Tai groups</button></div>
+                    <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('add')">Tải groups</button></div>
                     <div id="add_group_preview" class="mb-2" style="display:none;"></div>
                 </div>
                 <div class="modal-footer"><button type="submit" class="btn btn-primary">Thêm</button></div>
@@ -128,16 +175,16 @@
         <div class="modal-content">
             <form method="POST" action="/servers/{{ editing.id }}/edit" id="editForm">
                 <div class="modal-header">
-                    <h5 class="modal-title">Sua server: {{ editing.name }}</h5>
-                    <a href="/servers" class="btn btn-sm btn-outline-secondary">Dong</a>
+                    <h5 class="modal-title">Sửa server: {{ editing.name }}</h5>
+                    <a href="/servers" class="btn btn-sm btn-outline-secondary">Đóng</a>
                 </div>
                 <div class="modal-body">
-                    <h6 class="text-muted mb-2">📋 Thong tin co ban</h6>
+                    <h6 class="text-muted mb-2">Thông tin cơ bản</h6>
                     <div class="row mb-2">
-                        <div class="col"><label class="form-label">Ten</label><input name="name" class="form-control" value="{{ editing.name }}" required></div>
+                        <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control" value="{{ editing.name }}" required></div>
                         <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
                     </div>
-                    
+
                     <div class="mb-2">
                         <label class="form-label">API Type</label>
                         <select name="api_type" class="form-select" id="edit_api_type">
@@ -146,9 +193,9 @@
                             {% endfor %}
                         </select>
                     </div>
-                    
+
                     <hr>
-                    <h6 class="text-muted mb-2">🔐 Xac thuc</h6>
+                    <h6 class="text-muted mb-2">Xác thực</h6>
                     <div class="mb-2" id="edit_auth_type_wrap">
                         <label class="form-label">Method</label>
                         <select name="auth_type" class="form-select" id="edit_auth_type">
@@ -157,53 +204,52 @@
                             {% endfor %}
                         </select>
                     </div>
-                    
+
                     <div id="edit_auth_fields">
                         <div class="mb-2" id="edit_header_wrap"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
                         <div class="mb-2"><label class="form-label" id="edit_user_value_label">User ID</label><input name="auth_user_value" class="form-control" value="{{ editing.auth_user_value or '' }}"></div>
                         <div class="mb-2"><label class="form-label" id="edit_token_label">Access Token</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
                     </div>
-                    
+
                     <div id="edit_cookie_field" class="mb-2" style="display:none;">
                         <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" value="{{ editing.auth_cookie or '' }}">
                     </div>
-                    
+
                     <div class="form-check mb-2" id="edit_multi_group_wrap">
                         <input class="form-check-input" type="checkbox" name="supports_multi_group" id="edit_multi_group" value="1" {% if editing.supports_multi_group %}checked{% endif %}>
                         <label class="form-check-label" for="edit_multi_group">Enable Multi-Group Support</label>
                     </div>
-                    <div class="form-text mb-2" id="edit_multi_group_hint">Use "Tai groups" below to select one or many groups for this server.</div>
-                    
+
                     <hr>
                     <div id="edit_advanced_block">
-                        <h6 class="text-muted mb-2">⚙️ Nang cao</h6>
+                        <h6 class="text-muted mb-2">Nâng cao</h6>
                         <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" value="{{ editing.groups_endpoint or '' }}"></div>
                         <div class="mb-2"><label class="form-label">Manual Groups</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
                         <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2">{{ editing.custom_headers or '' }}</textarea></div>
                     </div>
-                    
+
                     <hr>
-                    <h6 class="text-muted mb-2">💰 Pricing</h6>
+                    <h6 class="text-muted mb-2">Pricing</h6>
                     <div class="row mb-2">
-                        <div class="col"><label class="form-label">Gia/$ (VND)</label><input name="price_per_unit" type="number" class="form-control" value="{{ editing.price_per_unit }}" required></div>
+                        <div class="col"><label class="form-label">Giá/$ (VND)</label><input name="price_per_unit" type="number" class="form-control" value="{{ editing.price_per_unit }}" required></div>
                         <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" value="{{ editing.quota_per_unit }}" required></div>
                     </div>
                     <div class="row mb-2">
-                        <div class="col"><label class="form-label">He so $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
+                        <div class="col"><label class="form-label">Hệ số $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
                         <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
                     </div>
                     <div class="mb-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" value="{{ editing.default_group or '' }}"></div>
-                    <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('edit')">Tai groups</button></div>
+                    <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('edit')">Tải groups</button></div>
                     <div id="edit_group_preview" class="mb-2" style="display:none;"></div>
-                    
+
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
                         <label class="form-check-label" for="editActive">Active</label>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <a href="/servers" class="btn btn-outline-secondary">Huy</a>
-                    <button type="submit" class="btn btn-primary">Luu</button>
+                    <a href="/servers" class="btn btn-outline-secondary">Hủy</a>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
                 </div>
             </form>
         </div>
@@ -214,24 +260,24 @@
 <!-- Groups Panel -->
 {% if groups_data is defined and groups_data %}
 <div class="card mt-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <div>
-            <h5>📋 Groups — {{ groups_server.name }}</h5>
-            {% if supports_multi_group %}
-            <span class="badge bg-warning">Multi-Group Enabled - Click để chọn nhiều</span>
-            {% endif %}
-        </div>
-        <a href="/servers/{{ groups_server.id }}/groups" class="btn btn-sm btn-outline-primary">🔄 Refresh</a>
+    <div class="card-header">
+        <h3>Groups — {{ groups_server.name }}</h3>
+        <a href="/servers/{{ groups_server.id }}/groups" class="btn btn-sm btn-outline-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            Refresh
+        </a>
     </div>
     <div class="card-body">
         {% if supports_multi_group %}
-        <!-- Multi-Group Mode -->
-        <p class="text-muted small">Click vào các nút để chọn group. Thứ tự chọn sẽ được giữ nguyên trong payload.</p>
+        <p class="text-secondary small">Click vào các nút để chọn group.</p>
         <div class="mb-3">
             <label class="form-label">Available Groups:</label>
             <div class="d-flex flex-wrap gap-2" id="available_groups">
                 {% for g in groups_data %}
-                <button type="button" class="btn btn-outline-secondary group-btn" 
+                <button type="button" class="btn btn-outline-secondary group-btn"
                     data-name="{{ g.name }}" data-ratio="{{ g.ratio }}" data-label="{{ g.label_en or g.name }}">
                     {{ g.label_en or g.name }} ({{ g.ratio }}x)
                 </button>
@@ -239,22 +285,17 @@
             </div>
         </div>
         <div class="mb-3">
-            <label class="form-label">Selected Groups (theo thứ tự):</label>
+            <label class="form-label">Selected Groups:</label>
             <div class="d-flex flex-wrap gap-2" id="selected_groups"></div>
             <input type="hidden" name="selected_group_input" id="selected_group_input" value="">
         </div>
-        <div class="alert alert-info">
-            <strong>Original:</strong> <code id="group_original"></code><br>
-            <strong>Combined Ratio:</strong> <span id="combined_ratio">0</span>x
-        </div>
         {% else %}
-        <!-- Single Group Mode -->
         <div class="mb-3">
             <label class="form-label">Chọn Group:</label>
             <div class="d-flex flex-wrap gap-2">
                 {% for g in groups_data %}
                 <div class="form-check">
-                    <input class="form-check-input" type="radio" name="group_radio" id="group_{{ loop.index }}" 
+                    <input class="form-check-input" type="radio" name="group_radio" id="group_{{ loop.index }}"
                         value="{{ g.name }}" data-ratio="{{ g.ratio }}">
                     <label class="form-check-label" for="group_{{ loop.index }}">
                         {{ g.label_en or g.name }} ({{ g.ratio }}x)
@@ -262,10 +303,6 @@
                 </div>
                 {% endfor %}
             </div>
-        </div>
-        <div class="alert alert-info">
-            <strong>Selected:</strong> <code id="single_group_name">-</code> 
-            <strong>Ratio:</strong> <span id="single_ratio">0</span>x
         </div>
         {% endif %}
     </div>
@@ -278,11 +315,9 @@ function setupAuthType(prefix) {
     const authType = document.getElementById(prefix + '_auth_type');
     const authFields = document.getElementById(prefix + '_auth_fields');
     const cookieField = document.getElementById(prefix + '_cookie_field');
-    
+
     function toggle() {
-        if (!authType || !authFields || !cookieField) {
-            return;
-        }
+        if (!authType || !authFields || !cookieField) return;
         if (authType.value === 'cookie') {
             authFields.style.display = 'none';
             cookieField.style.display = 'block';
@@ -294,7 +329,7 @@ function setupAuthType(prefix) {
             cookieField.style.display = 'none';
         }
     }
-    
+
     if (authType) authType.addEventListener('change', toggle);
     toggle();
 }
@@ -313,45 +348,26 @@ function setupApiType(prefix) {
     const advancedBlock = document.getElementById(prefix + '_advanced_block');
     const userValueLabel = document.getElementById(prefix + '_user_value_label');
     const tokenLabel = document.getElementById(prefix + '_token_label');
-    
+
     function setHeader() {
-        if (!apiType) {
-            return;
-        }
+        if (!apiType) return;
 
         const isOther = apiType.value === 'other';
 
-        if (authTypeWrap) {
-            authTypeWrap.style.display = isOther ? '' : 'none';
-        }
-        if (headerWrap) {
-            headerWrap.style.display = isOther ? '' : 'none';
-        }
-        if (multiGroupWrap) {
-            multiGroupWrap.style.display = '';
-        }
-        if (advancedBlock) {
-            advancedBlock.style.display = isOther ? '' : 'none';
-        }
-        if (userValueLabel) {
-            userValueLabel.textContent = isOther ? 'User ID Value' : 'User ID';
-        }
-        if (tokenLabel) {
-            tokenLabel.textContent = isOther ? 'Bearer Token' : 'Access Token';
-        }
-        if (!isOther && authType) {
-            authType.value = 'header';
-        }
+        if (authTypeWrap) authTypeWrap.style.display = isOther ? '' : 'none';
+        if (headerWrap) headerWrap.style.display = isOther ? '' : 'none';
+        if (multiGroupWrap) multiGroupWrap.style.display = '';
+        if (advancedBlock) advancedBlock.style.display = isOther ? '' : 'none';
+        if (userValueLabel) userValueLabel.textContent = isOther ? 'User ID Value' : 'User ID';
+        if (tokenLabel) tokenLabel.textContent = isOther ? 'Bearer Token' : 'Access Token';
+        if (!isOther && authType) authType.value = 'header';
 
-        if (apiType.value === 'newapi' && authHeader) {
-            authHeader.value = 'new-api-user';
-        } else if (apiType.value === 'rixapi' && authHeader) {
-            authHeader.value = 'rix-api-user';
-        }
+        if (apiType.value === 'newapi' && authHeader) authHeader.value = 'new-api-user';
+        else if (apiType.value === 'rixapi' && authHeader) authHeader.value = 'rix-api-user';
 
         setupAuthType(prefix);
     }
-    
+
     if (apiType) {
         apiType.addEventListener('change', setHeader);
         setHeader();
@@ -368,7 +384,7 @@ async function previewServerGroups(prefix) {
 
     preview.style.display = 'block';
     preview.className = 'alert alert-info';
-    preview.textContent = 'Dang tai groups...';
+    preview.textContent = 'Đang tải groups...';
 
     try {
         const resp = await fetch('/servers/preview-groups', {
@@ -378,13 +394,13 @@ async function previewServerGroups(prefix) {
         const data = await resp.json();
         if (!data.success) {
             preview.className = 'alert alert-danger';
-            preview.textContent = data.message || 'Khong tai duoc groups';
+            preview.textContent = data.message || 'Không tải được groups';
             return;
         }
         renderGroupPreview(prefix, data.data || [], !!data.supports_multi_group);
     } catch (error) {
         preview.className = 'alert alert-danger';
-        preview.textContent = 'Loi tai groups: ' + error.message;
+        preview.textContent = 'Lỗi tải groups: ' + error.message;
     }
 }
 
@@ -396,7 +412,7 @@ function renderGroupPreview(prefix, groups, isMulti) {
 
     if (!groups.length) {
         preview.className = 'alert alert-warning';
-        preview.textContent = 'Khong co groups nao tra ve.';
+        preview.textContent = 'Không có groups nào trả về.';
         return;
     }
 
@@ -407,7 +423,7 @@ function renderGroupPreview(prefix, groups, isMulti) {
     preview.className = 'border rounded p-3 bg-light';
     preview.innerHTML = `
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>${isMulti ? 'Chon Manual Groups' : 'Chon Default Group'}</strong>
+            <strong>${isMulti ? 'Chọn Manual Groups' : 'Chọn Default Group'}</strong>
             <small class="text-muted">${groups.length} groups</small>
         </div>
         <div class="d-flex flex-wrap gap-2" id="${prefix}_group_buttons"></div>
@@ -436,7 +452,6 @@ function renderGroupPreview(prefix, groups, isMulti) {
     });
 }
 
-// Multi-group selection
 {% if groups_data is defined and supports_multi_group %}
 let selectedGroups = [];
 
@@ -445,9 +460,9 @@ document.querySelectorAll('.group-btn').forEach(btn => {
         const name = this.dataset.name;
         const ratio = parseFloat(this.dataset.ratio);
         const label = this.dataset.label;
-        
+
         const idx = selectedGroups.findIndex(g => g.name === name);
-        
+
         if (idx > -1) {
             selectedGroups.splice(idx, 1);
             this.classList.remove('btn-primary');
@@ -457,55 +472,40 @@ document.querySelectorAll('.group-btn').forEach(btn => {
             this.classList.remove('btn-outline-secondary');
             this.classList.add('btn-primary');
         }
-        
+
         renderSelected();
     });
 });
 
 function renderSelected() {
     const container = document.getElementById('selected_groups');
-    const originalEl = document.getElementById('group_original');
-    const ratioEl = document.getElementById('combined_ratio');
-    const inputEl = document.getElementById('selected_group_input');
-    
     container.innerHTML = '';
-    let original = [];
-    let totalRatio = 0;
-    
+
     selectedGroups.forEach((g, idx) => {
-        original.push(g.name);
-        totalRatio += g.ratio;
-        
         const chip = document.createElement('span');
         chip.className = 'badge bg-primary';
         chip.innerHTML = `${g.label} #${idx + 1} <span style="cursor:pointer" onclick="removeGroup('${g.name}')">×</span>`;
         container.appendChild(chip);
     });
-    
-    originalEl.textContent = original.join(',');
-    ratioEl.textContent = totalRatio.toFixed(1);
-    inputEl.value = original.join(',');
+
+    document.getElementById('selected_group_input').value = selectedGroups.map(g => g.name).join(',');
 }
 
 function removeGroup(name) {
     const idx = selectedGroups.findIndex(g => g.name === name);
     if (idx > -1) {
         selectedGroups.splice(idx, 1);
-        
-        // Update button state
         document.querySelectorAll('.group-btn').forEach(btn => {
             if (btn.dataset.name === name) {
                 btn.classList.remove('btn-primary');
                 btn.classList.add('btn-outline-secondary');
             }
         });
-        
         renderSelected();
     }
 }
 {% endif %}
 
-// Single group selection
 {% if groups_data is defined and not supports_multi_group %}
 document.querySelectorAll('input[name="group_radio"]').forEach(radio => {
     radio.addEventListener('change', function() {
@@ -515,7 +515,6 @@ document.querySelectorAll('input[name="group_radio"]').forEach(radio => {
 });
 {% endif %}
 
-// Confirm delete
 function confirmDelete() {
     return confirm('Bạn có chắc muốn xóa server này?');
 }

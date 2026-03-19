@@ -2,21 +2,88 @@
 {% block title %}Broadcast{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h1>📢 Broadcast</h1>
+    <h1>
+        <span class="icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4.93 4.93a10 10 0 0 1 14.14 0"></path>
+                <path d="M7.76 7.76a6 6 0 0 1 8.48 0"></path>
+                <path d="M10.59 10.59a2 2 0 0 1 2.82 0"></path>
+                <line x1="12" y1="12" x2="12" y2="21"></line>
+            </svg>
+        </span>
+        Broadcast
+    </h1>
 </div>
+
 <div class="row">
-    <div class="col-md-8">
-        <div class="table-card p-3">
-            <form method="POST" action="/broadcast/send">
+    <div class="col-12 col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Gửi tin nhắn
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/broadcast/send">
+                    <div class="form-group">
+                        <label class="form-label">Nội dung tin nhắn (HTML)</label>
+                        <textarea
+                            name="message"
+                            class="form-control"
+                            rows="8"
+                            required
+                            placeholder="Nhập nội dung tin nhắn...
+Hỗ trợ HTML: <b>bold</b>, <i>italic</i>, <code>code</code>"
+                        ></textarea>
+                        <div class="form-text">Hỗ trợ HTML: <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, <code>&lt;code&gt;</code>, <code>&lt;br&gt;</code></div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <span>Sẽ gửi đến <strong>{{ total_users }}</strong> users (không bao gồm user bị ban)</span>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary btn-lg"
+                        onclick="return confirm('Gửi broadcast đến tất cả users?')"
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        Gửi Broadcast
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h3>Hướng dẫn</h3>
+            </div>
+            <div class="card-body">
                 <div class="mb-3">
-                    <label class="form-label">Nội dung tin nhắn (HTML)</label>
-                    <textarea name="message" class="form-control" rows="6" required
-                        placeholder="Nhập nội dung tin nhắn...&#10;Hỗ trợ HTML: <b>bold</b>, <i>italic</i>, <code>code</code>"></textarea>
+                    <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">HTML Supported</h4>
+                    <code style="display: block; padding: 0.5rem; background: var(--background-subtle); border-radius: 6px; font-size: 0.8rem;">&lt;b&gt;Bold&lt;/b&gt;</code>
+                    <code style="display: block; padding: 0.5rem; background: var(--background-subtle); border-radius: 6px; font-size: 0.8rem; margin-top: 0.25rem;">&lt;i&gt;Italic&lt;/i&gt;</code>
+                    <code style="display: block; padding: 0.5rem; background: var(--background-subtle); border-radius: 6px; font-size: 0.8rem; margin-top: 0.25rem;">&lt;code&gt;Code&lt;/code&gt;</code>
                 </div>
-                <p class="text-muted small">Sẽ gửi đến <b>{{ total_users }}</b> users (không bao gồm user bị ban).</p>
-                <button type="submit" class="btn btn-primary"
-                    onclick="return confirm('Gửi broadcast đến tất cả users?')">📢 Gửi Broadcast</button>
-            </form>
+                <div class="mb-3">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Variables</h4>
+                    <code style="display: block; padding: 0.5rem; background: var(--background-subtle); border-radius: 6px; font-size: 0.8rem;">{username}</code>
+                    <code style="display: block; padding: 0.5rem; background: var(--background-subtle); border-radius: 6px; font-size: 0.8rem; margin-top: 0.25rem;">{user_id}</code>
+                </div>
+            </div>
         </div>
     </div>
 </div>
