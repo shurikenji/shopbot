@@ -12,23 +12,31 @@ _SERVER_SELECT = "SELECT * FROM api_servers"
 _SERVER_ORDER_BY = " ORDER BY sort_order ASC, id ASC"
 
 
+async def _fetch_servers(where_clause: str = "", params: tuple[object, ...] = ()) -> list[dict]:
+    query = _SERVER_SELECT
+    if where_clause:
+        query += f" WHERE {where_clause}"
+    query += _SERVER_ORDER_BY
+    return await fetch_all_dicts(query, params)
+
+
+async def _fetch_server(where_clause: str, params: tuple[object, ...]) -> Optional[dict]:
+    return await fetch_one_dict(f"{_SERVER_SELECT} WHERE {where_clause}", params)
+
+
 async def get_active_servers() -> list[dict]:
     """Lấy danh sách server đang active, sắp xếp theo sort_order."""
-    return await fetch_all_dicts(
-        """SELECT * FROM api_servers
-           WHERE is_active = 1"""
-        + _SERVER_ORDER_BY
-    )
+    return await _fetch_servers("is_active = 1")
 
 
 async def get_all_servers() -> list[dict]:
     """Lấy tất cả servers (admin)."""
-    return await fetch_all_dicts("SELECT * FROM api_servers" + _SERVER_ORDER_BY)
+    return await _fetch_servers()
 
 
 async def get_server_by_id(server_id: int) -> Optional[dict]:
     """Lấy server theo ID."""
-    return await fetch_one_dict(f"{_SERVER_SELECT} WHERE id = ?", (server_id,))
+    return await _fetch_server("id = ?", (server_id,))
 
 
 async def create_server(
