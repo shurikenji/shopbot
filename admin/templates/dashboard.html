@@ -25,7 +25,7 @@
 </div>
 
 <!-- Stats Grid -->
-<div class="row g-4 mb-4 stagger-children">
+<div class="row g-4 mb-4">
     <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon emerald">
@@ -210,4 +210,42 @@
         </div>
     </div>
 </div>
+
+<!-- #region agent log -->
+<script>
+(function() {
+    function sendLog(data) {
+        fetch('http://127.0.0.1:7852/ingest/09cabcf7-1336-422b-9a9c-83b902d59eff', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'a53287' },
+            body: JSON.stringify({ sessionId: 'a53287', location: 'dashboard.html:stagger', message: 'Dashboard stat cards visibility check', data: data, timestamp: Date.now() })
+        }).catch(function() {});
+    }
+    setTimeout(function() {
+        var row = document.querySelector('.stagger-children');
+        var firstCol = row ? row.querySelector(':scope > *') : null;
+        var firstCard = row ? row.querySelector('.stat-card') : null;
+        var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var data = {
+            reducedMotion: reducedMotion,
+            rowExists: !!row,
+            rowHeight: row ? row.clientHeight : 0,
+            childCount: row ? row.children.length : 0
+        };
+        if (firstCol) {
+            var s = getComputedStyle(firstCol);
+            data.firstColOpacity = s.opacity;
+            data.firstColVisibility = s.visibility;
+            data.firstColDisplay = s.display;
+        }
+        if (firstCard) {
+            var s2 = getComputedStyle(firstCard);
+            data.statCardOpacity = s2.opacity;
+        }
+        sendLog(data);
+    }, 500);
+})();
+</script>
+<!-- #endregion -->
+
 {% endblock %}
