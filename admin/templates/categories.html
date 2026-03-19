@@ -1,184 +1,112 @@
 {% extends "base.html" %}
-{% block title %}Danh muc{% endblock %}
+{% block title %}Danh mục{% endblock %}
 {% block content %}
-<style>
-    .cat-shell {
-        display: grid;
-        gap: 1rem;
-    }
-
-    .cat-hero {
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        align-items: center;
-        padding: 1.2rem 1.35rem;
-        border-radius: 24px;
-        background: linear-gradient(135deg, #11324d, #29557a);
-        color: #f8fbff;
-        box-shadow: 0 20px 45px rgba(17, 50, 77, 0.16);
-    }
-
-    .cat-hero h1 {
-        margin: 0;
-        font-size: 1.7rem;
-    }
-
-    .cat-hero p {
-        margin: 0.35rem 0 0;
-        color: rgba(248, 251, 255, 0.78);
-        max-width: 680px;
-    }
-
-    .cat-table-card {
-        border: 1px solid rgba(17, 50, 77, 0.08);
-        border-radius: 24px;
-        overflow: hidden;
-        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,251,0.98));
-        box-shadow: 0 14px 30px rgba(17, 50, 77, 0.08);
-    }
-
-    .cat-table {
-        margin: 0;
-    }
-
-    .cat-table thead th {
-        background: rgba(17, 50, 77, 0.05);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-size: 0.74rem;
-        color: #11324d;
-        padding: 0.95rem 0.8rem;
-        border-bottom: 1px solid rgba(17, 50, 77, 0.08);
-    }
-
-    .cat-table tbody td {
-        padding: 0.95rem 0.8rem;
-        vertical-align: middle;
-        border-bottom: 1px solid rgba(17, 50, 77, 0.06);
-    }
-
-    .cat-name {
-        font-weight: 700;
-        color: #163955;
-    }
-
-    .cat-note {
-        display: block;
-        color: #637489;
-        font-size: 0.86rem;
-        margin-top: 0.18rem;
-    }
-
-    .cat-type {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.35rem 0.65rem;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        border: 1px solid rgba(17, 50, 77, 0.08);
-        background: rgba(17, 50, 77, 0.05);
-    }
-
-    .cat-type.key {
-        background: rgba(255, 190, 11, 0.14);
-        border-color: rgba(255, 190, 11, 0.2);
-    }
-
-    .cat-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-    }
-</style>
-
-<div class="cat-shell">
-    <section class="cat-hero">
-        <div>
-            <h1>Category Map</h1>
-            <p>Danh mục được giữ gọn trong một bảng duy nhất. Sửa danh mục giờ mở trong dialog để không đẩy toàn bộ danh sách xuống dưới.</p>
-        </div>
-        <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Them danh muc</button>
-    </section>
-
-    <section class="cat-table-card">
-        <table class="table table-hover cat-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Icon</th>
-                    <th>Ten</th>
-                    <th>Loai</th>
-                    <th>Thu tu</th>
-                    <th>Trang thai</th>
-                    <th>Thao tac</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in categories %}
-                <tr>
-                    <td>{{ c.id }}</td>
-                    <td style="font-size:1.2rem;">{{ c.icon }}</td>
-                    <td>
-                        <span class="cat-name">{{ c.name }}</span>
-                        <span class="cat-note">{{ c.description or 'Khong co mo ta' }}</span>
-                    </td>
-                    <td>
-                        <span class="cat-type {{ 'key' if c.cat_type == 'key_api' else '' }}">
-                            {{ 'Key API' if c.cat_type == 'key_api' else 'General' }}
-                        </span>
-                    </td>
-                    <td>{{ c.sort_order }}</td>
-                    <td><span class="badge {{ 'bg-success' if c.is_active else 'bg-secondary' }}">{{ 'Active' if c.is_active else 'Off' }}</span></td>
-                    <td>
-                        <div class="cat-actions">
-                            <a href="/categories/{{ c.id }}/edit" class="btn btn-outline-primary btn-sm">Sua</a>
-                            <a href="/categories/{{ c.id }}/delete" class="btn btn-outline-danger btn-sm" onclick="return confirmDelete()">Xoa</a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </section>
+<div class="page-header">
+    <h1>
+        <span class="icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+        </span>
+        Danh mục
+    </h1>
+    <div class="page-actions">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Thêm danh mục
+        </button>
+    </div>
 </div>
 
+<!-- Categories Table -->
+<div class="table-card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="width: 60px;">#</th>
+                <th style="width: 70px;">Icon</th>
+                <th>Tên</th>
+                <th style="width: 120px;">Loại</th>
+                <th style="width: 80px;">Thứ tự</th>
+                <th style="width: 100px;">Trạng thái</th>
+                <th style="width: 140px;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in categories %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td>
+                    <span style="font-size: 1.5rem;">{{ c.icon }}</span>
+                </td>
+                <td>
+                    <div style="font-weight: 600; color: var(--text-primary);">{{ c.name }}</div>
+                    <div style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.2rem;">
+                        {{ c.description or 'Không có mô tả' }}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge {{ 'badge-warning' if c.cat_type == 'key_api' else 'badge-secondary' }}">
+                        {{ 'Key API' if c.cat_type == 'key_api' else 'General' }}
+                    </span>
+                </td>
+                <td>{{ c.sort_order }}</td>
+                <td>
+                    <span class="badge {{ 'badge-success' if c.is_active else 'badge-secondary' }}">
+                        {{ 'Hoạt động' if c.is_active else 'Tắt' }}
+                    </span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <a href="/categories/{{ c.id }}/edit" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        <a href="/categories/{{ c.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Modal -->
 <div class="modal fade" id="addModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="/categories/add">
                 <div class="modal-header">
-                    <h5 class="modal-title">Them danh muc</h5>
+                    <h5 class="modal-title">Thêm danh mục</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-2">
-                        <label class="form-label">Ten</label>
+                    <div class="form-group">
+                        <label class="form-label">Tên</label>
                         <input name="name" class="form-control" required>
                     </div>
-                    <div class="mb-2">
+                    <div class="form-group">
                         <label class="form-label">Icon</label>
-                        <input name="icon" class="form-control" value="📦">
+                        <input name="icon" class="form-control" value="📦" placeholder="Chọn icon emoji">
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label">Loai</label>
+                    <div class="form-group">
+                        <label class="form-label">Loại</label>
                         <select name="cat_type" class="form-select">
+                            <option value="general">Danh mục chung</option>
                             <option value="key_api">Key API</option>
-                            <option value="general" selected>Danh muc chung</option>
                         </select>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label">Mo ta</label>
+                    <div class="form-group">
+                        <label class="form-label">Mô tả</label>
                         <textarea name="description" class="form-control" rows="3"></textarea>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label">Thu tu</label>
+                    <div class="form-group">
+                        <label class="form-label">Thứ tự</label>
                         <input name="sort_order" type="number" class="form-control" value="0">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Them</button>
+                    <button type="submit" class="btn btn-primary">Thêm</button>
                 </div>
             </form>
         </div>
@@ -191,41 +119,41 @@
         <div class="modal-content">
             <form method="POST" action="/categories/{{ editing.id }}/edit">
                 <div class="modal-header">
-                    <h5 class="modal-title">Sua danh muc: {{ editing.name }}</h5>
-                    <a href="/categories" class="btn btn-sm btn-outline-secondary">Dong</a>
+                    <h5 class="modal-title">Sửa danh mục: {{ editing.name }}</h5>
+                    <a href="/categories" class="btn btn-sm btn-outline-secondary">Đóng</a>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-2">
-                        <label class="form-label">Ten</label>
+                    <div class="form-group">
+                        <label class="form-label">Tên</label>
                         <input name="name" class="form-control" value="{{ editing.name }}" required>
                     </div>
-                    <div class="mb-2">
+                    <div class="form-group">
                         <label class="form-label">Icon</label>
                         <input name="icon" class="form-control" value="{{ editing.icon }}">
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label">Loai</label>
+                    <div class="form-group">
+                        <label class="form-label">Loại</label>
                         <select name="cat_type" class="form-select">
                             <option value="key_api" {{ 'selected' if editing.cat_type == 'key_api' }}>Key API</option>
-                            <option value="general" {{ 'selected' if editing.cat_type != 'key_api' }}>Danh muc chung</option>
+                            <option value="general" {{ 'selected' if editing.cat_type != 'key_api' }}>Danh mục chung</option>
                         </select>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label">Mo ta</label>
+                    <div class="form-group">
+                        <label class="form-label">Mô tả</label>
                         <textarea name="description" class="form-control" rows="3">{{ editing.description or '' }}</textarea>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label">Thu tu</label>
+                    <div class="form-group">
+                        <label class="form-label">Thứ tự</label>
                         <input name="sort_order" type="number" class="form-control" value="{{ editing.sort_order }}">
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {{ 'checked' if editing.is_active }}>
-                        <label class="form-check-label" for="editActive">Active</label>
+                        <label class="form-check-label" for="editActive">Kích hoạt</label>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <a href="/categories" class="btn btn-outline-secondary">Huy</a>
-                    <button type="submit" class="btn btn-primary">Luu</button>
+                    <a href="/categories" class="btn btn-outline-secondary">Hủy</a>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
                 </div>
             </form>
         </div>
@@ -235,7 +163,7 @@
 
 <script>
 function confirmDelete() {
-    return confirm('Ban co chac muon xoa danh muc nay?');
+    return confirm('Bạn có chắc muốn xóa danh mục này?');
 }
 
 document.addEventListener('DOMContentLoaded', function () {

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict
+from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict, fetch_scalar
 
 
 async def get_active_categories() -> list[dict]:
@@ -88,3 +88,14 @@ async def update_category(
 async def delete_category(cat_id: int) -> None:
     """Xóa danh mục (hard delete)."""
     await execute_commit("DELETE FROM categories WHERE id = ?", (cat_id,))
+
+
+async def count_products_by_category(cat_id: int) -> int:
+    """Đếm số sản phẩm đang thuộc danh mục."""
+    return int(
+        await fetch_scalar(
+            "SELECT COUNT(*) FROM products WHERE category_id = ?",
+            (cat_id,),
+        )
+        or 0
+    )

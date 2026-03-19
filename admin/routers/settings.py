@@ -31,11 +31,14 @@ _EDITABLE_KEYS = [
     "pagination_size",
     "admin_telegram_ids",
     "admin_password",
+    "msg_key_new",
+    "msg_key_topup",
+    "msg_chatgpt",
+    "msg_wallet_topup",
     "ai_provider",
     "ai_api_key",
     "ai_model",
     "ai_base_url",
-    "ai_enabled",
 ]
 
 _AI_PROVIDERS = [
@@ -59,6 +62,7 @@ _AI_MODELS = {
 
 @router.get("", response_class=HTMLResponse)
 async def settings_page(request: Request):
+    flash_message = "Đã lưu cài đặt thành công." if request.query_params.get("saved") == "1" else None
     templates = get_templates()
     return templates.TemplateResponse(
         "settings.html",
@@ -67,6 +71,8 @@ async def settings_page(request: Request):
             "all_settings": await get_settings_dict(),
             "ai_providers": _AI_PROVIDERS,
             "ai_models": _AI_MODELS,
+            "flash_message": flash_message,
+            "flash_type": "success" if flash_message else None,
         },
     )
 
@@ -78,6 +84,7 @@ async def settings_save(request: Request):
         value = form.get(key)
         if value is not None:
             await set_setting(key, value)
+    await set_setting("ai_enabled", "true" if form.get("ai_enabled") else "false")
     return RedirectResponse("/settings?saved=1", status_code=303)
 
 

@@ -3,6 +3,7 @@ admin/routers/categories.py - Category CRUD routes.
 """
 from __future__ import annotations
 
+import aiosqlite
 from typing import Annotated
 
 from fastapi import Path, Request
@@ -10,6 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
 from db.queries.categories import (
+    count_products_by_category,
     create_category,
     delete_category,
     get_all_categories,
@@ -20,12 +22,49 @@ from db.queries.categories import (
 router = protected_router(prefix="/categories", tags=["categories"])
 
 
+def _build_flash_context(request: Request) -> dict:
+    msg = request.query_params.get("msg", "")
+    error = request.query_params.get("error", "")
+
+    if msg == "deleted":
+        return {
+            "flash_message": "Đã xoá danh mục thành công.",
+            "flash_type": "success",
+        }
+
+    if error == "not_found":
+        return {
+            "flash_message": "Danh mục không tồn tại hoặc đã bị xoá.",
+            "flash_type": "warning",
+        }
+
+    if error == "in_use":
+        products = int(request.query_params.get("products", 0))
+        detail = f"{products} sản phẩm" if products else "dữ liệu liên quan"
+        return {
+            "flash_message": f"Không thể xoá danh mục vì còn {detail}. Hãy chuyển hoặc xoá sản phẩm trước.",
+            "flash_type": "danger",
+        }
+
+    if error == "delete_failed":
+        return {
+            "flash_message": "Xoá danh mục thất bại do lỗi ràng buộc dữ liệu.",
+            "flash_type": "danger",
+        }
+
+    return {}
+
+
 @router.get("", response_class=HTMLResponse)
 async def categories_list(request: Request):
     templates = get_templates()
     return templates.TemplateResponse(
         "categories.html",
-        {"request": request, "categories": await get_all_categories()},
+        {
+            "request": request,
+            "categories": await get_all_categories(),
+            **_build_flash_context(request),
+        },
     )
 
 
@@ -76,5 +115,26 @@ async def categories_edit_submit(request: Request, cat_id: Annotated[int, Path()
 
 @router.get("/{cat_id}/delete")
 async def categories_delete(cat_id: Annotated[int, Path()]):
-    await delete_category(cat_id)
-    return RedirectResponse("/categories", status_code=303)
+    category = await get_category_by_id(cat_id)
+    if not category:
+        return RedirectResponse("/categories?error=not_found", status_code=303)
+
+    products = await count_products_by_category(cat_id)
+    if products > 0:
+        return RedirectResponse(
+            f"/categories?error=in_use&products={products}",
+            status_code=303,
+        )
+
+    try:
+        await delete_category(cat_id)
+    except aiosqlite.IntegrityError:
+        products = await count_products_by_category(cat_id)
+        if products > 0:
+            return RedirectResponse(
+                f"/categories?error=in_use&products={products}",
+                status_code=303,
+            )
+        return RedirectResponse("/categories?error=delete_failed", status_code=303)
+
+    return RedirectResponse("/categories?msg=deleted", status_code=303)

@@ -73,7 +73,7 @@
 }
 
 html {
-    font-size: 14px;
+    font-size: 15px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -95,12 +95,16 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-primary);
 }
 
-h1 { font-size: 2rem; }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.25rem; }
-h4 { font-size: 1.125rem; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.15rem; }
+h4 { font-size: 1.05rem; }
 
 p { margin: 0 0 1rem; }
+
+body {
+    font-size: 0.95rem;
+}
 
 a {
     color: var(--primary);
@@ -307,7 +311,7 @@ code {
 .page-header h1 {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.625rem;
     font-size: 1.5rem;
 }
 
@@ -392,13 +396,13 @@ code {
 }
 
 .stat-card .stat-icon {
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 56px;
     border-radius: var(--radius);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.35rem;
+    font-size: 1.5rem;
     flex-shrink: 0;
 }
 
@@ -429,16 +433,16 @@ code {
 
 .stat-card .stat-value {
     font-family: 'DM Sans', sans-serif;
-    font-size: 1.5rem;
+    font-size: 1.65rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.2;
 }
 
 .stat-card .stat-label {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--text-secondary);
-    margin-top: 0.25rem;
+    margin-top: 0.3rem;
 }
 
 .stat-card .stat-trend {
@@ -478,21 +482,21 @@ code {
 .table th {
     background: var(--background-subtle);
     font-weight: 600;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-secondary);
-    padding: 0.875rem 1rem;
+    padding: 1rem 1.125rem;
     text-align: left;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
 }
 
 .table td {
-    padding: 0.875rem 1rem;
+    padding: 1rem 1.125rem;
     border-bottom: 1px solid var(--border-light);
     vertical-align: middle;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
 }
 
 .table tbody tr {
@@ -679,15 +683,15 @@ code {
 .form-control,
 .form-select {
     width: 100%;
-    padding: 0.625rem 0.875rem;
+    padding: 0.75rem 1rem;
     font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: var(--text-primary);
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     transition: all var(--transition-fast);
-    min-height: 42px;
+    min-height: 46px;
 }
 
 .form-control:focus,
