@@ -15,7 +15,7 @@ if str(ROOT_DIR) not in sys.path:
 from bot.config import settings
 from db.database import close_db
 from db.models import init_db
-from db.queries.servers import create_server
+from db.queries.servers import create_server, get_server_by_id
 
 
 class _FakeGroupClient:
@@ -78,6 +78,20 @@ async def _seed_fetched_server() -> int:
     )
 
 
+async def _seed_single_group_server() -> int:
+    return await create_server(
+        name="Single Group Server",
+        base_url="https://example.com",
+        user_id_header="new-api-user",
+        access_token="secret",
+        price_per_unit=1000,
+        quota_per_unit=1000,
+        api_type="newapi",
+        supports_multi_group=0,
+        manual_groups="basic, pro",
+    )
+
+
 async def main() -> None:
     original_db_path = settings.db_path
 
@@ -90,6 +104,7 @@ async def main() -> None:
             await init_db()
             manual_server_id = await _seed_manual_server()
             fetched_server_id = await _seed_fetched_server()
+            single_server_id = await _seed_single_group_server()
 
             from admin.app import create_admin_app
             from admin.deps import require_admin
@@ -128,9 +143,28 @@ async def main() -> None:
                 assert page_response.status_code == 200
                 page_text = page_response.text
                 assert "Manual Group Server" in page_text
-                assert "vip" in page_text
-                assert "standard" in page_text
-                print("[OK] servers_groups renders manual groups in admin HTML")
+                assert "Save group config" in page_text
+                assert "Manual Groups Override" in page_text
+                print("[OK] servers_groups renders configurable admin group page")
+
+                single_page_response = client.get(f"/servers/{single_server_id}/groups")
+                assert single_page_response.status_code == 200
+                single_page_text = single_page_response.text
+                assert 'name="group_radio"' in single_page_text
+
+                single_save_response = client.post(
+                    f"/servers/{single_server_id}/groups/save",
+                    data={
+                        "group_radio": "pro",
+                        "manual_groups": "basic, pro",
+                    },
+                )
+                assert single_save_response.status_code == 200
+                single_server = await get_server_by_id(single_server_id)
+                assert single_server is not None
+                assert single_server["default_group"] == "pro"
+                assert single_server["manual_groups"] == "basic,pro"
+                print("[OK] groups save handles single-group radio selection")
 
                 original_get_api_client = servers_router.get_api_client
                 original_get_translator = servers_router.get_translator
@@ -148,12 +182,46 @@ async def main() -> None:
                     assert fetched_api_payload["data"]["premium"]["label_vi"] == "Cao cấp"
                     print("[OK] api_servers_groups keeps fetched/translated group shape")
 
+                    refreshed_page_response = client.post(f"/servers/{fetched_server_id}/groups/refresh")
+                    assert refreshed_page_response.status_code == 200
+                    refreshed_page_text = refreshed_page_response.text
+                    assert "Refresh groups" in refreshed_page_text
+
+                    refreshed_server = await get_server_by_id(fetched_server_id)
+                    assert refreshed_server is not None
+                    assert refreshed_server["groups_cache"]
+                    print("[OK] groups refresh persists cached remote groups")
+
                     fetched_page_response = client.get(f"/servers/{fetched_server_id}/groups")
                     assert fetched_page_response.status_code == 200
                     fetched_page_text = fetched_page_response.text
                     assert "Fetched Group Server" in fetched_page_text
+                    assert "Save group config" in fetched_page_text
                     assert "premium" in fetched_page_text
-                    print("[OK] servers_groups renders fetched groups via fake client")
+                    print("[OK] servers_groups renders fetched groups via cached config page")
+
+                    save_response = client.post(
+                        f"/servers/{fetched_server_id}/groups/save",
+                        data={
+                            "default_group": "premium",
+                            "manual_groups": "premium,vip",
+                        },
+                    )
+                    assert save_response.status_code == 200
+                    saved_text = save_response.text
+                    assert "Group configuration saved." in saved_text
+
+                    saved_server = await get_server_by_id(fetched_server_id)
+                    assert saved_server is not None
+                    assert saved_server["default_group"] == "premium"
+                    assert saved_server["manual_groups"] == "premium,vip"
+                    print("[OK] groups save persists default and manual override values")
+
+                    manual_override_api = client.get(f"/servers/{fetched_server_id}/api/groups")
+                    assert manual_override_api.status_code == 200
+                    override_payload = manual_override_api.json()
+                    assert set(override_payload["data"]) == {"premium", "vip"}
+                    print("[OK] api_servers_groups prefers manual override after save")
                 finally:
                     servers_router.get_api_client = original_get_api_client
                     servers_router.get_translator = original_get_translator

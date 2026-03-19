@@ -3,6 +3,7 @@ admin/routers/servers.py - API server CRUD and group inspection routes.
 """
 from __future__ import annotations
 
+import json
 from typing import Annotated
 
 from fastapi import Path, Request
@@ -11,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from admin.deps import get_templates, protected_router
 from bot.services.ai_translator import get_translator
 from bot.services.api_clients import get_api_client
+from bot.utils.time_utils import get_now_vn
 from db.queries.servers import (
     create_server,
     delete_server,
@@ -67,6 +69,20 @@ def _server_not_found_payload() -> dict[str, object]:
     return {"success": False, "message": "Server not found"}
 
 
+def _split_group_names(value: str) -> list[str]:
+    return [name.strip() for name in value.split(",") if name.strip()]
+
+
+def _groups_source_label(source: str) -> str:
+    labels = {
+        "manual": "Manual override",
+        "cache": "Saved cache",
+        "remote": "Remote refresh",
+        "empty": "No groups available",
+    }
+    return labels.get(source, source.title())
+
+
 async def _get_server_or_redirect(server_id: int) -> dict | RedirectResponse:
     server = await get_server_by_id(server_id)
     if server:
@@ -90,8 +106,7 @@ def _build_manual_group_rows(manual_groups: str) -> list[dict]:
             "desc": "",
             "category": "Other",
         }
-        for name in manual_groups.split(",")
-        if name.strip()
+        for name in _split_group_names(manual_groups)
     ]
 
 
@@ -99,11 +114,71 @@ def _get_supports_multi_group(server: dict) -> bool:
     return get_api_client(server).get_supports_multi_group(server)
 
 
+def _load_cached_group_rows(server: dict) -> list[dict]:
+    raw_cache = server.get("groups_cache")
+    if not raw_cache:
+        return []
+
+    try:
+        payload = json.loads(raw_cache)
+    except (TypeError, json.JSONDecodeError):
+        return []
+
+    if not isinstance(payload, list):
+        return []
+
+    rows = [item for item in payload if isinstance(item, dict)]
+    return _normalize_group_rows(rows)
+
+
+async def _store_groups_cache(server: dict, groups_data: list[dict]) -> None:
+    server_id = server.get("id")
+    if not server_id:
+        return
+
+    timestamp = get_now_vn().isoformat()
+    cache_payload = json.dumps(groups_data, ensure_ascii=True)
+    server["groups_cache"] = cache_payload
+    server["groups_updated_at"] = timestamp
+    await update_server(
+        server_id,
+        groups_cache=cache_payload,
+        groups_updated_at=timestamp,
+    )
+
+
+async def _load_catalog_groups(
+    server: dict,
+    *,
+    force_refresh: bool = False,
+) -> tuple[list[dict], str]:
+    if not force_refresh:
+        cached_groups = _load_cached_group_rows(server)
+        if cached_groups:
+            return cached_groups, "cache"
+
+    remote_groups = await _load_and_translate_groups(server)
+    if remote_groups:
+        await _store_groups_cache(server, remote_groups)
+        return remote_groups, "remote"
+
+    cached_groups = _load_cached_group_rows(server)
+    if cached_groups:
+        return cached_groups, "cache"
+
+    manual_groups = server.get("manual_groups", "")
+    if manual_groups:
+        return _build_manual_group_rows(manual_groups), "manual"
+
+    return [], "empty"
+
+
 async def _resolve_groups_data(server: dict) -> list[dict]:
     manual_groups = server.get("manual_groups", "")
     if manual_groups:
         return _build_manual_group_rows(manual_groups)
-    return await _load_and_translate_groups(server)
+    groups_data, _ = await _load_catalog_groups(server)
+    return groups_data
 
 
 def _build_groups_lookup(groups_data: list[dict]) -> dict[str, dict]:
@@ -115,11 +190,29 @@ def _build_groups_lookup(groups_data: list[dict]) -> dict[str, dict]:
 
 
 async def _build_groups_page_context(request: Request, server: dict) -> dict[str, object]:
+    server = {
+        **server,
+        "default_group": _clean_str(server.get("default_group")),
+        "manual_groups": _clean_str(server.get("manual_groups")),
+    }
+    cached_groups = _load_cached_group_rows(server)
+    if server["manual_groups"] and not cached_groups:
+        catalog_groups = _build_manual_group_rows(server["manual_groups"])
+        catalog_source = "manual"
+    else:
+        catalog_groups, catalog_source = await _load_catalog_groups(server)
+    effective_source = "manual" if server.get("manual_groups", "") else catalog_source
     return _server_page_context(
         request=request,
         servers=await _load_servers_for_page(),
         groups_server=server,
-        groups_data=await _resolve_groups_data(server),
+        groups_data=catalog_groups,
+        groups_source=catalog_source,
+        groups_source_label=_groups_source_label(catalog_source),
+        effective_source=effective_source,
+        effective_source_label=_groups_source_label(effective_source),
+        current_default_groups=_split_group_names(server.get("default_group", "")),
+        groups_updated_at=server.get("groups_updated_at"),
         supports_multi_group=_get_supports_multi_group(server),
     )
 
@@ -346,6 +439,65 @@ async def servers_groups(request: Request, server_id: Annotated[int, Path()]):
         "servers.html",
         await _build_groups_page_context(request, server),
     )
+
+
+@router.post("/{server_id}/groups/refresh", response_class=HTMLResponse)
+async def servers_groups_refresh(request: Request, server_id: Annotated[int, Path()]):
+    """Refresh cached groups from remote server and reopen the config page."""
+    server = await _get_server_or_redirect(server_id)
+    if isinstance(server, RedirectResponse):
+        return server
+
+    groups_data, source = await _load_catalog_groups(server, force_refresh=True)
+    flash_type = "success" if groups_data and source == "remote" else "warning"
+    flash_message = (
+        "Groups refreshed from remote server."
+        if groups_data and source == "remote"
+        else "Could not refresh remote groups. Showing the latest available data."
+    )
+
+    templates = get_templates()
+    context = await _build_groups_page_context(request, server)
+    context["group_flash_message"] = flash_message
+    context["group_flash_type"] = flash_type
+    return templates.TemplateResponse("servers.html", context)
+
+
+@router.post("/{server_id}/groups/save", response_class=HTMLResponse)
+async def servers_groups_save(request: Request, server_id: Annotated[int, Path()]):
+    """Persist default group and optional manual override for a server."""
+    server = await _get_server_or_redirect(server_id)
+    if isinstance(server, RedirectResponse):
+        return server
+
+    form = await request.form()
+    selected_groups = _split_group_names(_clean_str(form.get("default_group")))
+    if not selected_groups:
+        fallback_group = _clean_str(form.get("group_radio"))
+        if fallback_group:
+            selected_groups = [fallback_group]
+    manual_groups = ",".join(_split_group_names(_clean_str(form.get("manual_groups"))))
+
+    if _get_supports_multi_group(server):
+        default_group = ",".join(selected_groups)
+    else:
+        default_group = selected_groups[0] if selected_groups else ""
+
+    await update_server(
+        server_id,
+        default_group=default_group,
+        manual_groups=manual_groups,
+    )
+
+    refreshed_server = await get_server_by_id(server_id)
+    if not refreshed_server:
+        return _redirect_to_servers()
+
+    templates = get_templates()
+    context = await _build_groups_page_context(request, refreshed_server)
+    context["group_flash_message"] = "Group configuration saved."
+    context["group_flash_type"] = "success"
+    return templates.TemplateResponse("servers.html", context)
 
 
 @router.get("/{server_id}/api/groups")

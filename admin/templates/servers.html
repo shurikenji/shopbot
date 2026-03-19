@@ -258,53 +258,139 @@
 {% endif %}
 
 <!-- Groups Panel -->
-{% if groups_data is defined and groups_data %}
+{% if groups_server is defined %}
 <div class="card mt-3">
-    <div class="card-header">
-        <h3>Groups — {{ groups_server.name }}</h3>
-        <a href="/servers/{{ groups_server.id }}/groups" class="btn btn-sm btn-outline-primary">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="23 4 23 10 17 10"></polyline>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-            </svg>
-            Refresh
-        </a>
+    <div class="card-header d-flex justify-content-between align-items-start gap-3">
+        <div>
+            <h3>Groups — {{ groups_server.name }}</h3>
+            <div class="small text-secondary">
+                <div>Available list: <strong>{{ groups_source_label }}</strong></div>
+                <div>Effective source for Products/API: <strong>{{ effective_source_label }}</strong></div>
+                {% if groups_updated_at %}
+                <div>Cached at: <code>{{ groups_updated_at }}</code></div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <form method="POST" action="/servers/{{ groups_server.id }}/groups/refresh">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    Refresh groups
+                </button>
+            </form>
+            <a href="/servers" class="btn btn-sm btn-outline-secondary">Close</a>
+        </div>
     </div>
     <div class="card-body">
-        {% if supports_multi_group %}
-        <p class="text-secondary small">Click vào các nút để chọn group.</p>
-        <div class="mb-3">
-            <label class="form-label">Available Groups:</label>
-            <div class="d-flex flex-wrap gap-2" id="available_groups">
-                {% for g in groups_data %}
-                <button type="button" class="btn btn-outline-secondary group-btn"
-                    data-name="{{ g.name }}" data-ratio="{{ g.ratio }}" data-label="{{ g.label_en or g.name }}">
-                    {{ g.label_en or g.name }} ({{ g.ratio }}x)
-                </button>
-                {% endfor %}
-            </div>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Selected Groups:</label>
-            <div class="d-flex flex-wrap gap-2" id="selected_groups"></div>
-            <input type="hidden" name="selected_group_input" id="selected_group_input" value="">
-        </div>
-        {% else %}
-        <div class="mb-3">
-            <label class="form-label">Chọn Group:</label>
-            <div class="d-flex flex-wrap gap-2">
-                {% for g in groups_data %}
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="group_radio" id="group_{{ loop.index }}"
-                        value="{{ g.name }}" data-ratio="{{ g.ratio }}">
-                    <label class="form-check-label" for="group_{{ loop.index }}">
-                        {{ g.label_en or g.name }} ({{ g.ratio }}x)
-                    </label>
-                </div>
-                {% endfor %}
-            </div>
+        {% if group_flash_message %}
+        <div class="alert alert-{{ group_flash_type or 'info' }}">{{ group_flash_message }}</div>
+        {% endif %}
+        {% if groups_server.manual_groups %}
+        <div class="alert alert-warning">
+            Manual override is enabled. Products and <code>/api/groups</code> will use
+            <code>{{ groups_server.manual_groups }}</code> until you clear it.
         </div>
         {% endif %}
+
+        <form method="POST" action="/servers/{{ groups_server.id }}/groups/save" id="groupsConfigForm">
+            <div class="mb-3">
+                <label class="form-label">Available Groups</label>
+                {% if groups_data %}
+                    {% if supports_multi_group %}
+                    <p class="text-secondary small mb-2">Click buttons to build the server default group list.</p>
+                    <div class="d-flex flex-wrap gap-2" id="available_groups">
+                        {% for g in groups_data %}
+                        <button
+                            type="button"
+                            class="btn btn-sm {{ 'btn-primary' if g.name in current_default_groups else 'btn-outline-secondary' }} group-btn"
+                            data-name="{{ g.name }}"
+                            data-ratio="{{ g.ratio }}"
+                            data-label="{{ g.label_en or g.name }}"
+                        >
+                            {{ g.label_en or g.name }} ({{ g.ratio }}x)
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-wrap gap-3">
+                        {% for g in groups_data %}
+                        <div class="form-check">
+                            <input
+                                class="form-check-input"
+                                type="radio"
+                                name="group_radio"
+                                id="group_{{ loop.index }}"
+                                value="{{ g.name }}"
+                                data-ratio="{{ g.ratio }}"
+                                {% if current_default_groups and current_default_groups[0] == g.name %}checked{% endif %}
+                            >
+                            <label class="form-check-label" for="group_{{ loop.index }}">
+                                {{ g.label_en or g.name }} ({{ g.ratio }}x)
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div class="alert alert-warning mb-0">
+                    No groups available yet. Use <strong>Refresh groups</strong> or type values manually below.
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="row g-3">
+                <div class="col-lg-7">
+                    <label class="form-label">Default Group</label>
+                    <input
+                        type="text"
+                        name="default_group"
+                        id="selected_group_input"
+                        class="form-control"
+                        value="{{ groups_server.default_group or '' }}"
+                        placeholder="group-a or group-a,group-b"
+                    >
+                    <div class="form-text">
+                        This value is used when a product does not override its own group.
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <label class="form-label">Selected Summary</label>
+                    <div id="selected_groups_summary" class="border rounded p-3 bg-light small"></div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <label class="form-label">Manual Groups Override</label>
+                <input
+                    type="text"
+                    name="manual_groups"
+                    id="manual_groups_override"
+                    class="form-control"
+                    value="{{ groups_server.manual_groups or '' }}"
+                    placeholder="group-a,group-b"
+                >
+                <div class="form-text">
+                    Optional. When filled, Products/API will use this list instead of cached remote groups.
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copySelectionToManualGroups()">
+                        Copy selected default
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearManualGroupsOverride()">
+                        Clear manual override
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save group config</button>
+                <a href="/servers/{{ groups_server.id }}/edit" class="btn btn-outline-secondary">Edit server</a>
+            </div>
+        </form>
+
     </div>
 </div>
 {% endif %}
@@ -452,68 +538,78 @@ function renderGroupPreview(prefix, groups, isMulti) {
     });
 }
 
-{% if groups_data is defined and supports_multi_group %}
-let selectedGroups = [];
-
-document.querySelectorAll('.group-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const name = this.dataset.name;
-        const ratio = parseFloat(this.dataset.ratio);
-        const label = this.dataset.label;
-
-        const idx = selectedGroups.findIndex(g => g.name === name);
-
-        if (idx > -1) {
-            selectedGroups.splice(idx, 1);
-            this.classList.remove('btn-primary');
-            this.classList.add('btn-outline-secondary');
-        } else {
-            selectedGroups.push({name, ratio, label});
-            this.classList.remove('btn-outline-secondary');
-            this.classList.add('btn-primary');
-        }
-
-        renderSelected();
-    });
-});
-
-function renderSelected() {
-    const container = document.getElementById('selected_groups');
-    container.innerHTML = '';
-
-    selectedGroups.forEach((g, idx) => {
-        const chip = document.createElement('span');
-        chip.className = 'badge bg-primary';
-        chip.innerHTML = `${g.label} #${idx + 1} <span style="cursor:pointer" onclick="removeGroup('${g.name}')">×</span>`;
-        container.appendChild(chip);
-    });
-
-    document.getElementById('selected_group_input').value = selectedGroups.map(g => g.name).join(',');
+{% if groups_server is defined %}
+function splitServerGroups(value) {
+    return (value || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
 }
 
-function removeGroup(name) {
-    const idx = selectedGroups.findIndex(g => g.name === name);
-    if (idx > -1) {
-        selectedGroups.splice(idx, 1);
-        document.querySelectorAll('.group-btn').forEach(btn => {
-            if (btn.dataset.name === name) {
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-outline-secondary');
-            }
-        });
-        renderSelected();
+function renderSelectedGroupsSummary() {
+    const input = document.getElementById('selected_group_input');
+    const summary = document.getElementById('selected_groups_summary');
+    if (!input || !summary) return;
+
+    const selected = splitServerGroups(input.value);
+    if (!selected.length) {
+        summary.innerHTML = '<span class="text-muted">No default group selected.</span>';
+        return;
     }
+
+    summary.innerHTML = selected
+        .map(name => `<span class="badge bg-primary me-1 mb-1">${name}</span>`)
+        .join('');
+}
+
+function copySelectionToManualGroups() {
+    const input = document.getElementById('selected_group_input');
+    const manual = document.getElementById('manual_groups_override');
+    if (!input || !manual) return;
+    manual.value = splitServerGroups(input.value).join(',');
+}
+
+function clearManualGroupsOverride() {
+    const manual = document.getElementById('manual_groups_override');
+    if (!manual) return;
+    manual.value = '';
+}
+
+const groupsSupportsMulti = {{ 'true' if supports_multi_group else 'false' }};
+const selectedGroupInput = document.getElementById('selected_group_input');
+
+if (selectedGroupInput) {
+    selectedGroupInput.addEventListener('input', renderSelectedGroupsSummary);
+    renderSelectedGroupsSummary();
+}
+
+if (groupsSupportsMulti) {
+    document.querySelectorAll('.group-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (!selectedGroupInput) return;
+
+            const name = this.dataset.name;
+            const selected = new Set(splitServerGroups(selectedGroupInput.value));
+            if (selected.has(name)) selected.delete(name);
+            else selected.add(name);
+
+            selectedGroupInput.value = Array.from(selected).join(',');
+            this.classList.toggle('btn-primary', selected.has(name));
+            this.classList.toggle('btn-outline-secondary', !selected.has(name));
+            renderSelectedGroupsSummary();
+        });
+    });
+} else {
+    document.querySelectorAll('input[name="group_radio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (!selectedGroupInput) return;
+            selectedGroupInput.value = this.value;
+            renderSelectedGroupsSummary();
+        });
+    });
 }
 {% endif %}
 
-{% if groups_data is defined and not supports_multi_group %}
-document.querySelectorAll('input[name="group_radio"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        document.getElementById('single_group_name').textContent = this.value;
-        document.getElementById('single_ratio').textContent = this.dataset.ratio;
-    });
-});
-{% endif %}
 
 function confirmDelete() {
     return confirm('Bạn có chắc muốn xóa server này?');
