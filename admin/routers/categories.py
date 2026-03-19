@@ -3,7 +3,9 @@ admin/routers/categories.py - Category CRUD routes.
 """
 from __future__ import annotations
 
-from fastapi import Request
+from typing import Annotated
+
+from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
@@ -41,7 +43,7 @@ async def categories_add(request: Request):
 
 
 @router.get("/{cat_id}/edit", response_class=HTMLResponse)
-async def categories_edit_page(request: Request, cat_id: int):
+async def categories_edit_page(request: Request, cat_id: Annotated[int, Path()]):
     category = await get_category_by_id(cat_id)
     if not category:
         return RedirectResponse("/categories", status_code=303)
@@ -58,7 +60,7 @@ async def categories_edit_page(request: Request, cat_id: int):
 
 
 @router.post("/{cat_id}/edit")
-async def categories_edit_submit(request: Request, cat_id: int):
+async def categories_edit_submit(request: Request, cat_id: Annotated[int, Path()]):
     form = await request.form()
     await update_category(
         cat_id,
@@ -73,6 +75,6 @@ async def categories_edit_submit(request: Request, cat_id: int):
 
 
 @router.get("/{cat_id}/delete")
-async def categories_delete(cat_id: int):
+async def categories_delete(cat_id: Annotated[int, Path()]):
     await delete_category(cat_id)
     return RedirectResponse("/categories", status_code=303)

@@ -4,8 +4,9 @@ admin/routers/orders.py - Danh sách đơn hàng và các thao tác quản trị
 from __future__ import annotations
 
 import math
+from typing import Annotated
 
-from fastapi import Request
+from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
@@ -93,7 +94,7 @@ async def orders_list(request: Request):
 
 
 @router.get("/{order_id}", response_class=HTMLResponse)
-async def order_detail(request: Request, order_id: int):
+async def order_detail(request: Request, order_id: Annotated[int, Path()]):
     order = await get_order_by_id(order_id)
     if not order:
         return RedirectResponse("/orders", status_code=303)
@@ -106,7 +107,7 @@ async def order_detail(request: Request, order_id: int):
 
 
 @router.post("/{order_id}/complete")
-async def order_complete(order_id: int):
+async def order_complete(order_id: Annotated[int, Path()]):
     """Đánh dấu đơn `service_upgrade` là đã hoàn thành."""
     order = await _get_order_or_redirect(order_id)
     if isinstance(order, RedirectResponse):
@@ -118,13 +119,13 @@ async def order_complete(order_id: int):
 
 
 @router.get("/{order_id}/cancel")
-async def order_cancel(order_id: int):
+async def order_cancel(order_id: Annotated[int, Path()]):
     await cancel_order(order_id)
     return _redirect_to_order_detail(order_id)
 
 
 @router.get("/{order_id}/refund")
-async def order_refund(order_id: int):
+async def order_refund(order_id: Annotated[int, Path()]):
     """Hoàn tiền đơn đã thanh toán về ví của người dùng."""
     order = await _get_order_or_redirect(order_id)
     if isinstance(order, RedirectResponse):

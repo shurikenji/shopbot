@@ -4,9 +4,10 @@ admin/routers/users.py - Quản lý người dùng.
 from __future__ import annotations
 
 import math
+from typing import Annotated
 
-from fastapi import Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Path, Request
+from fastapi.responses import HTMLResponse, Response, RedirectResponse
 
 from admin.deps import get_templates, protected_router
 from db.queries.orders import get_orders_by_user
@@ -17,7 +18,7 @@ router = protected_router(prefix="/users", tags=["users"])
 
 
 @router.get("", response_class=HTMLResponse)
-async def users_list(request: Request):
+async def users_list(request: Request) -> HTMLResponse:
     page = int(request.query_params.get("page", 0))
     search = request.query_params.get("search", "")
     per_page = 20
@@ -44,7 +45,7 @@ async def users_list(request: Request):
 
 
 @router.get("/{user_id}", response_class=HTMLResponse)
-async def user_detail(request: Request, user_id: int):
+async def user_detail(request: Request, user_id: Annotated[int, Path()]) -> Response:
     user = await get_user_by_id(user_id)
     if not user:
         return RedirectResponse("/users", status_code=303)
@@ -62,7 +63,7 @@ async def user_detail(request: Request, user_id: int):
 
 
 @router.post("/{user_id}/adjust-wallet")
-async def adjust_wallet(request: Request, user_id: int):
+async def adjust_wallet(request: Request, user_id: Annotated[int, Path()]) -> RedirectResponse:
     form = await request.form()
     amount = int(form.get("amount", 0))
     description = form.get("description", "Admin điều chỉnh")
@@ -77,7 +78,7 @@ async def adjust_wallet(request: Request, user_id: int):
 
 
 @router.get("/{user_id}/toggle-admin")
-async def toggle_admin(user_id: int):
+async def toggle_admin(user_id: Annotated[int, Path()]) -> RedirectResponse:
     user = await get_user_by_id(user_id)
     if user:
         await set_admin(user_id, 0 if user["is_admin"] else 1)
@@ -85,7 +86,7 @@ async def toggle_admin(user_id: int):
 
 
 @router.get("/{user_id}/toggle-ban")
-async def toggle_ban(user_id: int):
+async def toggle_ban(user_id: Annotated[int, Path()]) -> RedirectResponse:
     user = await get_user_by_id(user_id)
     if user:
         await set_banned(user_id, 0 if user["is_banned"] else 1)

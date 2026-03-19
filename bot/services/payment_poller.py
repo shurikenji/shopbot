@@ -16,6 +16,12 @@ from aiogram import Bot
 from bot.config import settings as env_settings
 from bot.services.api_clients import get_api_client
 from bot.services.mbbank import extract_order_code, fetch_transactions
+from bot.services.refund_service import (
+    refund_order,
+    refund_transaction_description,
+    refund_user_message,
+    refund_admin_message,
+)
 from bot.services.notifier import notify_admins, notify_user
 from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar
 from db.queries.account_stocks import mark_account_sold
@@ -433,61 +439,7 @@ async def _process_wallet_topup(bot: Bot, order: Order) -> None:
 
 async def _refund_order(bot: Bot, order: Order, reason: str) -> None:
     """Hoàn tiền cho đơn một lần duy nhất rồi thông báo cho user và admin."""
-    from db.queries.wallets import refund_order_to_wallet
-
-    amount = order["amount"]
-    user_id = order["user_id"]
-    new_balance = await refund_order_to_wallet(
-        order["id"],
-        reason=reason,
-        tx_type="refund",
-        description=_refund_transaction_description(reason),
-    )
-    if new_balance is None:
-        logger.warning("Order %s already refunded or missing, skipping", order["order_code"])
-        return
-
-    await add_log(
-        f"Refund {format_vnd(amount)} for order {order['order_code']}: {reason}",
-        level="warning",
-        module="poller",
-    )
-
-    await notify_user(
-        user_id,
-        _refund_user_message(
-            order_code=order["order_code"],
-            amount=amount,
-            new_balance=new_balance,
-            reason=reason,
-        ),
-        bot=bot,
-    )
-    await notify_admins(
-        _refund_admin_message(order_code=order["order_code"], amount=amount, reason=reason),
-        bot=bot,
-    )
-
-
-def _refund_transaction_description(reason: str) -> str:
-    return f"Hoàn tiền - {reason}"
-
-
-def _refund_user_message(*, order_code: str, amount: int, new_balance: int, reason: str) -> str:
-    return (
-        f"↩️ <b>Hoàn tiền đơn {order_code}</b>\n\n"
-        f"💰 Số tiền hoàn: <b>{format_vnd(amount)}</b>\n"
-        f"👛 Số dư mới: <b>{format_vnd(new_balance)}</b>\n"
-        f"📝 Lý do: {reason}"
-    )
-
-
-def _refund_admin_message(*, order_code: str, amount: int, reason: str) -> str:
-    return (
-        f"↩️ Refund order <b>{order_code}</b>\n"
-        f"Amount: {format_vnd(amount)}\n"
-        f"Reason: {reason}"
-    )
+    await refund_order(bot, order, reason)
 
 
 def _expired_order_message(order_code: str) -> str:

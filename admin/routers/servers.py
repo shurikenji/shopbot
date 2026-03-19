@@ -3,7 +3,9 @@ admin/routers/servers.py - API server CRUD and group inspection routes.
 """
 from __future__ import annotations
 
-from fastapi import Request
+from typing import Annotated
+
+from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
@@ -301,7 +303,7 @@ async def servers_add(request: Request):
 
 
 @router.get("/{server_id}/edit", response_class=HTMLResponse)
-async def servers_edit_page(request: Request, server_id: int):
+async def servers_edit_page(request: Request, server_id: Annotated[int, Path()]):
     server = await _get_server_or_redirect(server_id)
     if isinstance(server, RedirectResponse):
         return server
@@ -318,7 +320,7 @@ async def servers_edit_page(request: Request, server_id: int):
 
 
 @router.post("/{server_id}/edit")
-async def servers_edit_submit(request: Request, server_id: int):
+async def servers_edit_submit(request: Request, server_id: Annotated[int, Path()]):
     form = await request.form()
     payload = _get_server_form_payload(form)
     payload["is_active"] = 1 if form.get("is_active") else 0
@@ -327,13 +329,13 @@ async def servers_edit_submit(request: Request, server_id: int):
 
 
 @router.get("/{server_id}/delete")
-async def servers_delete(server_id: int):
+async def servers_delete(server_id: Annotated[int, Path()]):
     await delete_server(server_id)
     return _redirect_to_servers()
 
 
 @router.get("/{server_id}/groups", response_class=HTMLResponse)
-async def servers_groups(request: Request, server_id: int):
+async def servers_groups(request: Request, server_id: Annotated[int, Path()]):
     """Fetch groups from a server and show them in the admin UI."""
     server = await _get_server_or_redirect(server_id)
     if isinstance(server, RedirectResponse):
@@ -347,7 +349,7 @@ async def servers_groups(request: Request, server_id: int):
 
 
 @router.get("/{server_id}/api/groups")
-async def api_servers_groups(server_id: int):
+async def api_servers_groups(server_id: Annotated[int, Path()]):
     """Fetch groups from a server and return JSON."""
     server = await _get_server_or_json(server_id)
     if isinstance(server, JSONResponse):

@@ -3,10 +3,11 @@ admin/routers/products.py - CRUD sản phẩm.
 """
 from __future__ import annotations
 
+from typing import Annotated
 from urllib.parse import urlencode
 
 import aiosqlite
-from fastapi import Request
+from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
@@ -202,7 +203,7 @@ async def products_add(request: Request):
 
 
 @router.get("/{product_id}/edit", response_class=HTMLResponse)
-async def products_edit_page(request: Request, product_id: int):
+async def products_edit_page(request: Request, product_id: Annotated[int, Path()]):
     product = await get_product_by_id(product_id)
     if not product:
         return RedirectResponse("/products?error=not_found", status_code=303)
@@ -227,7 +228,7 @@ async def products_edit_page(request: Request, product_id: int):
 
 
 @router.post("/{product_id}/edit")
-async def products_edit_submit(request: Request, product_id: int):
+async def products_edit_submit(request: Request, product_id: Annotated[int, Path()]):
     form = await request.form()
     payload, error_redirect = await _build_product_payload(form, product_id=product_id)
     if error_redirect:
@@ -252,7 +253,7 @@ async def products_edit_submit(request: Request, product_id: int):
 
 
 @router.get("/{product_id}/delete")
-async def products_delete(product_id: int):
+async def products_delete(product_id: Annotated[int, Path()]):
     product = await get_product_by_id(product_id)
     if not product:
         return RedirectResponse("/products?error=not_found", status_code=303)

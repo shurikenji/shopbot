@@ -40,10 +40,8 @@ async def get_active_products_by_category(
 ) -> list[dict]:
     """Lấy sản phẩm active theo danh mục, optional filter server + type."""
     db = await get_db()
-    query = """
-        SELECT p.*,
-               (SELECT COUNT(id) FROM account_stocks WHERE product_id = p.id AND is_sold = 0) as real_stock
-        FROM products p
+    query = f"""
+        {_PRODUCT_WITH_REAL_STOCK_QUERY}
         WHERE p.category_id = ? AND p.is_active = 1
     """
     params: list = [category_id]
@@ -72,10 +70,8 @@ async def get_all_products(
 ) -> list[dict]:
     """Lấy tất cả sản phẩm (admin, phân trang)."""
     db = await get_db()
-    query = """
-        SELECT p.*,
-               (SELECT COUNT(id) FROM account_stocks WHERE product_id = p.id AND is_sold = 0) as real_stock
-        FROM products p
+    query = f"""
+        {_PRODUCT_WITH_REAL_STOCK_QUERY}
         WHERE 1=1
     """
     params: list = []

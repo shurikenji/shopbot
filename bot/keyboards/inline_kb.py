@@ -29,6 +29,7 @@ from bot.callback_data.factories import (
     BackCB,
 )
 from bot.utils.formatting import format_vnd
+from bot.keyboards.pagination import build_pagination_buttons
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -61,30 +62,14 @@ def categories_kb(
         )
     builder.adjust(1)  # Đổi thành 1 cột để hiển thị tên dài tốt hơn
 
-    # Pagination row
+    # Pagination
     if total_pages > 1:
-        nav_buttons: list[InlineKeyboardButton] = []
-        if page > 0:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    text="⬅️ Trước",
-                    callback_data=CategoryPageCB(page=page - 1).pack(),
-                )
-            )
-        nav_buttons.append(
-            InlineKeyboardButton(
-                text=f"📄 {page + 1}/{total_pages}",
-                callback_data="noop",
-            )
-        )
-        if page < total_pages - 1:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    text="Sau ➡️",
-                    callback_data=CategoryPageCB(page=page + 1).pack(),
-                )
-            )
-        builder.row(*nav_buttons)
+        builder.row(*build_pagination_buttons(
+            page=page,
+            total_pages=total_pages,
+            prev_callback=CategoryPageCB(page=page - 1).pack(),
+            next_callback=CategoryPageCB(page=page + 1).pack(),
+        ).keyboard[0])
 
     return builder.as_markup()
 
@@ -176,32 +161,12 @@ def products_kb(
 
     # Pagination
     if total_pages > 1:
-        nav_buttons: list[InlineKeyboardButton] = []
-        if page > 0:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    text="⬅️ Trước",
-                    callback_data=ProductPageCB(
-                        cat_id=cat_id, srv_id=srv_id, ptype=ptype, page=page - 1
-                    ).pack(),
-                )
-            )
-        nav_buttons.append(
-            InlineKeyboardButton(
-                text=f"📄 {page + 1}/{total_pages}",
-                callback_data="noop",
-            )
-        )
-        if page < total_pages - 1:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    text="Sau ➡️",
-                    callback_data=ProductPageCB(
-                        cat_id=cat_id, srv_id=srv_id, ptype=ptype, page=page + 1
-                    ).pack(),
-                )
-            )
-        builder.row(*nav_buttons)
+        builder.row(*build_pagination_buttons(
+            page=page,
+            total_pages=total_pages,
+            prev_callback=ProductPageCB(cat_id=cat_id, srv_id=srv_id, ptype=ptype, page=page - 1).pack(),
+            next_callback=ProductPageCB(cat_id=cat_id, srv_id=srv_id, ptype=ptype, page=page + 1).pack(),
+        ).keyboard[0])
 
     # Back
     back_target = "srv" if srv_id > 0 else "cat"
@@ -337,28 +302,12 @@ def orders_list_kb(
 
     # Pagination
     if total_pages > 1:
-        nav_buttons: list[InlineKeyboardButton] = []
-        if page > 0:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    text="⬅️ Trước",
-                    callback_data=OrderListPageCB(page=page - 1).pack(),
-                )
-            )
-        nav_buttons.append(
-            InlineKeyboardButton(
-                text=f"📄 {page + 1}/{total_pages}",
-                callback_data="noop",
-            )
-        )
-        if page < total_pages - 1:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    text="Sau ➡️",
-                    callback_data=OrderListPageCB(page=page + 1).pack(),
-                )
-            )
-        builder.row(*nav_buttons)
+        builder.row(*build_pagination_buttons(
+            page=page,
+            total_pages=total_pages,
+            prev_callback=OrderListPageCB(page=page - 1).pack(),
+            next_callback=OrderListPageCB(page=page + 1).pack(),
+        ).keyboard[0])
 
     return builder.as_markup()
 

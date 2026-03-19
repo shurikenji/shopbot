@@ -15,7 +15,7 @@ router = protected_router(tags=["dashboard"])
 
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request):
+async def dashboard(request: Request) -> HTMLResponse:
     stats = await get_order_stats()
     stats["total_users"] = await count_users()
     stats["servers"] = await get_all_servers()

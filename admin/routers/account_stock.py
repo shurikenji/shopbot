@@ -3,7 +3,9 @@ admin/routers/account_stock.py - Shared account stock management routes.
 """
 from __future__ import annotations
 
-from fastapi import Request
+from typing import Annotated
+
+from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
@@ -80,6 +82,6 @@ async def account_stock_add(request: Request):
 
 
 @router.get("/{account_id}/delete")
-async def account_stock_delete(account_id: int):
+async def account_stock_delete(account_id: Annotated[int, Path()]):
     await delete_account(account_id)
     return RedirectResponse("/account-stock", status_code=303)
