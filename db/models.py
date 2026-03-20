@@ -343,6 +343,21 @@ CREATE TABLE IF NOT EXISTS admin_notification_events (
 );
 CREATE INDEX IF NOT EXISTS idx_admin_notify_order_event ON admin_notification_events(order_id, event_type);
 
+-- FSM STORAGE
+CREATE TABLE IF NOT EXISTS fsm_storage (
+    storage_id      TEXT PRIMARY KEY,
+    bot_id          INTEGER NOT NULL,
+    chat_id         INTEGER NOT NULL,
+    user_id         INTEGER NOT NULL,
+    thread_id       INTEGER,
+    business_connection_id TEXT,
+    destiny         TEXT NOT NULL,
+    state           TEXT,
+    data_json       TEXT NOT NULL DEFAULT '{}',
+    updated_at      TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_fsm_storage_lookup ON fsm_storage(bot_id, chat_id, user_id, destiny);
+
 -- SETTINGS (key-value)
 CREATE TABLE IF NOT EXISTS settings (
     key             TEXT PRIMARY KEY,

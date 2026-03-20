@@ -218,9 +218,37 @@ async def _handle_standard_product(
     # Lấy existing_key từ FSM nếu đang topup
     fsm_data = await state.get_data()
     existing_key = fsm_data.get("existing_key")
+    current_cat_id = fsm_data.get("current_cat_id") or product.get("category_id") or 0
 
     ptype = product.get("product_type", "")
     dollar_amount = product.get("dollar_amount") or 0.0
+
+    if ptype == "key_topup" and not existing_key:
+        from bot.handlers.flow_api_key import _show_existing_keys_for_server
+
+        await state.update_data(
+            current_cat_id=current_cat_id,
+            current_server_id=product.get("server_id"),
+            key_action="topup",
+        )
+        if product.get("server_id") and await _show_existing_keys_for_server(
+            callback,
+            user_id=db_user["id"],
+            server_id=product["server_id"],
+            cat_id=current_cat_id,
+        ):
+            await callback.answer(
+                "⚠️ Phiên chọn key để nạp đã hết hạn. Vui lòng chọn lại key hoặc nhập key mới.",
+                show_alert=True,
+            )
+            return
+
+        await callback.message.edit_text(
+            "⚠️ Phiên chọn key để nạp đã hết hạn. Vui lòng bắt đầu lại từ danh mục sản phẩm.",
+            reply_markup=back_only_kb("cat"),
+        )
+        await callback.answer()
+        return
 
     if ptype == "key_new" and dollar_amount < 10:
         await callback.answer("❌ Gói mua mới phải có giá trị tối thiểu $10.", show_alert=True)

@@ -11,12 +11,12 @@ from collections.abc import Iterable
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
 from bot.config import settings
 from bot.handlers import setup_routers
 from bot.middlewares.auth import AuthMiddleware
+from bot.storage.sqlite_fsm import SQLiteFSMStorage
 from bot.services.payment_poller import start_payment_poller
 from db.bootstrap import init_db
 from db.database import close_db
@@ -49,7 +49,7 @@ def build_bot() -> Bot:
 
 
 def build_dispatcher() -> Dispatcher:
-    dispatcher = Dispatcher(storage=MemoryStorage())
+    dispatcher = Dispatcher(storage=SQLiteFSMStorage())
     middleware = AuthMiddleware()
     dispatcher.message.middleware(middleware)
     dispatcher.callback_query.middleware(middleware)

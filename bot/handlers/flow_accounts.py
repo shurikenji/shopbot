@@ -19,12 +19,13 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from bot.callback_data.factories import BackCB
-from bot.keyboards.inline_kb import payment_method_kb, products_kb, back_only_kb
+from bot.callback_data.factories import UpgradeBackCB
+from bot.keyboards.inline_kb import categories_kb, payment_method_kb, products_kb, back_only_kb
 from bot.services.pricing_resolver import quote_non_api_product
 from bot.utils.formatting import format_vnd
 from bot.utils.order_code import generate_order_code
 
+from db.queries.categories import get_active_categories
 from db.queries.products import get_product_by_id, get_active_products_by_category
 from db.queries.orders import create_order, update_order_status
 from db.queries.wallets import get_balance
@@ -131,6 +132,25 @@ async def _show_category_products(callback: CallbackQuery, cat_id: int) -> None:
     )
 
 
+async def _show_expired_upgrade_prompt(
+    callback: CallbackQuery,
+    state: FSMContext,
+    text: str,
+) -> None:
+    await state.clear()
+    categories = await get_active_categories()
+    if not categories:
+        await callback.message.edit_text(text, reply_markup=back_only_kb("main"))
+        return
+
+    per_page = await get_setting_int("pagination_size", 6)
+    await callback.message.edit_text(
+        f"{text}\n\nChọn lại danh mục:",
+        reply_markup=categories_kb(categories, page=0, per_page=per_page),
+        parse_mode="HTML",
+    )
+
+
 async def handle_upgrade_product(
     callback: CallbackQuery,
     product: dict,
@@ -142,11 +162,14 @@ async def handle_upgrade_product(
     Hỏi user nhập thông tin (email, OTP, etc.) trước khi tạo order.
     """
     input_prompt = product.get("input_prompt") or "Vui lòng nhập thông tin cần thiết:"
-    await state.update_data(upgrade_product_id=product["id"])
+    await state.update_data(
+        upgrade_product_id=product["id"],
+        current_cat_id=product.get("category_id", 0),
+    )
 
     await callback.message.edit_text(
         "\n".join(_build_upgrade_prompt_lines(product, input_prompt)),
-        reply_markup=back_only_kb("upgrade_back"),
+        reply_markup=back_only_kb(UpgradeBackCB(cat_id=product.get("category_id", 0))),
         parse_mode="HTML",
     )
     await state.set_state(UpgradeStates.waiting_user_input)
@@ -161,21 +184,23 @@ async def upgrade_user_input_received(
 ) -> None:
     """Nhận thông tin từ user → tạo order → hiện payment methods."""
     user_input = message.text.strip()
+    fsm_data = await state.get_data()
+    cat_id = fsm_data.get("current_cat_id", 0)
+    upgrade_back = UpgradeBackCB(cat_id=cat_id) if cat_id else "cat"
 
     if len(user_input) < 3:
         await message.answer(
             "❌ Thông tin quá ngắn. Vui lòng nhập đầy đủ.",
-            reply_markup=back_only_kb("upgrade_back"),
+            reply_markup=back_only_kb(upgrade_back),
         )
         return
-
-    fsm_data = await state.get_data()
     product_id = fsm_data.get("upgrade_product_id")
 
     product = await get_product_by_id(product_id) if product_id else None
     if not product:
         await message.answer(
-            "❌ Sản phẩm không tồn tại.",
+            "⚠️ Phiên nhập thông tin dịch vụ đã hết hạn hoặc sản phẩm không còn khả dụng. "
+            "Vui lòng chọn lại dịch vụ từ danh mục sản phẩm.",
             reply_markup=back_only_kb("cat"),
         )
         await state.clear()
@@ -241,15 +266,34 @@ async def upgrade_user_input_received(
     )
 
 
-@router.callback_query(BackCB.filter(F.target == "upgrade_back"))
+@router.callback_query(UpgradeBackCB.filter())
 async def back_from_upgrade_prompt(
     callback: CallbackQuery,
+    callback_data: UpgradeBackCB,
     state: FSMContext,
 ) -> None:
     """Quay từ màn nhập thông tin dịch vụ về danh sách sản phẩm của danh mục."""
-    fsm_data = await state.get_data()
-    cat_id = fsm_data.get("current_cat_id", 0)
-
     await state.set_state(None)
-    await _show_category_products(callback, cat_id)
+    await state.update_data(current_cat_id=callback_data.cat_id)
+    await _show_category_products(callback, callback_data.cat_id)
     await callback.answer()
+
+
+@router.callback_query(F.data == "back:upgrade_back")
+async def legacy_upgrade_back(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    """Tương thích ngược cho nút quay lại của keyboard cũ."""
+    fsm_data = await state.get_data()
+    cat_id = int(fsm_data.get("current_cat_id") or 0)
+    if cat_id:
+        await back_from_upgrade_prompt(callback, UpgradeBackCB(cat_id=cat_id), state)
+        return
+
+    await callback.answer("⚠️ Keyboard cũ đã hết hạn. Bot sẽ mở lại danh mục sản phẩm.", show_alert=True)
+    await _show_expired_upgrade_prompt(
+        callback,
+        state,
+        "⚠️ Phiên nhập thông tin dịch vụ cũ không còn khả dụng sau khi bot khởi động lại hoặc được cập nhật.",
+    )

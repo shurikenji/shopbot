@@ -31,6 +31,7 @@ class KeyActionCB(CallbackData, prefix="ka"):
 
 class ServerSelectCB(CallbackData, prefix="srv"):
     """Chọn server."""
+    cat_id: int
     action: str  # 'new' | 'topup'
     server_id: int
 
@@ -73,10 +74,12 @@ class MyKeySelectCB(CallbackData, prefix="mk"):
 class MyKeyInputCB(CallbackData, prefix="mki"):
     """Nhập key mới cho server (trigger FSM)."""
     server_id: int
+    cat_id: int
 
 
 class CustomAmountCB(CallbackData, prefix="ca"):
     """Trigger nhập số $ custom cho key mới/topup."""
+    cat_id: int
     action: str     # 'new' | 'topup'
     server_id: int
 
@@ -110,3 +113,27 @@ class OrderDetailCB(CallbackData, prefix="od"):
 class BackCB(CallbackData, prefix="back"):
     """Quay lại màn hình trước."""
     target: str  # 'cat' | 'srv' | 'prod' | 'main' | 'wallet' | ...
+
+
+class BackServersCB(CallbackData, prefix="bs"):
+    """Quay lại danh sách server trong một danh mục key API."""
+    cat_id: int
+    action: str
+
+
+class BackKeyInputCB(CallbackData, prefix="bki"):
+    """Quay từ màn nhập key về danh sách key hiện có của server."""
+    server_id: int
+    cat_id: int
+
+
+class BackCustomAmountCB(CallbackData, prefix="bca"):
+    """Quay từ màn nhập $ custom về danh sách gói của server."""
+    server_id: int
+    cat_id: int
+    action: str
+
+
+class UpgradeBackCB(CallbackData, prefix="bup"):
+    """Quay từ màn nhập thông tin dịch vụ về danh sách sản phẩm của danh mục."""
+    cat_id: int

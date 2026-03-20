@@ -27,6 +27,7 @@ from bot.callback_data.factories import (
     OrderListPageCB,
     OrderDetailCB,
     BackCB,
+    BackServersCB,
 )
 from bot.utils.formatting import format_vnd
 from bot.keyboards.pagination import build_pagination_buttons
@@ -40,6 +41,15 @@ def _paginate(items: Sequence, page: int, per_page: int) -> tuple[list, int]:
     page = max(0, min(page, total_pages - 1))
     start = page * per_page
     return list(items[start : start + per_page]), total_pages
+
+
+def _pack_callback_data(value: str | object) -> str:
+    """Cho phép truyền target ngắn hoặc callback object đầy đủ context."""
+    if isinstance(value, str):
+        return BackCB(target=value).pack()
+    if hasattr(value, "pack"):
+        return value.pack()
+    return str(value)
 
 
 # ── Danh mục ────────────────────────────────────────────────────────────────
@@ -99,6 +109,7 @@ def key_action_kb(cat_id: int) -> InlineKeyboardMarkup:
 
 def servers_kb(
     servers: Sequence[dict],
+    cat_id: int,
     action: str,
 ) -> InlineKeyboardMarkup:
     """Inline keyboard chọn server."""
@@ -111,7 +122,7 @@ def servers_kb(
         
         builder.button(
             text=f"🖥 {srv['name']} ({price}/$)",
-            callback_data=ServerSelectCB(action=action, server_id=srv["id"]),
+            callback_data=ServerSelectCB(cat_id=cat_id, action=action, server_id=srv["id"]),
         )
     builder.button(
         text="⬅️ Quay lại",
@@ -154,7 +165,7 @@ def products_kb(
             InlineKeyboardButton(
                 text="✏️ Nhập số $ tùy chọn",
                 callback_data=CustomAmountCB(
-                    action=action, server_id=srv_id
+                    cat_id=cat_id, action=action, server_id=srv_id
                 ).pack(),
             )
         )
@@ -173,7 +184,11 @@ def products_kb(
     builder.row(
         InlineKeyboardButton(
             text="⬅️ Quay lại",
-            callback_data=BackCB(target=back_target).pack(),
+            callback_data=(
+                BackServersCB(cat_id=cat_id, action=action).pack()
+                if back_target == "srv"
+                else BackCB(target=back_target).pack()
+            ),
         )
     )
     return builder.as_markup()
@@ -209,6 +224,7 @@ def payment_method_kb(order_id: int, show_qr: bool = True) -> InlineKeyboardMark
 def my_keys_kb(
     keys: Sequence[dict],
     server_id: int,
+    cat_id: int,
 ) -> InlineKeyboardMarkup:
     """Inline keyboard chọn key hiện có hoặc nhập key mới."""
     builder = InlineKeyboardBuilder()
@@ -223,11 +239,11 @@ def my_keys_kb(
         )
     builder.button(
         text="✏️ Nhập key mới",
-        callback_data=MyKeyInputCB(server_id=server_id),
+        callback_data=MyKeyInputCB(server_id=server_id, cat_id=cat_id),
     )
     builder.button(
         text="⬅️ Quay lại",
-        callback_data=BackCB(target="srv"),
+        callback_data=BackServersCB(cat_id=cat_id, action="topup"),
     )
     builder.adjust(1)
     return builder.as_markup()
@@ -341,10 +357,10 @@ def order_detail_kb(
 
 
 def back_only_kb(
-    target: str,
+    target: str | object,
     text: str = "⬅️ Quay lại",
 ) -> InlineKeyboardMarkup:
     """Inline keyboard chỉ gồm 1 nút quay lại."""
     builder = InlineKeyboardBuilder()
-    builder.button(text=text, callback_data=BackCB(target=target))
+    builder.button(text=text, callback_data=_pack_callback_data(target))
     return builder.as_markup()

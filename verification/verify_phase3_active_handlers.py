@@ -51,10 +51,10 @@ async def main() -> None:
     print(f"[OK] support.py - router name: {support_router.name}")
 
     from aiogram import Dispatcher
-    from aiogram.fsm.storage.memory import MemoryStorage
     from bot.handlers import setup_routers
+    from bot.storage.sqlite_fsm import SQLiteFSMStorage
 
-    dispatcher = Dispatcher(storage=MemoryStorage())
+    dispatcher = Dispatcher(storage=SQLiteFSMStorage())
     setup_routers(dispatcher)
     print(f"[OK] setup_routers - {len(dispatcher.sub_routers)} routers registered")
 
