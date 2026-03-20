@@ -92,7 +92,6 @@ async def _show_key_products_for_server(
         return True
 
     per_page = await get_setting_int("pagination_size", 6)
-    extra_text = ("\n" + "\n".join(accrual_lines)) if accrual_lines else ""
     title = "🔑 Mua key mới" if action == "new" else "💳 Nạp key cũ"
     await callback.message.edit_text(
         f"{title} — <b>{server['name']}</b>\n\nChọn gói:",
@@ -370,6 +369,7 @@ async def input_key_received(
         return
 
     # Hiện số dư hiện tại của key
+    extra_text = ("\n" + "\n".join(accrual_lines)) if accrual_lines else ""
     current_quota = token_data.get("remain_quota", 0)
     mult = server.get("quota_multiple", 1.0) or 1.0
     current_dollar = quota_to_dollar(current_quota, mult)
