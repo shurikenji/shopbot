@@ -27,6 +27,7 @@ from bot.keyboards.inline_kb import (
 )
 from bot.services.api_clients import get_api_client
 from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar
+from bot.utils.group_labels import format_group_display_names
 from bot.utils.order_code import generate_order_code
 from bot.services.vietqr import build_qr_url, build_qr_caption
 from bot.services.payment_poller import process_wallet_payment
@@ -470,6 +471,10 @@ async def custom_dollar_received(
         f"📊 Tỷ giá: <b>{format_vnd(rate_vnd_per_dollar)}/$</b>",
         f"🖥 Server: <b>{server['name']}</b>",
     ]
+    if action == "new":
+        display_group = await format_group_display_names(server.get("default_group"), server)
+        if display_group:
+            lines.append(f"👥 Group mặc định của server: <b>{display_group}</b>")
     if existing_key:
         lines.append(f"🔑 Key nạp: <code>{mask_api_key(existing_key)}</code>")
 

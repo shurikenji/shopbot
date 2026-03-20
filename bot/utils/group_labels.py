@@ -30,11 +30,11 @@ def _group_labels_from_cache(server: dict | None) -> dict[str, str]:
         if not isinstance(row, dict):
             continue
         name = str(row.get("name") or "").strip()
-        label_vi = str(
-            row.get("label_vi") or row.get("name_vi") or row.get("name") or ""
+        label_en = str(
+            row.get("label_en") or row.get("name_en") or row.get("name") or ""
         ).strip()
         if name:
-            label_map[name] = label_vi or name
+            label_map[name] = label_en or name
     return label_map
 
 
@@ -47,7 +47,7 @@ async def _get_cached_group_labels(
     db = await get_db()
     placeholders = ",".join("?" * len(group_names))
     cursor = await db.execute(
-        f"""SELECT original_name, name_vi
+        f"""SELECT original_name, name_en
             FROM group_translations
             WHERE original_name IN ({placeholders}) AND api_type = ?""",
         (*group_names, api_type),

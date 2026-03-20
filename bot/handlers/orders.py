@@ -9,6 +9,7 @@ from aiogram.types import Message, CallbackQuery
 
 from bot.callback_data.factories import OrderListPageCB, OrderDetailCB, BackCB
 from bot.keyboards.inline_kb import orders_list_kb, order_detail_kb
+from bot.utils.group_labels import format_group_display_names
 from bot.utils.formatting import (
     format_vnd, status_emoji, status_text_vi,
     payment_method_text, mask_api_key, quota_to_dollar,
@@ -120,6 +121,9 @@ async def order_detail(
     emoji = status_emoji(order["status"])
     status = status_text_vi(order["status"])
     pay_method = payment_method_text(order["payment_method"])
+    server = None
+    if order.get("server_id"):
+        server = await get_server_by_id(order["server_id"])
 
     lines = [
         f"📋 <b>Chi tiết đơn hàng</b>",
@@ -131,16 +135,17 @@ async def order_detail(
         f"{emoji} Trạng thái: <b>{status}</b>",
         f"📅 Tạo lúc: <i>{format_time_vn(order.get('created_at', ''))}</i>",
     ]
+    if order.get("product_type") == "key_new" and order.get("group_name"):
+        display_group = await format_group_display_names(order.get("group_name"), server)
+        lines.append(f"👥 Group: <b>{display_group or order['group_name']}</b>")
 
     # Thông tin key nếu có
     if order.get("api_key"):
         lines.append(f"\n🔑 API Key: <code>{order['api_key']}</code>")
     if order.get("quota_before") is not None and order.get("quota_after") is not None:
         mult = 1.0
-        if order.get("server_id"):
-            server = await get_server_by_id(order["server_id"])
-            if server:
-                mult = server.get("quota_multiple") or 1.0
+        if server:
+            mult = server.get("quota_multiple") or 1.0
         
         qb = order["quota_before"]
         qa = order["quota_after"]

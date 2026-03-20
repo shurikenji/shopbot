@@ -17,15 +17,15 @@ async def main() -> None:
     server = {
         "api_type": "newapi",
         "groups_cache": (
-            '[{"name":"premium","label_vi":"Cao \\u1ea5p"},'
-            '{"name":"vip","label_vi":"\\u01afu ti\\u00ean"},'
-            '{"name":"basic","label_vi":""}]'
+            '[{"name":"premium","label_en":"Premium"},'
+            '{"name":"vip","label_en":"Priority"},'
+            '{"name":"basic","label_en":""}]'
         ),
     }
 
     translated = await format_group_display_names("premium,vip", server)
-    assert translated == "Cao \u1ea5p, \u01afu ti\u00ean"
-    print("[OK] format_group_display_names prefers translated labels from server cache")
+    assert translated == "Premium, Priority"
+    print("[OK] format_group_display_names prefers English labels from server cache")
 
     untranslated = await format_group_display_names("basic", server)
     assert untranslated == "basic"
