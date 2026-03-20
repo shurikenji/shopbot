@@ -180,10 +180,53 @@
                                 </select>
                             </div>
                             <div class="discount-builder__panel">
-                                <div class="discount-builder__panel-title">Benefit được cộng dồn</div>
-                                <label class="form-label">Các loại được phép</label>
-                                <input name="discount_allowed_stack_types" class="form-control" value="cashback" placeholder="cashback,fixed_off">
-                                <span>Nhập danh sách ngăn cách bằng dấu phẩy, ví dụ: <code>cashback,fixed_off</code>.</span>
+                                <div class="discount-builder__panel-title">Ưu đãi được cộng dồn</div>
+                                <div class="stack-rule-picker" data-stack-picker="add">
+                                    <input type="hidden" name="discount_allowed_stack_types" value="cashback">
+                                    <div class="stack-rule-picker__header">
+                                        <div>
+                                            <label class="form-label mb-1">Chọn loại ưu đãi được cộng cùng nhau</label>
+                                            <p class="stack-rule-picker__hint">Chỉ dùng khi server bật chế độ <strong>Cộng dồn các loại đã chọn</strong>.</p>
+                                        </div>
+                                        <div class="stack-rule-picker__presets">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('add', 'cashback_only')">Chỉ hoàn tiền</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('add', 'fixed_plus_cashback')">Giảm cố định + hoàn tiền</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('add', 'percent_plus_cashback')">Giảm % + hoàn tiền</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('add', 'tier_price_plus_cashback')">Giá riêng + hoàn tiền</button>
+                                        </div>
+                                    </div>
+                                    <div class="stack-rule-picker__choices">
+                                        <label class="stack-rule-card">
+                                            <input type="checkbox" value="percent_off" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
+                                            <span class="stack-rule-card__body">
+                                                <strong>Giảm %</strong>
+                                                <small>Giảm trực tiếp theo phần trăm trên đơn hàng.</small>
+                                            </span>
+                                        </label>
+                                        <label class="stack-rule-card">
+                                            <input type="checkbox" value="fixed_off" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
+                                            <span class="stack-rule-card__body">
+                                                <strong>Giảm cố định</strong>
+                                                <small>Trừ một số tiền cố định trước khi thanh toán.</small>
+                                            </span>
+                                        </label>
+                                        <label class="stack-rule-card">
+                                            <input type="checkbox" value="cashback" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
+                                            <span class="stack-rule-card__body">
+                                                <strong>Hoàn tiền</strong>
+                                                <small>Hoàn lại tiền sau khi đơn đã được tính giá.</small>
+                                            </span>
+                                        </label>
+                                        <label class="stack-rule-card">
+                                            <input type="checkbox" value="tier_price" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
+                                            <span class="stack-rule-card__body">
+                                                <strong>Giá riêng theo bậc</strong>
+                                                <small>Áp giá theo bậc; nếu chọn loại này, hệ thống chỉ cộng thêm được với hoàn tiền.</small>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div id="add_stack_rule_summary" class="stack-rule-picker__summary"></div>
+                                </div>
                             </div>
                         </div>
                         <div class="discount-badge-row">
@@ -310,10 +353,53 @@
                                 </select>
                             </div>
                             <div class="discount-builder__panel">
-                                <div class="discount-builder__panel-title">Benefit được cộng dồn</div>
-                                <label class="form-label">Các loại được phép</label>
-                                <input name="discount_allowed_stack_types" class="form-control" value="{{ editing.discount_allowed_stack_types or 'cashback' }}" placeholder="cashback,fixed_off">
-                                <span>Ví dụ: <code>cashback,fixed_off</code>.</span>
+                                <div class="discount-builder__panel-title">Ưu đãi được cộng dồn</div>
+                                <div class="stack-rule-picker" data-stack-picker="edit">
+                                    <input type="hidden" name="discount_allowed_stack_types" value="{{ editing.discount_allowed_stack_types or 'cashback' }}">
+                                    <div class="stack-rule-picker__header">
+                                        <div>
+                                            <label class="form-label mb-1">Chọn loại ưu đãi được cộng cùng nhau</label>
+                                            <p class="stack-rule-picker__hint">Phần này chỉ có tác dụng khi server dùng chế độ <strong>Cộng dồn các loại đã chọn</strong>.</p>
+                                        </div>
+                                        <div class="stack-rule-picker__presets">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('edit', 'cashback_only')">Chỉ hoàn tiền</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('edit', 'fixed_plus_cashback')">Giảm cố định + hoàn tiền</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('edit', 'percent_plus_cashback')">Giảm % + hoàn tiền</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('edit', 'tier_price_plus_cashback')">Giá riêng + hoàn tiền</button>
+                                        </div>
+                                    </div>
+                                    <div class="stack-rule-picker__choices">
+                                        <label class="stack-rule-card">
+                                            <input type="checkbox" value="percent_off" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
+                                            <span class="stack-rule-card__body">
+                                                <strong>Giảm %</strong>
+                                                <small>Giảm trực tiếp theo phần trăm trên đơn hàng.</small>
+                                            </span>
+                                        </label>
+                                        <label class="stack-rule-card">
+                                            <input type="checkbox" value="fixed_off" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
+                                            <span class="stack-rule-card__body">
+                                                <strong>Giảm cố định</strong>
+                                                <small>Trừ một số tiền cố định trước khi thanh toán.</small>
+                                            </span>
+                                        </label>
+                                        <label class="stack-rule-card">
+                                            <input type="checkbox" value="cashback" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
+                                            <span class="stack-rule-card__body">
+                                                <strong>Hoàn tiền</strong>
+                                                <small>Hoàn lại tiền sau khi đơn đã được tính giá.</small>
+                                            </span>
+                                        </label>
+                                        <label class="stack-rule-card">
+                                            <input type="checkbox" value="tier_price" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
+                                            <span class="stack-rule-card__body">
+                                                <strong>Giá riêng theo bậc</strong>
+                                                <small>Áp giá theo bậc; nếu chọn loại này, hệ thống chỉ cộng thêm được với hoàn tiền.</small>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div id="edit_stack_rule_summary" class="stack-rule-picker__summary"></div>
+                                </div>
                             </div>
                         </div>
                         <div class="discount-badge-row">
@@ -601,6 +687,19 @@ setupApiType('add');
 setupApiType('edit');
 
 const discountBuilderState = { add: [], edit: [] };
+const discountStackOptionOrder = ['percent_off', 'fixed_off', 'cashback', 'tier_price'];
+const discountStackOptionLabels = {
+    percent_off: 'Giảm %',
+    fixed_off: 'Giảm cố định',
+    cashback: 'Hoàn tiền',
+    tier_price: 'Giá riêng theo bậc',
+};
+const discountStackPresets = {
+    cashback_only: ['cashback'],
+    fixed_plus_cashback: ['fixed_off', 'cashback'],
+    percent_plus_cashback: ['percent_off', 'cashback'],
+    tier_price_plus_cashback: ['tier_price', 'cashback'],
+};
 const discountBenefitLabels = {
     percent_off: 'Giảm theo phần trăm',
     fixed_off: 'Giảm số tiền cố định',
@@ -640,6 +739,126 @@ function loadDiscountBuilder(prefix) {
         discountBuilderState[prefix] = [];
     }
     renderDiscountBuilder(prefix);
+}
+
+function getDiscountStackModeSelect(prefix) {
+    return document.querySelector(`#${prefix}Form select[name="discount_stack_mode"]`);
+}
+
+function getDiscountAllowedInput(prefix) {
+    return document.querySelector(`#${prefix}Form input[name="discount_allowed_stack_types"]`);
+}
+
+function getDiscountAllowedSelections(prefix) {
+    const input = getDiscountAllowedInput(prefix);
+    return new Set(
+        String(input?.value || '')
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean)
+    );
+}
+
+function syncDiscountAllowedTypesInput(prefix) {
+    const root = document.querySelector(`[data-stack-picker="${prefix}"]`);
+    const input = getDiscountAllowedInput(prefix);
+    if (!root || !input) return;
+
+    const selected = Array.from(root.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(node => node.value)
+        .filter(Boolean);
+    const ordered = discountStackOptionOrder.filter(type => selected.includes(type));
+    input.value = ordered.join(',');
+    renderDiscountStackSummary(prefix);
+}
+
+function hydrateDiscountAllowedTypeControls(prefix) {
+    const root = document.querySelector(`[data-stack-picker="${prefix}"]`);
+    if (!root) return;
+
+    const selected = getDiscountAllowedSelections(prefix);
+    root.querySelectorAll('input[type="checkbox"]').forEach(node => {
+        node.checked = selected.has(node.value);
+    });
+    renderDiscountStackSummary(prefix);
+}
+
+function renderDiscountStackSummary(prefix) {
+    const root = document.querySelector(`[data-stack-picker="${prefix}"]`);
+    const summary = document.getElementById(`${prefix}_stack_rule_summary`);
+    if (!root || !summary) return;
+
+    const stackMode = getDiscountStackModeSelect(prefix)?.value || 'exclusive';
+    const selected = Array.from(getDiscountAllowedSelections(prefix));
+
+    if (stackMode !== 'combine_selected_types') {
+        root.classList.add('is-disabled');
+        summary.innerHTML = '<strong>Không dùng trong chế độ hiện tại.</strong> Server đang lấy một ưu đãi tốt nhất, nên phần chọn cộng dồn sẽ tạm bị bỏ qua.';
+        return;
+    }
+
+    root.classList.remove('is-disabled');
+
+    if (!selected.length) {
+        summary.innerHTML = '<strong>Chưa chọn loại nào.</strong> Nếu để trống, hệ thống sẽ không cộng dồn benefit nào trong chế độ này.';
+        return;
+    }
+
+    if (selected.includes('tier_price')) {
+        summary.innerHTML = '<strong>Quy tắc đặc biệt:</strong> Khi có <code>Giá riêng theo bậc</code>, hệ thống chỉ cho cộng thêm <code>Hoàn tiền</code>; các loại giảm khác sẽ bị bỏ qua.';
+        return;
+    }
+
+    const names = discountStackOptionOrder
+        .filter(type => selected.includes(type))
+        .map(type => discountStackOptionLabels[type] || type);
+    summary.innerHTML = `<strong>Đang cộng dồn:</strong> ${names.join(', ')}.`;
+}
+
+function updateDiscountStackModeState(prefix) {
+    renderDiscountStackSummary(prefix);
+}
+
+function toggleDiscountAllowedType(prefix, type, checked) {
+    const root = document.querySelector(`[data-stack-picker="${prefix}"]`);
+    if (!root) return;
+
+    if (type === 'tier_price' && checked) {
+        root.querySelectorAll('input[type="checkbox"]').forEach(node => {
+            if (node.value === 'percent_off' || node.value === 'fixed_off') {
+                node.checked = false;
+            }
+        });
+    }
+
+    if ((type === 'percent_off' || type === 'fixed_off') && checked) {
+        const tierPrice = root.querySelector('input[value="tier_price"]');
+        if (tierPrice) tierPrice.checked = false;
+    }
+
+    syncDiscountAllowedTypesInput(prefix);
+}
+
+function applyDiscountStackPreset(prefix, presetKey) {
+    const root = document.querySelector(`[data-stack-picker="${prefix}"]`);
+    if (!root) return;
+
+    const selected = new Set(discountStackPresets[presetKey] || []);
+    root.querySelectorAll('input[type="checkbox"]').forEach(node => {
+        node.checked = selected.has(node.value);
+    });
+    syncDiscountAllowedTypesInput(prefix);
+}
+
+function setupDiscountStackPicker(prefix) {
+    hydrateDiscountAllowedTypeControls(prefix);
+
+    const select = getDiscountStackModeSelect(prefix);
+    if (select) {
+        select.addEventListener('change', () => updateDiscountStackModeState(prefix));
+    }
+
+    updateDiscountStackModeState(prefix);
 }
 
 function commitDiscountJsonIfDirty(prefix) {
@@ -1046,8 +1265,10 @@ function confirmDelete() {
 
 document.addEventListener('DOMContentLoaded', function () {
     loadDiscountBuilder('add');
+    setupDiscountStackPicker('add');
     if (document.getElementById('edit_discount_tiers_json')) {
         loadDiscountBuilder('edit');
+        setupDiscountStackPicker('edit');
     }
 
     ['add_discount_tiers_json', 'edit_discount_tiers_json'].forEach(textareaId => {
@@ -1066,6 +1287,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!commitDiscountJsonIfDirty(prefix)) {
                 return;
             }
+            syncDiscountAllowedTypesInput(prefix);
             serializeDiscountBuilder(prefix);
         });
     });
