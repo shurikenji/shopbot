@@ -131,6 +131,7 @@ async def main() -> None:
                     detail_response = client.get(f"/orders/{refund_order_id}")
                     assert detail_response.status_code == 200
                     assert "ADMINREFUND001" in detail_response.text
+                    assert "Admin Order Server" in detail_response.text
                     print("[OK] order_detail renders the selected order in admin UI")
 
                     complete_response = client.post(

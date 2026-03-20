@@ -41,6 +41,15 @@
                         <th>Sản phẩm</th>
                         <td>{{ order.product_name|default('—') }} ({{ order.product_type }})</td>
                     </tr>
+                    {% if order.server_id %}
+                    <tr>
+                        <th>Máy chủ</th>
+                        <td>
+                            {{ server_name or ('Server #' ~ order.server_id) }}
+                            <span class="text-secondary">(ID: {{ order.server_id }})</span>
+                        </td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <th>Số tiền</th>
                         <td><span class="fw-bold" style="font-size: 1.1rem;">{{ format_vnd(order.amount) }}</span></td>
@@ -125,7 +134,7 @@
             </div>
             <div class="card-body">
                 {% if order.status in ['paid', 'processing'] and order.product_type == 'service_upgrade' %}
-                <form method="POST" action="/orders/{{ order.id }}/complete" class="mb-2" onsubmit="return confirm('Đánh dấu đơn Dịch vụ này là Hoàn thành và Báo luôn cho khách hàng?');">
+                <form method="POST" action="/orders/{{ order.id }}/complete" class="mb-2" onsubmit="return confirm('Đánh dấu đơn Dịch vụ này là Hoàn thành và báo luôn cho khách hàng?');">
                     <button type="submit" class="btn btn-success w-100">Hoàn thành đơn Dịch vụ</button>
                 </form>
                 {% endif %}

@@ -25,6 +25,7 @@ from db.queries.orders import (
     get_order_by_id,
     update_order_status,
 )
+from db.queries.servers import get_server_by_id
 from db.queries.wallets import refund_order_to_wallet
 
 router = protected_router(prefix="/orders", tags=["orders"])
@@ -103,11 +104,16 @@ async def order_detail(request: Request, order_id: Annotated[int, Path()]):
     order = await get_order_by_id(order_id)
     if not order:
         return RedirectResponse("/orders", status_code=303)
+    server_name = None
+    if order.get("server_id"):
+        server = await get_server_by_id(int(order["server_id"]))
+        if server:
+            server_name = server.get("name")
 
     templates = get_templates()
     return templates.TemplateResponse(
         "order_detail.html",
-        {"request": request, "order": order},
+        {"request": request, "order": order, "server_name": server_name},
     )
 
 
