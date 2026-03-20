@@ -69,7 +69,7 @@ def categories_kb(
             total_pages=total_pages,
             prev_callback=CategoryPageCB(page=page - 1).pack(),
             next_callback=CategoryPageCB(page=page + 1).pack(),
-        ).keyboard[0])
+        ).inline_keyboard[0])
 
     return builder.as_markup()
 
@@ -166,7 +166,7 @@ def products_kb(
             total_pages=total_pages,
             prev_callback=ProductPageCB(cat_id=cat_id, srv_id=srv_id, ptype=ptype, page=page - 1).pack(),
             next_callback=ProductPageCB(cat_id=cat_id, srv_id=srv_id, ptype=ptype, page=page + 1).pack(),
-        ).keyboard[0])
+        ).inline_keyboard[0])
 
     # Back
     back_target = "srv" if srv_id > 0 else "cat"
@@ -307,7 +307,7 @@ def orders_list_kb(
             total_pages=total_pages,
             prev_callback=OrderListPageCB(page=page - 1).pack(),
             next_callback=OrderListPageCB(page=page + 1).pack(),
-        ).keyboard[0])
+        ).inline_keyboard[0])
 
     return builder.as_markup()
 
