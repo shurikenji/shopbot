@@ -196,6 +196,7 @@ async def _handle_standard_product(
     """Xử lý sản phẩm dạng chuẩn (chatgpt, account_stocked, general) → tạo order → payment."""
     from datetime import datetime, timedelta
     from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar, format_dollar
+    from bot.utils.group_labels import format_group_display_names
     from bot.utils.order_code import generate_order_code
     from bot.keyboards.inline_kb import payment_method_kb
     from db.queries.orders import create_order
@@ -203,6 +204,7 @@ async def _handle_standard_product(
     from db.queries.servers import get_server_by_id
 
     # Lấy thông tin server nếu có
+    server = None
     server_name = "N/A"
     server_default_group = ""
     if product.get("server_id"):
@@ -244,6 +246,7 @@ async def _handle_standard_product(
     if product.get("dollar_amount"):
         lines.append(f"💵 Dollar: <b>{format_dollar(product['dollar_amount'])}</b>")
     effective_group = (product.get("group_name") or server_default_group or "").strip()
+    display_group = await format_group_display_names(effective_group, server)
     uses_server_default_group = (
         ptype == "key_new"
         and not (product.get("group_name") or "").strip()
@@ -254,7 +257,7 @@ async def _handle_standard_product(
         lines.append(f"🖥 Server: <b>{server_name}</b>")
     if effective_group:
         group_label = "Group mặc định của server" if uses_server_default_group else "Group"
-        lines.append(f"👥 {group_label}: <b>{effective_group}</b>")
+        lines.append(f"👥 {group_label}: <b>{display_group or effective_group}</b>")
     if existing_key:
         lines.append(f"🔑 Key nạp: <code>{mask_api_key(existing_key)}</code>")
 
