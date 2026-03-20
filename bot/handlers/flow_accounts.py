@@ -184,7 +184,7 @@ async def upgrade_user_input_received(
     await state.set_state(None)
     product_name = product.get("name") or "Dịch vụ"
     product_type = product.get("product_type") or "service_upgrade"
-    quote = await quote_non_api_product(product)
+    quote = await quote_non_api_product(product, user_id=db_user["id"])
     price_vnd = quote.payable_amount
 
     # Tạo order

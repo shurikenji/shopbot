@@ -34,7 +34,7 @@ from db.queries.spend import (
     list_key_valuation_events,
     list_spend_ledger,
 )
-from db.queries.users import create_user
+from db.queries.users import create_user, set_admin, set_discount_disabled
 from db.queries.wallets import refund_order_to_wallet
 
 
@@ -51,6 +51,8 @@ async def main() -> None:
 
             user = await create_user(telegram_id=21001, username="tiered", full_name="Tiered User")
             other_user = await create_user(telegram_id=21002, username="other", full_name="Other User")
+            admin_user = await create_user(telegram_id=21003, username="admin", full_name="Admin User")
+            blocked_user = await create_user(telegram_id=21004, username="blocked", full_name="Blocked User")
             category_id = await create_category("API Keys", cat_type="key_api")
             general_category_id = await create_category("Services", cat_type="general")
             server_id = await create_server(
@@ -148,6 +150,32 @@ async def main() -> None:
             assert discounted_quote.payable_amount == 18000
             print("[OK] Tier discount activates automatically from per-server spend summary")
 
+            await set_admin(admin_user["id"], 1)
+            admin_order_id = await create_order(
+                order_code="ORDLEDGERADM001",
+                user_id=admin_user["id"],
+                product_id=key_product_id,
+                product_name="Key $20",
+                product_type="key_new",
+                amount=initial_quote.payable_amount,
+                payment_method="wallet",
+                server_id=server_id,
+                base_amount=initial_quote.base_amount,
+                discount_amount=0,
+                cashback_amount=0,
+                spend_credit_amount=initial_quote.spend_credit_amount,
+                pricing_version_id=initial_quote.pricing_version_id,
+                applied_tier_id=None,
+                pricing_snapshot=json.dumps(initial_quote.pricing_snapshot, ensure_ascii=True),
+            )
+            admin_order = await get_order_by_id(admin_order_id)
+            assert admin_order is not None
+            await SpendLedgerService.record_order_completion(admin_order)
+            admin_quote = await quote_api_order(user_id=admin_user["id"], server=server, product=product)
+            assert admin_quote.discount_amount == 0
+            assert admin_quote.payable_amount == 20000
+            print("[OK] Admin users bypass API-key tier discounts even after accumulating spend")
+
             valuation = await KeyValuationService.evaluate_imported_key(
                 user_id=user["id"],
                 server=server,
@@ -200,12 +228,22 @@ async def main() -> None:
             print("[OK] Updating server pricing creates a new immutable pricing version")
 
             service_quote = await quote_non_api_product(
-                {"id": general_product_id, "price_vnd": 100000, "quota_amount": 0, "dollar_amount": 0}
+                {"id": general_product_id, "price_vnd": 100000, "quota_amount": 0, "dollar_amount": 0},
+                user_id=user["id"],
             )
             assert service_quote.payable_amount == 90000
             assert service_quote.discount_amount == 10000
             assert (await get_primary_product_promotion(general_product_id)) is not None
             print("[OK] Non-API products use the promotion engine independently from server tiers")
+
+            await set_discount_disabled(blocked_user["id"], 1)
+            blocked_service_quote = await quote_non_api_product(
+                {"id": general_product_id, "price_vnd": 100000, "quota_amount": 0, "dollar_amount": 0},
+                user_id=blocked_user["id"],
+            )
+            assert blocked_service_quote.discount_amount == 0
+            assert blocked_service_quote.payable_amount == 100000
+            print("[OK] Discount-disabled users bypass non-API promotions")
 
             refunded_balance = await refund_order_to_wallet(
                 order_id,

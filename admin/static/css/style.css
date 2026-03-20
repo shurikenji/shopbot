@@ -319,6 +319,158 @@ code {
     font-size: 1.25rem;
 }
 
+.discount-builder {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    padding: 1rem;
+}
+
+.discount-builder__hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.discount-builder__hero p {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.discount-builder__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.discount-builder__panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 0.85rem;
+}
+
+.discount-builder__panel-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    margin-bottom: 0.4rem;
+}
+
+.discount-builder__panel strong {
+    display: block;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.discount-builder__panel span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.discount-builder__list {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.discount-tier-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.discount-tier-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    background: linear-gradient(90deg, rgba(5, 150, 105, 0.08), rgba(245, 158, 11, 0.08));
+    border-bottom: 1px solid var(--border);
+}
+
+.discount-tier-card__header h4 {
+    font-size: 1rem;
+}
+
+.discount-tier-card__body {
+    padding: 1rem;
+}
+
+.discount-tier-card__meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.discount-benefit-list {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.discount-benefit-item {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem;
+    background: var(--background);
+}
+
+.discount-benefit-item__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    align-items: end;
+}
+
+.discount-benefit-item__extra {
+    margin-top: 0.65rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.65rem;
+}
+
+.discount-builder__advanced {
+    margin-top: 1rem;
+    border-top: 1px dashed var(--border);
+    padding-top: 1rem;
+}
+
+.discount-builder__empty {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    color: var(--text-secondary);
+    background: var(--background);
+    text-align: center;
+}
+
+.discount-builder__actions {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.discount-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.discount-badge-row .badge {
+    padding: 0.45rem 0.6rem;
+}
+
 .page-actions {
     display: flex;
     align-items: center;

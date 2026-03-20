@@ -23,7 +23,7 @@
                                 <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
                                 <line x1="1" y1="10" x2="23" y2="10"></line>
                             </svg>
-                            MBBank Gateway
+                            Kết nối MBBank
                         </h3>
                     </div>
                     <div class="card-body">
@@ -31,43 +31,43 @@
                         <div class="row g-3">
                             <div class="col-12">
                                 <div class="form-group">
-                                    <label class="form-label">MB API URL</label>
+                                    <label class="form-label">Địa chỉ API MBBank</label>
                                     <input name="mb_api_url" class="form-control" value="{{ all_settings.get('mb_api_url', '') }}" placeholder="https://api.mbbank.com.vn">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">MB API Key</label>
+                                    <label class="form-label">Khóa API MBBank</label>
                                     <input name="mb_api_key" type="password" class="form-control" value="{{ all_settings.get('mb_api_key', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">MB Username</label>
+                                    <label class="form-label">Tên đăng nhập MBBank</label>
                                     <input name="mb_username" class="form-control" value="{{ all_settings.get('mb_username', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">MB Password</label>
+                                    <label class="form-label">Mật khẩu MBBank</label>
                                     <input name="mb_password" type="password" class="form-control" value="{{ all_settings.get('mb_password', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">MB Account No</label>
+                                    <label class="form-label">Số tài khoản MB</label>
                                     <input name="mb_account_no" class="form-control" value="{{ all_settings.get('mb_account_no', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">MB Account Name</label>
+                                    <label class="form-label">Tên chủ tài khoản MB</label>
                                     <input name="mb_account_name" class="form-control" value="{{ all_settings.get('mb_account_name', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">MB Bank ID</label>
+                                    <label class="form-label">Mã ngân hàng MB</label>
                                     <input name="mb_bank_id" class="form-control" value="{{ all_settings.get('mb_bank_id', '') }}">
                                 </div>
                             </div>
@@ -81,7 +81,7 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                             </svg>
-                            Delivery Templates
+                            Mẫu tin giao hàng
                         </h3>
                     </div>
                     <div class="card-body">
@@ -91,28 +91,28 @@
                                 <div class="form-group">
                                     <label class="form-label">Key API mới</label>
                                     <textarea name="msg_key_new" class="form-control" rows="5">{{ all_settings.get('msg_key_new', '') }}</textarea>
-                                    <div class="form-text">Variables: {order_code}, {api_key}, {dollar}, {server}</div>
+                                    <div class="form-text">Biến hỗ trợ: {order_code}, {api_key}, {dollar}, {server}</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label">Nạp key cũ</label>
                                     <textarea name="msg_key_topup" class="form-control" rows="5">{{ all_settings.get('msg_key_topup', '') }}</textarea>
-                                    <div class="form-text">Variables: {order_code}, {api_key}, {dollar_before}, {dollar_added}, {dollar_after}</div>
+                                    <div class="form-text">Biến hỗ trợ: {order_code}, {api_key}, {dollar_before}, {dollar_added}, {dollar_after}</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label">ChatGPT auto</label>
                                     <textarea name="msg_chatgpt" class="form-control" rows="5">{{ all_settings.get('msg_chatgpt', '') }}</textarea>
-                                    <div class="form-text">Variables: {order_code}, {account_data}</div>
+                                    <div class="form-text">Biến hỗ trợ: {order_code}, {account_data}</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label">Nạp ví thành công</label>
                                     <textarea name="msg_wallet_topup" class="form-control" rows="5">{{ all_settings.get('msg_wallet_topup', '') }}</textarea>
-                                    <div class="form-text">Variables: {order_code}, {amount}, {balance}</div>
+                                    <div class="form-text">Biến hỗ trợ: {order_code}, {amount}, {balance}</div>
                                 </div>
                             </div>
                         </div>
@@ -127,26 +127,26 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
                                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                             </svg>
-                            Poller &amp; QR
+                            Bộ quét giao dịch &amp; QR
                         </h3>
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label class="form-label">Poll Interval (s)</label>
+                                    <label class="form-label">Chu kỳ quét (giây)</label>
                                     <input name="poll_interval" class="form-control" value="{{ all_settings.get('poll_interval', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label class="form-label">Order Expire (min)</label>
+                                    <label class="form-label">Thời gian hết hạn đơn (phút)</label>
                                     <input name="order_expire_min" class="form-control" value="{{ all_settings.get('order_expire_min', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label class="form-label">VietQR Template</label>
+                                    <label class="form-label">Mẫu VietQR</label>
                                     <input name="vietqr_template" class="form-control" value="{{ all_settings.get('vietqr_template', '') }}">
                                 </div>
                             </div>
@@ -161,56 +161,56 @@
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="12" cy="7" r="4"></circle>
                             </svg>
-                            Bot &amp; Admin
+                            Bot &amp; quản trị
                         </h3>
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">Bot Name</label>
+                                    <label class="form-label">Tên bot</label>
                                     <input name="bot_name" class="form-control" value="{{ all_settings.get('bot_name', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">Bot Description</label>
+                                    <label class="form-label">Mô tả bot</label>
                                     <input name="bot_description" class="form-control" value="{{ all_settings.get('bot_description', '') }}">
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="form-group">
-                                    <label class="form-label">Welcome Message</label>
+                                    <label class="form-label">Tin nhắn chào mừng</label>
                                     <textarea name="welcome_message" class="form-control" rows="2">{{ all_settings.get('welcome_message', '') }}</textarea>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">Support URL</label>
+                                    <label class="form-label">Liên kết hỗ trợ</label>
                                     <input name="support_url" class="form-control" value="{{ all_settings.get('support_url', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">Support Text</label>
+                                    <label class="form-label">Nội dung hỗ trợ</label>
                                     <input name="support_text" class="form-control" value="{{ all_settings.get('support_text', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">Pagination Size</label>
+                                    <label class="form-label">Số dòng mỗi trang</label>
                                     <input name="pagination_size" type="number" class="form-control" value="{{ all_settings.get('pagination_size', '') }}">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">Admin Telegram IDs</label>
+                                    <label class="form-label">Telegram ID quản trị</label>
                                     <input name="admin_telegram_ids" class="form-control" value="{{ all_settings.get('admin_telegram_ids', '') }}" placeholder="123456789, 987654321">
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="form-group">
-                                    <label class="form-label">Admin Password</label>
+                                    <label class="form-label">Mật khẩu quản trị</label>
                                     <input name="admin_password" type="password" class="form-control" value="{{ all_settings.get('admin_password', '') }}">
                                 </div>
                             </div>
@@ -226,15 +226,15 @@
                                 <line x1="2" y1="12" x2="22" y2="12"></line>
                                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                             </svg>
-                            AI Translation
+                            Dịch tên nhóm bằng AI
                         </h3>
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="testAI()">Test Connection</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="testAI()">Kiểm tra kết nối</button>
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-12">
                                 <div class="form-group">
-                                    <label class="form-label">Provider</label>
+                                    <label class="form-label">Nhà cung cấp</label>
                                     <select name="ai_provider" class="form-select" id="ai_provider">
                                         {% for p in ai_providers %}
                                         <option value="{{ p.value }}" {% if all_settings.get('ai_provider') == p.value %}selected{% endif %}>{{ p.label }}</option>
@@ -244,13 +244,13 @@
                             </div>
                             <div class="col-12">
                                 <div class="form-group">
-                                    <label class="form-label">API Key</label>
+                                    <label class="form-label">Khóa API</label>
                                     <input name="ai_api_key" type="password" class="form-control" value="{{ all_settings.get('ai_api_key', '') }}" placeholder="sk-...">
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="form-group">
-                                    <label class="form-label">Model</label>
+                                    <label class="form-label">Mô hình</label>
                                     <input name="ai_model" class="form-control" id="ai_model" list="ai_model_suggestions" value="{{ all_settings.get('ai_model', '') }}" placeholder="gpt-4o-mini, llama3.1:8b">
                                     <datalist id="ai_model_suggestions">
                                         {% for m in ai_models.get(all_settings.get('ai_provider', 'openai'), []) %}
@@ -261,15 +261,15 @@
                             </div>
                             <div class="col-12" id="base_url_field" style="display: none;">
                                 <div class="form-group">
-                                    <label class="form-label">Base URL</label>
+                                    <label class="form-label">Địa chỉ gốc</label>
                                     <input name="ai_base_url" type="text" class="form-control" value="{{ all_settings.get('ai_base_url', '') }}" placeholder="http://localhost:11434">
-                                    <div class="form-text">URL cho OpenAI Compatible API như Ollama, LM Studio.</div>
+                                    <div class="form-text">Dùng cho API tương thích OpenAI như Ollama hoặc LM Studio.</div>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="form-check mb-2">
                                     <input type="checkbox" class="form-check-input" id="ai_enabled" name="ai_enabled" value="true" {% if all_settings.get('ai_enabled') == 'true' %}checked{% endif %}>
-                                    <label class="form-check-label" for="ai_enabled">Bật AI Translation</label>
+                                    <label class="form-check-label" for="ai_enabled">Bật dịch tên nhóm bằng AI</label>
                                 </div>
                                 <div class="form-text" id="ai_test_result">Kiểm tra kết nối trước khi lưu nếu thay đổi provider hoặc model.</div>
                             </div>

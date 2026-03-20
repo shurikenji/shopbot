@@ -43,7 +43,7 @@ _EDITABLE_KEYS = [
 
 _AI_PROVIDERS = [
     {"value": "openai", "label": "OpenAI"},
-    {"value": "openai_compatible", "label": "OpenAI Compatible (Ollama, LM Studio, etc.)"},
+    {"value": "openai_compatible", "label": "Tương thích OpenAI (Ollama, LM Studio...)"},
     {"value": "anthropic", "label": "Anthropic"},
     {"value": "gemini", "label": "Google Gemini"},
 ]

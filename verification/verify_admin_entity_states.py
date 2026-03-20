@@ -134,7 +134,7 @@ async def main() -> None:
                 products_page = client.get("/products")
                 assert products_page.status_code == 200
                 products_text = products_page.text
-                assert "Servers đang bật" in products_text
+                assert "Máy chủ đang bật" in products_text
                 assert "Không giới hạn" in products_text
                 assert "Tài khoản khả dụng" in products_text
                 assert "Sẵn sàng bán" in products_text

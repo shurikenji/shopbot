@@ -13,6 +13,7 @@ from db.models import _CREATE_TABLES, _DEFAULT_SETTINGS
 logger = logging.getLogger(__name__)
 
 _BEST_EFFORT_MIGRATIONS = [
+    "ALTER TABLE users ADD COLUMN disable_discounts INTEGER DEFAULT 0",
     "ALTER TABLE api_servers ADD COLUMN quota_multiple REAL NOT NULL DEFAULT 1.0",
     "ALTER TABLE orders ADD COLUMN custom_quota INTEGER",
     "ALTER TABLE api_servers ADD COLUMN default_group TEXT",

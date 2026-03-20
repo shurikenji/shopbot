@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_entity_controls.html" import entity_state_badge, entity_toggle_form, entity_state_checkbox %}
-{% block title %}Servers{% endblock %}
+{% block title %}Máy chủ API{% endblock %}
 {% block content %}
 <div class="page-header">
     <h1>
@@ -12,7 +12,7 @@
                 <line x1="6" y1="18" x2="6.01" y2="18"></line>
             </svg>
         </span>
-        API Servers
+        Máy chủ API
     </h1>
     <div class="page-actions">
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
@@ -36,10 +36,10 @@
             <tr>
                 <th>#</th>
                 <th>Tên</th>
-                <th>API Type</th>
-                <th>Base URL</th>
+                <th>Loại API</th>
+                <th>Địa chỉ API</th>
                 <th>Giá/$</th>
-                <th>Multi-Group</th>
+                <th>Nhóm</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
             </tr>
@@ -77,7 +77,7 @@
                 <td>
                     <div class="actions">
                         {{ entity_toggle_form('/servers/' ~ s.id ~ '/toggle-active', s.is_active, next_url) }}
-                        <a href="/servers/{{ s.id }}/groups" class="btn btn-sm btn-outline-secondary" title="Groups">
+                        <a href="/servers/{{ s.id }}/groups" class="btn btn-sm btn-outline-secondary" title="Nhóm và cấu hình">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
@@ -107,10 +107,10 @@
                 <div class="modal-body">
                     <h6 class="text-muted mb-2">Thông tin cơ bản</h6>
                     <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control" required></div>
-                    <div class="mb-2"><label class="form-label">Base URL</label><input name="base_url" class="form-control" required placeholder="https://api.example.com"></div>
+                    <div class="mb-2"><label class="form-label">Địa chỉ API</label><input name="base_url" class="form-control" required placeholder="https://api.example.com"></div>
 
                     <div class="mb-2">
-                        <label class="form-label">API Type</label>
+                        <label class="form-label">Loại API</label>
                         <select name="api_type" class="form-select" id="add_api_type">
                             {% for t in api_types %}
                             <option value="{{ t.value }}">{{ t.label }}</option>
@@ -121,7 +121,7 @@
                     <hr>
                     <h6 class="text-muted mb-2">Xác thực</h6>
                     <div class="mb-2" id="add_auth_type_wrap">
-                        <label class="form-label">Method</label>
+                        <label class="form-label">Kiểu xác thực</label>
                         <select name="auth_type" class="form-select" id="add_auth_type">
                             {% for a in auth_types %}
                             <option value="{{ a.value }}">{{ a.label }}</option>
@@ -130,9 +130,9 @@
                     </div>
 
                     <div id="add_auth_fields">
-                        <div class="mb-2" id="add_header_wrap"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" placeholder="new-api-user"></div>
+                        <div class="mb-2" id="add_header_wrap"><label class="form-label">Header mã người dùng</label><input name="auth_user_header" class="form-control" placeholder="new-api-user"></div>
                         <div class="mb-2"><label class="form-label" id="add_user_value_label">User ID</label><input name="auth_user_value" class="form-control" placeholder="User ID"></div>
-                        <div class="mb-2"><label class="form-label" id="add_token_label">Access Token</label><input name="auth_token" class="form-control"></div>
+                        <div class="mb-2"><label class="form-label" id="add_token_label">Token truy cập</label><input name="auth_token" class="form-control"></div>
                     </div>
 
                     <div id="add_cookie_field" class="mb-2" style="display:none;">
@@ -141,52 +141,78 @@
 
                     <div class="form-check mb-2" id="add_multi_group_wrap">
                         <input class="form-check-input" type="checkbox" name="supports_multi_group" id="add_multi_group" value="1">
-                        <label class="form-check-label" for="add_multi_group">Enable Multi-Group Support</label>
+                        <label class="form-check-label" for="add_multi_group">Bật hỗ trợ nhiều nhóm</label>
                     </div>
 
                     <hr>
                     <div id="add_advanced_block">
                         <h6 class="text-muted mb-2">Nâng cao (Optional)</h6>
-                        <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" placeholder="/api/user/self/groups"></div>
-                        <div class="mb-2"><label class="form-label">Manual Groups (comma-separated)</label><input name="manual_groups" class="form-control" placeholder="default,azure,gemini,claude"></div>
+                        <div class="mb-2"><label class="form-label">Đường dẫn lấy nhóm</label><input name="groups_endpoint" class="form-control" placeholder="/api/user/self/groups"></div>
+                        <div class="mb-2"><label class="form-label">Danh sách nhóm nhập tay</label><input name="manual_groups" class="form-control" placeholder="default,azure,gemini,claude"></div>
                         <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2" placeholder='[{"key": "X-Custom", "value": "固定值"}]'></textarea></div>
                     </div>
                     <hr>
-                    <h6 class="text-muted mb-2">Loyalty &amp; Discount</h6>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="import_spend_accrual_enabled" id="add_import_spend_accrual_enabled" value="1">
-                        <label class="form-check-label" for="add_import_spend_accrual_enabled">Enable import-based spend accrual</label>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            <label class="form-label">Stack Mode</label>
-                            <select name="discount_stack_mode" class="form-select">
-                                {% for mode in discount_stack_modes %}
-                                <option value="{{ mode.value }}">{{ mode.label }}</option>
-                                {% endfor %}
-                            </select>
+                    <h6 class="text-muted mb-2">Chính sách giảm giá</h6>
+                    <div class="discount-builder" data-builder="add">
+                        <div class="discount-builder__hero">
+                            <div>
+                                <h4>Thiết lập chiết khấu theo mốc chi tiêu</h4>
+                                <p>Cấu hình trực quan theo từng bậc. Hệ thống vẫn lưu ở dạng JSON ẩn để giữ tương thích backend hiện tại.</p>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="addDiscountTier('add')">Thêm bậc giảm giá</button>
                         </div>
-                        <div class="col">
-                            <label class="form-label">Allowed Stack Types</label>
-                            <input name="discount_allowed_stack_types" class="form-control" value="cashback" placeholder="cashback,fixed_off">
+                        <div class="discount-builder__grid">
+                            <div class="discount-builder__panel">
+                                <div class="discount-builder__panel-title">Nguồn tích lũy</div>
+                                <strong>Nhập key để cộng chi tiêu</strong>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" name="import_spend_accrual_enabled" id="add_import_spend_accrual_enabled" value="1">
+                                    <label class="form-check-label" for="add_import_spend_accrual_enabled">Bật cộng chi tiêu từ key người dùng nhập vào</label>
+                                </div>
+                            </div>
+                            <div class="discount-builder__panel">
+                                <div class="discount-builder__panel-title">Cách cộng benefit</div>
+                                <label class="form-label">Kiểu áp dụng</label>
+                                <select name="discount_stack_mode" class="form-select">
+                                    {% for mode in discount_stack_modes %}
+                                    <option value="{{ mode.value }}">{{ mode.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="discount-builder__panel">
+                                <div class="discount-builder__panel-title">Benefit được cộng dồn</div>
+                                <label class="form-label">Các loại được phép</label>
+                                <input name="discount_allowed_stack_types" class="form-control" value="cashback" placeholder="cashback,fixed_off">
+                                <span>Nhập danh sách ngăn cách bằng dấu phẩy, ví dụ: <code>cashback,fixed_off</code>.</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mt-2">
-                        <label class="form-label">Discount Tiers JSON</label>
-                        <textarea name="discount_tiers_json" class="form-control" rows="8" placeholder='[{"name":"Silver","min_spend_vnd":100000,"benefits":[{"type":"percent_off","value":5}]}]'></textarea>
-                        <div class="form-text">Supported benefit types: percent_off, fixed_off, cashback, tier_price.</div>
+                        <div class="discount-badge-row">
+                            <span class="badge badge-info">Giảm theo %</span>
+                            <span class="badge badge-info">Giảm cố định</span>
+                            <span class="badge badge-info">Hoàn tiền</span>
+                            <span class="badge badge-info">Giá riêng theo bậc</span>
+                        </div>
+                        <div id="add_discount_tiers_builder" class="discount-builder__list mt-3"></div>
+                        <div class="discount-builder__advanced">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleDiscountJson('add')">Mở cấu hình JSON nâng cao</button>
+                            <div id="add_discount_json_wrap" class="mt-2" style="display:none;">
+                                <label class="form-label">JSON nâng cao</label>
+                                <textarea id="add_discount_tiers_json" name="discount_tiers_json" class="form-control discount-json-input" rows="8" placeholder='[{"name":"Bạc","min_spend_vnd":100000,"benefits":[{"type":"percent_off","value":5}]}]'></textarea>
+                                <div class="form-text">Các loại benefit hỗ trợ: <code>percent_off</code>, <code>fixed_off</code>, <code>cashback</code>, <code>tier_price</code>.</div>
+                            </div>
+                        </div>
                     </div>
                     <hr>
-                    <h6 class="text-muted mb-2">Pricing</h6>
+                    <h6 class="text-muted mb-2">Cấu hình giá</h6>
                     <div class="row">
                         <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit" type="number" class="form-control" required></div>
                         <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" required></div>
                     </div>
                     <div class="row mt-2">
                         <div class="col"><label class="form-label">Hệ số $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="10.0"></div>
-                        <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="1.0"></div>
+                        <div class="col"><label class="form-label">Hệ số quota</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="1.0"></div>
                     </div>
-                    <div class="mb-2 mt-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" placeholder="default"></div>
+                    <div class="mb-2 mt-2"><label class="form-label">Nhóm mặc định</label><input name="default_group" class="form-control" placeholder="default"></div>
                     <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('add')">Tải groups</button></div>
                     <div id="add_group_preview" class="mb-2" style="display:none;"></div>
                 </div>
@@ -209,11 +235,11 @@
                     <h6 class="text-muted mb-2">Thông tin cơ bản</h6>
                     <div class="row mb-2">
                         <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control" value="{{ editing.name }}" required></div>
-                        <div class="col"><label class="form-label">Base URL</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
+                        <div class="col"><label class="form-label">Địa chỉ API</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
                     </div>
 
                     <div class="mb-2">
-                        <label class="form-label">API Type</label>
+                        <label class="form-label">Loại API</label>
                         <select name="api_type" class="form-select" id="edit_api_type">
                             {% for t in api_types %}
                             <option value="{{ t.value }}" {% if editing.api_type == t.value %}selected{% endif %}>{{ t.label }}</option>
@@ -224,7 +250,7 @@
                     <hr>
                     <h6 class="text-muted mb-2">Xác thực</h6>
                     <div class="mb-2" id="edit_auth_type_wrap">
-                        <label class="form-label">Method</label>
+                        <label class="form-label">Kiểu xác thực</label>
                         <select name="auth_type" class="form-select" id="edit_auth_type">
                             {% for a in auth_types %}
                             <option value="{{ a.value }}" {% if editing.auth_type == a.value %}selected{% endif %}>{{ a.label }}</option>
@@ -233,9 +259,9 @@
                     </div>
 
                     <div id="edit_auth_fields">
-                        <div class="mb-2" id="edit_header_wrap"><label class="form-label">User ID Header</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
+                        <div class="mb-2" id="edit_header_wrap"><label class="form-label">Header mã người dùng</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
                         <div class="mb-2"><label class="form-label" id="edit_user_value_label">User ID</label><input name="auth_user_value" class="form-control" value="{{ editing.auth_user_value or '' }}"></div>
-                        <div class="mb-2"><label class="form-label" id="edit_token_label">Access Token</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
+                        <div class="mb-2"><label class="form-label" id="edit_token_label">Token truy cập</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
                     </div>
 
                     <div id="edit_cookie_field" class="mb-2" style="display:none;">
@@ -244,54 +270,80 @@
 
                     <div class="form-check mb-2" id="edit_multi_group_wrap">
                         <input class="form-check-input" type="checkbox" name="supports_multi_group" id="edit_multi_group" value="1" {% if editing.supports_multi_group %}checked{% endif %}>
-                        <label class="form-check-label" for="edit_multi_group">Enable Multi-Group Support</label>
+                        <label class="form-check-label" for="edit_multi_group">Bật hỗ trợ nhiều nhóm</label>
                     </div>
 
                     <hr>
                     <div id="edit_advanced_block">
                         <h6 class="text-muted mb-2">Nâng cao</h6>
-                        <div class="mb-2"><label class="form-label">Groups Endpoint</label><input name="groups_endpoint" class="form-control" value="{{ editing.groups_endpoint or '' }}"></div>
-                        <div class="mb-2"><label class="form-label">Manual Groups</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
+                        <div class="mb-2"><label class="form-label">Đường dẫn lấy nhóm</label><input name="groups_endpoint" class="form-control" value="{{ editing.groups_endpoint or '' }}"></div>
+                        <div class="mb-2"><label class="form-label">Danh sách nhóm nhập tay</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
                         <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2">{{ editing.custom_headers or '' }}</textarea></div>
                     </div>
 
                     <hr>
-                    <h6 class="text-muted mb-2">Loyalty &amp; Discount</h6>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="import_spend_accrual_enabled" id="edit_import_spend_accrual_enabled" value="1" {% if editing.import_spend_accrual_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="edit_import_spend_accrual_enabled">Enable import-based spend accrual</label>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col">
-                            <label class="form-label">Stack Mode</label>
-                            <select name="discount_stack_mode" class="form-select">
-                                {% for mode in discount_stack_modes %}
-                                <option value="{{ mode.value }}" {% if editing.discount_stack_mode == mode.value %}selected{% endif %}>{{ mode.label }}</option>
-                                {% endfor %}
-                            </select>
+                    <h6 class="text-muted mb-2">Chính sách giảm giá</h6>
+                    <div class="discount-builder" data-builder="edit">
+                        <div class="discount-builder__hero">
+                            <div>
+                                <h4>Thiết lập bậc chiết khấu</h4>
+                                <p>Chỉnh trực tiếp từng mốc chi tiêu và quyền lợi. Khi lưu, giao diện sẽ tự sinh JSON chuẩn cho backend.</p>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="addDiscountTier('edit')">Thêm bậc giảm giá</button>
                         </div>
-                        <div class="col">
-                            <label class="form-label">Allowed Stack Types</label>
-                            <input name="discount_allowed_stack_types" class="form-control" value="{{ editing.discount_allowed_stack_types or 'cashback' }}" placeholder="cashback,fixed_off">
+                        <div class="discount-builder__grid">
+                            <div class="discount-builder__panel">
+                                <div class="discount-builder__panel-title">Nguồn tích lũy</div>
+                                <strong>Nhập key để cộng chi tiêu</strong>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" name="import_spend_accrual_enabled" id="edit_import_spend_accrual_enabled" value="1" {% if editing.import_spend_accrual_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="edit_import_spend_accrual_enabled">Bật cộng chi tiêu từ key người dùng nhập vào</label>
+                                </div>
+                            </div>
+                            <div class="discount-builder__panel">
+                                <div class="discount-builder__panel-title">Cách cộng benefit</div>
+                                <label class="form-label">Kiểu áp dụng</label>
+                                <select name="discount_stack_mode" class="form-select">
+                                    {% for mode in discount_stack_modes %}
+                                    <option value="{{ mode.value }}" {% if editing.discount_stack_mode == mode.value %}selected{% endif %}>{{ mode.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="discount-builder__panel">
+                                <div class="discount-builder__panel-title">Benefit được cộng dồn</div>
+                                <label class="form-label">Các loại được phép</label>
+                                <input name="discount_allowed_stack_types" class="form-control" value="{{ editing.discount_allowed_stack_types or 'cashback' }}" placeholder="cashback,fixed_off">
+                                <span>Ví dụ: <code>cashback,fixed_off</code>.</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label">Discount Tiers JSON</label>
-                        <textarea name="discount_tiers_json" class="form-control" rows="10">{{ editing.discount_tiers_json or '[]' }}</textarea>
-                        <div class="form-text">Each tier is an object with <code>min_spend_vnd</code> and <code>benefits</code>.</div>
+                        <div class="discount-badge-row">
+                            <span class="badge badge-info">Giảm theo %</span>
+                            <span class="badge badge-info">Giảm cố định</span>
+                            <span class="badge badge-info">Hoàn tiền</span>
+                            <span class="badge badge-info">Giá riêng theo bậc</span>
+                        </div>
+                        <div id="edit_discount_tiers_builder" class="discount-builder__list mt-3"></div>
+                        <div class="discount-builder__advanced">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleDiscountJson('edit')">Mở cấu hình JSON nâng cao</button>
+                            <div id="edit_discount_json_wrap" class="mt-2" style="display:none;">
+                                <label class="form-label">JSON nâng cao</label>
+                                <textarea id="edit_discount_tiers_json" name="discount_tiers_json" class="form-control discount-json-input" rows="10">{{ editing.discount_tiers_json or '[]' }}</textarea>
+                                <div class="form-text">Mỗi bậc sẽ có <code>min_spend_vnd</code> và danh sách <code>benefits</code>.</div>
+                            </div>
+                        </div>
                     </div>
                     {% if editing.pricing_versions %}
                     <div class="mb-3">
-                        <label class="form-label">Pricing History</label>
+                        <label class="form-label">Lịch sử cấu hình giá</label>
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
                                     <tr>
-                                        <th>Version</th>
-                                        <th>Effective From</th>
+                                        <th>Phiên bản</th>
+                                        <th>Có hiệu lực từ</th>
                                         <th>Giá/$</th>
                                         <th>Quota/$</th>
-                                        <th>Multiple</th>
+                                        <th>Hệ số quota</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -311,16 +363,16 @@
                     {% endif %}
 
                     <hr>
-                    <h6 class="text-muted mb-2">Pricing</h6>
+                    <h6 class="text-muted mb-2">Cấu hình giá</h6>
                     <div class="row mb-2">
                         <div class="col"><label class="form-label">Giá/$ (VND)</label><input name="price_per_unit" type="number" class="form-control" value="{{ editing.price_per_unit }}" required></div>
                         <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" value="{{ editing.quota_per_unit }}" required></div>
                     </div>
                     <div class="row mb-2">
                         <div class="col"><label class="form-label">Hệ số $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
-                        <div class="col"><label class="form-label">Multiple</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
+                        <div class="col"><label class="form-label">Hệ số quota</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
                     </div>
-                    <div class="mb-2"><label class="form-label">Default Group</label><input name="default_group" class="form-control" value="{{ editing.default_group or '' }}"></div>
+                    <div class="mb-2"><label class="form-label">Nhóm mặc định</label><input name="default_group" class="form-control" value="{{ editing.default_group or '' }}"></div>
                     <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('edit')">Tải groups</button></div>
                     <div id="edit_group_preview" class="mb-2" style="display:none;"></div>
 
@@ -338,15 +390,21 @@
 
 <!-- Groups Panel -->
 {% if groups_server is defined %}
+{% set source_labels = {
+    'Manual override': 'Danh sách nhập tay',
+    'Saved cache': 'Dữ liệu cache',
+    'Remote refresh': 'Dữ liệu làm mới từ server',
+    'No groups available': 'Chưa có nhóm'
+} %}
 <div class="card mt-3">
     <div class="card-header d-flex justify-content-between align-items-start gap-3">
         <div>
-            <h3>Groups — {{ groups_server.name }}</h3>
+            <h3>Nhóm khả dụng - {{ groups_server.name }}</h3>
             <div class="small text-secondary">
-                <div>Available list: <strong>{{ groups_source_label }}</strong></div>
-                <div>Effective source for Products/API: <strong>{{ effective_source_label }}</strong></div>
+                <div>Nguồn danh sách hiện có: <strong>{{ source_labels.get(groups_source_label, groups_source_label) }}</strong></div>
+                <div>Nguồn đang áp dụng cho sản phẩm/API: <strong>{{ source_labels.get(effective_source_label, effective_source_label) }}</strong></div>
                 {% if groups_updated_at %}
-                <div>Cached at: <code>{{ groups_updated_at }}</code></div>
+                <div>Thời điểm cache: <code>{{ groups_updated_at }}</code></div>
                 {% endif %}
             </div>
         </div>
@@ -357,10 +415,10 @@
                         <polyline points="23 4 23 10 17 10"></polyline>
                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                     </svg>
-                    Refresh groups
+                    Làm mới danh sách
                 </button>
             </form>
-            <a href="/servers" class="btn btn-sm btn-outline-secondary">Close</a>
+            <a href="/servers" class="btn btn-sm btn-outline-secondary">Đóng</a>
         </div>
     </div>
     <div class="card-body">
@@ -369,17 +427,17 @@
         {% endif %}
         {% if groups_server.manual_groups %}
         <div class="alert alert-warning">
-            Manual override is enabled. Products and <code>/api/groups</code> will use
-            <code>{{ groups_server.manual_groups }}</code> until you clear it.
+            Đang bật danh sách nhóm nhập tay. Sản phẩm và <code>/api/groups</code> sẽ dùng
+            <code>{{ groups_server.manual_groups }}</code> cho đến khi bạn xóa cấu hình này.
         </div>
         {% endif %}
 
         <form method="POST" action="/servers/{{ groups_server.id }}/groups/save" id="groupsConfigForm">
             <div class="mb-3">
-                <label class="form-label">Available Groups</label>
+                <label class="form-label">Nhóm có sẵn</label>
                 {% if groups_data %}
                     {% if supports_multi_group %}
-                    <p class="text-secondary small mb-2">Click buttons to build the server default group list.</p>
+                    <p class="text-secondary small mb-2">Bấm vào các nút để ghép danh sách nhóm mặc định cho server.</p>
                     <div class="d-flex flex-wrap gap-2" id="available_groups">
                         {% for g in groups_data %}
                         <button
@@ -415,34 +473,34 @@
                     {% endif %}
                 {% else %}
                 <div class="alert alert-warning mb-0">
-                    No groups available yet. Use <strong>Refresh groups</strong> or type values manually below.
+                    Chưa có dữ liệu nhóm. Hãy <strong>làm mới danh sách</strong> hoặc nhập tay ở bên dưới.
                 </div>
                 {% endif %}
             </div>
 
             <div class="row g-3">
                 <div class="col-lg-7">
-                    <label class="form-label">Default Group</label>
+                    <label class="form-label">Nhóm mặc định</label>
                     <input
                         type="text"
                         name="default_group"
                         id="selected_group_input"
                         class="form-control"
                         value="{{ groups_server.default_group or '' }}"
-                        placeholder="group-a or group-a,group-b"
+                        placeholder="group-a hoặc group-a,group-b"
                     >
                     <div class="form-text">
-                        This value is used when a product does not override its own group.
+                        Giá trị này sẽ được dùng khi sản phẩm không tự ghi đè nhóm riêng.
                     </div>
                 </div>
                 <div class="col-lg-5">
-                    <label class="form-label">Selected Summary</label>
+                    <label class="form-label">Tóm tắt lựa chọn</label>
                     <div id="selected_groups_summary" class="border rounded p-3 bg-light small"></div>
                 </div>
             </div>
 
             <div class="mt-3">
-                <label class="form-label">Manual Groups Override</label>
+                <label class="form-label">Danh sách nhóm nhập tay</label>
                 <input
                     type="text"
                     name="manual_groups"
@@ -452,21 +510,21 @@
                     placeholder="group-a,group-b"
                 >
                 <div class="form-text">
-                    Optional. When filled, Products/API will use this list instead of cached remote groups.
+                    Nếu điền giá trị này, sản phẩm và API sẽ dùng danh sách này thay cho dữ liệu đã cache từ máy chủ.
                 </div>
                 <div class="mt-2 d-flex gap-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copySelectionToManualGroups()">
-                        Copy selected default
+                        Sao chép từ nhóm mặc định
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearManualGroupsOverride()">
-                        Clear manual override
+                        Xóa danh sách nhập tay
                     </button>
                 </div>
             </div>
 
             <div class="mt-3 d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Save group config</button>
-                <a href="/servers/{{ groups_server.id }}/edit" class="btn btn-outline-secondary">Edit server</a>
+                <button type="submit" class="btn btn-primary">Lưu cấu hình nhóm</button>
+                <a href="/servers/{{ groups_server.id }}/edit" class="btn btn-outline-secondary">Sửa máy chủ</a>
             </div>
         </form>
 
@@ -523,8 +581,8 @@ function setupApiType(prefix) {
         if (headerWrap) headerWrap.style.display = isOther ? '' : 'none';
         if (multiGroupWrap) multiGroupWrap.style.display = '';
         if (advancedBlock) advancedBlock.style.display = isOther ? '' : 'none';
-        if (userValueLabel) userValueLabel.textContent = isOther ? 'User ID Value' : 'User ID';
-        if (tokenLabel) tokenLabel.textContent = isOther ? 'Bearer Token' : 'Access Token';
+        if (userValueLabel) userValueLabel.textContent = isOther ? 'Giá trị mã người dùng' : 'Mã người dùng';
+        if (tokenLabel) tokenLabel.textContent = isOther ? 'Bearer token' : 'Token truy cập';
         if (!isOther && authType) authType.value = 'header';
 
         if (apiType.value === 'newapi' && authHeader) authHeader.value = 'new-api-user';
@@ -541,6 +599,298 @@ function setupApiType(prefix) {
 
 setupApiType('add');
 setupApiType('edit');
+
+const discountBuilderState = { add: [], edit: [] };
+const discountBenefitLabels = {
+    percent_off: 'Giảm theo phần trăm',
+    fixed_off: 'Giảm số tiền cố định',
+    cashback: 'Hoàn tiền sau thanh toán',
+    tier_price: 'Giá riêng theo bậc',
+};
+
+function normalizeDiscountBenefit(benefit) {
+    return {
+        type: benefit?.type || 'percent_off',
+        value: benefit?.value ?? '',
+        is_active: benefit?.is_active !== false,
+        config: { ...(benefit?.config || {}) },
+    };
+}
+
+function normalizeDiscountTier(tier, index) {
+    return {
+        name: tier?.name || `Bậc ${index + 1}`,
+        min_spend_vnd: tier?.min_spend_vnd || 0,
+        is_active: tier?.is_active !== false,
+        benefits: Array.isArray(tier?.benefits) && tier.benefits.length
+            ? tier.benefits.map(normalizeDiscountBenefit)
+            : [normalizeDiscountBenefit({ type: 'percent_off', value: 5 })],
+    };
+}
+
+function loadDiscountBuilder(prefix) {
+    const textarea = document.getElementById(`${prefix}_discount_tiers_json`);
+    const raw = textarea?.value?.trim() || '[]';
+    try {
+        const parsed = JSON.parse(raw);
+        discountBuilderState[prefix] = Array.isArray(parsed)
+            ? parsed.map((tier, index) => normalizeDiscountTier(tier, index))
+            : [];
+    } catch {
+        discountBuilderState[prefix] = [];
+    }
+    renderDiscountBuilder(prefix);
+}
+
+function commitDiscountJsonIfDirty(prefix) {
+    const textarea = document.getElementById(`${prefix}_discount_tiers_json`);
+    if (!textarea || textarea.dataset.manualDirty !== '1') return true;
+
+    try {
+        const parsed = JSON.parse(textarea.value || '[]');
+        if (!Array.isArray(parsed)) {
+            return false;
+        }
+        discountBuilderState[prefix] = parsed.map((tier, index) => normalizeDiscountTier(tier, index));
+        textarea.dataset.manualDirty = '0';
+        renderDiscountBuilder(prefix);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function serializeDiscountBuilder(prefix) {
+    const textarea = document.getElementById(`${prefix}_discount_tiers_json`);
+    if (!textarea) return;
+
+    const cleaned = discountBuilderState[prefix].map((tier, index) => ({
+        name: (tier.name || `Bậc ${index + 1}`).trim(),
+        min_spend_vnd: Number(tier.min_spend_vnd || 0),
+        is_active: tier.is_active !== false,
+        benefits: (tier.benefits || [])
+            .filter(benefit => benefit.type)
+            .map(benefit => ({
+                type: benefit.type,
+                value: benefit.value === '' ? 0 : Number(benefit.value || 0),
+                is_active: benefit.is_active !== false,
+                config: { ...(benefit.config || {}) },
+            })),
+    }));
+
+    textarea.value = JSON.stringify(cleaned, null, 2);
+}
+
+function renderDiscountBuilder(prefix) {
+    const root = document.getElementById(`${prefix}_discount_tiers_builder`);
+    if (!root) return;
+
+    const tiers = discountBuilderState[prefix] || [];
+    if (!tiers.length) {
+        root.innerHTML = `
+            <div class="discount-builder__empty">
+                Chưa có bậc chiết khấu nào. Hãy thêm bậc đầu tiên để thiết lập mốc chi tiêu và quyền lợi.
+            </div>
+        `;
+        serializeDiscountBuilder(prefix);
+        return;
+    }
+
+    root.innerHTML = tiers.map((tier, tierIndex) => `
+        <div class="discount-tier-card">
+            <div class="discount-tier-card__header">
+                <div>
+                    <h4>${escapeHtml(tier.name || `Bậc ${tierIndex + 1}`)}</h4>
+                    <div class="text-secondary small">Mốc chi tiêu: ${formatNumber(tier.min_spend_vnd)} đ</div>
+                </div>
+                <div class="discount-builder__actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleDiscountTierActive('${prefix}', ${tierIndex})">
+                        ${tier.is_active !== false ? 'Tạm tắt' : 'Bật lại'}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeDiscountTier('${prefix}', ${tierIndex})">Xóa bậc</button>
+                </div>
+            </div>
+            <div class="discount-tier-card__body">
+                <div class="discount-tier-card__meta">
+                    <div>
+                        <label class="form-label">Tên bậc</label>
+                        <input type="text" class="form-control" value="${escapeAttribute(tier.name || '')}" oninput="updateDiscountTierField('${prefix}', ${tierIndex}, 'name', this.value)">
+                    </div>
+                    <div>
+                        <label class="form-label">Chi tiêu tối thiểu (VNĐ)</label>
+                        <input type="number" class="form-control" value="${escapeAttribute(tier.min_spend_vnd || 0)}" oninput="updateDiscountTierField('${prefix}', ${tierIndex}, 'min_spend_vnd', this.value)">
+                    </div>
+                    <div>
+                        <label class="form-label">Trạng thái</label>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" ${tier.is_active !== false ? 'checked' : ''} onchange="updateDiscountTierCheckbox('${prefix}', ${tierIndex}, this.checked)">
+                            <label class="form-check-label">Đang áp dụng</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="discount-benefit-list">
+                    ${(tier.benefits || []).map((benefit, benefitIndex) => renderDiscountBenefit(prefix, tierIndex, benefit, benefitIndex)).join('')}
+                </div>
+                <div class="discount-builder__actions mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addDiscountBenefit('${prefix}', ${tierIndex})">Thêm quyền lợi</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    serializeDiscountBuilder(prefix);
+}
+
+function renderDiscountBenefit(prefix, tierIndex, benefit, benefitIndex) {
+    const type = benefit.type || 'percent_off';
+    const config = benefit.config || {};
+    const cashbackMode = config.mode || 'percent';
+    const pricePerDollar = config.price_per_dollar ?? '';
+
+    return `
+        <div class="discount-benefit-item">
+            <div class="discount-benefit-item__row">
+                <div>
+                    <label class="form-label">Loại quyền lợi</label>
+                    <select class="form-select" onchange="updateDiscountBenefitField('${prefix}', ${tierIndex}, ${benefitIndex}, 'type', this.value)">
+                        ${Object.entries(discountBenefitLabels).map(([value, label]) => `
+                            <option value="${value}" ${value === type ? 'selected' : ''}>${label}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">${type === 'percent_off' ? 'Phần trăm giảm' : type === 'fixed_off' ? 'Số tiền giảm' : type === 'cashback' ? 'Giá trị hoàn' : 'Giá trị'}</label>
+                    <input type="number" step="0.01" class="form-control" value="${escapeAttribute(benefit.value ?? '')}" oninput="updateDiscountBenefitField('${prefix}', ${tierIndex}, ${benefitIndex}, 'value', this.value)">
+                </div>
+                <div class="discount-builder__actions">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeDiscountBenefit('${prefix}', ${tierIndex}, ${benefitIndex})">Xóa</button>
+                </div>
+            </div>
+            <div class="discount-benefit-item__extra">
+                ${type === 'cashback' ? `
+                    <div>
+                        <label class="form-label">Cách tính hoàn tiền</label>
+                        <select class="form-select" onchange="updateDiscountBenefitConfig('${prefix}', ${tierIndex}, ${benefitIndex}, 'mode', this.value)">
+                            <option value="percent" ${cashbackMode === 'percent' ? 'selected' : ''}>Theo phần trăm</option>
+                            <option value="fixed" ${cashbackMode === 'fixed' ? 'selected' : ''}>Số tiền cố định</option>
+                        </select>
+                    </div>
+                ` : ''}
+                ${type === 'tier_price' ? `
+                    <div>
+                        <label class="form-label">Giá theo mỗi 1$</label>
+                        <input type="number" step="0.01" class="form-control" value="${escapeAttribute(pricePerDollar)}" oninput="updateDiscountBenefitConfig('${prefix}', ${tierIndex}, ${benefitIndex}, 'price_per_dollar', this.value)">
+                    </div>
+                ` : ''}
+                <div>
+                    <label class="form-label">Trạng thái</label>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" ${benefit.is_active !== false ? 'checked' : ''} onchange="updateDiscountBenefitCheckbox('${prefix}', ${tierIndex}, ${benefitIndex}, this.checked)">
+                        <label class="form-check-label">Đang áp dụng</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function addDiscountTier(prefix) {
+    discountBuilderState[prefix].push(normalizeDiscountTier({}, discountBuilderState[prefix].length));
+    renderDiscountBuilder(prefix);
+}
+
+function removeDiscountTier(prefix, tierIndex) {
+    discountBuilderState[prefix].splice(tierIndex, 1);
+    renderDiscountBuilder(prefix);
+}
+
+function toggleDiscountTierActive(prefix, tierIndex) {
+    const tier = discountBuilderState[prefix][tierIndex];
+    if (!tier) return;
+    tier.is_active = tier.is_active === false;
+    renderDiscountBuilder(prefix);
+}
+
+function updateDiscountTierField(prefix, tierIndex, field, value) {
+    const tier = discountBuilderState[prefix][tierIndex];
+    if (!tier) return;
+    tier[field] = field === 'min_spend_vnd' ? Number(value || 0) : value;
+    serializeDiscountBuilder(prefix);
+}
+
+function updateDiscountTierCheckbox(prefix, tierIndex, checked) {
+    const tier = discountBuilderState[prefix][tierIndex];
+    if (!tier) return;
+    tier.is_active = checked;
+    serializeDiscountBuilder(prefix);
+}
+
+function addDiscountBenefit(prefix, tierIndex) {
+    const tier = discountBuilderState[prefix][tierIndex];
+    if (!tier) return;
+    tier.benefits = tier.benefits || [];
+    tier.benefits.push(normalizeDiscountBenefit({ type: 'percent_off', value: 5 }));
+    renderDiscountBuilder(prefix);
+}
+
+function removeDiscountBenefit(prefix, tierIndex, benefitIndex) {
+    const tier = discountBuilderState[prefix][tierIndex];
+    if (!tier || !tier.benefits) return;
+    tier.benefits.splice(benefitIndex, 1);
+    if (!tier.benefits.length) {
+        tier.benefits.push(normalizeDiscountBenefit({ type: 'percent_off', value: 5 }));
+    }
+    renderDiscountBuilder(prefix);
+}
+
+function updateDiscountBenefitField(prefix, tierIndex, benefitIndex, field, value) {
+    const benefit = discountBuilderState[prefix]?.[tierIndex]?.benefits?.[benefitIndex];
+    if (!benefit) return;
+    benefit[field] = field === 'value' ? value : value;
+    if (field === 'type' && value !== 'cashback') {
+        delete benefit.config.mode;
+    }
+    renderDiscountBuilder(prefix);
+}
+
+function updateDiscountBenefitConfig(prefix, tierIndex, benefitIndex, key, value) {
+    const benefit = discountBuilderState[prefix]?.[tierIndex]?.benefits?.[benefitIndex];
+    if (!benefit) return;
+    benefit.config = benefit.config || {};
+    benefit.config[key] = key === 'price_per_dollar' ? Number(value || 0) : value;
+    serializeDiscountBuilder(prefix);
+}
+
+function updateDiscountBenefitCheckbox(prefix, tierIndex, benefitIndex, checked) {
+    const benefit = discountBuilderState[prefix]?.[tierIndex]?.benefits?.[benefitIndex];
+    if (!benefit) return;
+    benefit.is_active = checked;
+    serializeDiscountBuilder(prefix);
+}
+
+function toggleDiscountJson(prefix) {
+    const wrap = document.getElementById(`${prefix}_discount_json_wrap`);
+    if (!wrap) return;
+    serializeDiscountBuilder(prefix);
+    wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function escapeAttribute(value) {
+    return escapeHtml(value ?? '');
+}
+
+function formatNumber(value) {
+    return Number(value || 0).toLocaleString('vi-VN');
+}
 
 async function previewServerGroups(prefix) {
     const form = document.getElementById(prefix + 'Form');
@@ -588,8 +938,8 @@ function renderGroupPreview(prefix, groups, isMulti) {
     preview.className = 'border rounded p-3 bg-light';
     preview.innerHTML = `
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>${isMulti ? 'Chọn Manual Groups' : 'Chọn Default Group'}</strong>
-            <small class="text-muted">${groups.length} groups</small>
+            <strong>${isMulti ? 'Chọn danh sách nhóm nhập tay' : 'Chọn nhóm mặc định'}</strong>
+            <small class="text-muted">${groups.length} nhóm</small>
         </div>
         <div class="d-flex flex-wrap gap-2" id="${prefix}_group_buttons"></div>
     `;
@@ -632,7 +982,7 @@ function renderSelectedGroupsSummary() {
 
     const selected = splitServerGroups(input.value);
     if (!selected.length) {
-        summary.innerHTML = '<span class="text-muted">No default group selected.</span>';
+        summary.innerHTML = '<span class="text-muted">Chưa chọn nhóm mặc định.</span>';
         return;
     }
 
@@ -695,6 +1045,31 @@ function confirmDelete() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    loadDiscountBuilder('add');
+    if (document.getElementById('edit_discount_tiers_json')) {
+        loadDiscountBuilder('edit');
+    }
+
+    ['add_discount_tiers_json', 'edit_discount_tiers_json'].forEach(textareaId => {
+        const textarea = document.getElementById(textareaId);
+        if (!textarea) return;
+        textarea.addEventListener('input', function () {
+            textarea.dataset.manualDirty = '1';
+        });
+    });
+
+    ['addForm', 'editForm'].forEach(formId => {
+        const form = document.getElementById(formId);
+        if (!form) return;
+        form.addEventListener('submit', function () {
+            const prefix = formId === 'addForm' ? 'add' : 'edit';
+            if (!commitDiscountJsonIfDirty(prefix)) {
+                return;
+            }
+            serializeDiscountBuilder(prefix);
+        });
+    });
+
     {% if editing %}
     const editModalEl = document.getElementById('editModal');
     if (editModalEl) {

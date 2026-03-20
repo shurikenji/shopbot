@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Users{% endblock %}
+{% block title %}Người dùng{% endblock %}
 {% block content %}
 <div class="page-header">
     <h1>
@@ -11,11 +11,10 @@
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
         </span>
-        Users
+        Người dùng
     </h1>
 </div>
 
-<!-- Search -->
 <div class="card mb-3">
     <div class="card-body">
         <form class="search-bar" method="GET">
@@ -23,31 +22,24 @@
                 type="text"
                 name="search"
                 class="form-control"
-                placeholder="Tìm user..."
+                placeholder="Tìm theo tên, username hoặc Telegram ID..."
                 value="{{ filter_search|default('') }}"
             >
-            <button type="submit" class="btn btn-primary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                Tìm
-            </button>
+            <button type="submit" class="btn btn-primary">Tìm kiếm</button>
         </form>
     </div>
 </div>
 
-<!-- Users Table -->
 <div class="table-card">
     <table class="table">
         <thead>
             <tr>
                 <th>#</th>
                 <th>Telegram ID</th>
-                <th>Username</th>
-                <th>Tên</th>
-                <th>Admin</th>
-                <th>Ban</th>
+                <th>Tài khoản</th>
+                <th>Họ tên</th>
+                <th>Quyền quản trị</th>
+                <th>Trạng thái</th>
                 <th>Ngày tạo</th>
                 <th></th>
             </tr>
@@ -56,42 +48,32 @@
             {% for u in users %}
             <tr>
                 <td>{{ u.id }}</td>
-                <td>
-                    <code style="background: var(--background-subtle); padding: 0.2rem 0.4rem; border-radius: 4px;">{{ u.telegram_id }}</code>
-                </td>
+                <td><code>{{ u.telegram_id }}</code></td>
                 <td>
                     {% if u.username %}
                     <span style="color: var(--primary);">@{{ u.username }}</span>
                     {% else %}
-                    <span class="text-secondary">—</span>
+                    <span class="text-secondary">Chưa có</span>
                     {% endif %}
                 </td>
-                <td>{{ u.full_name|default('—') }}</td>
+                <td>{{ u.full_name|default('Chưa cập nhật') }}</td>
                 <td>
                     {% if u.is_admin %}
-                    <span class="badge badge-success">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        Admin
-                    </span>
+                    <span class="badge badge-success">Quản trị</span>
                     {% else %}
-                    <span class="text-secondary">—</span>
+                    <span class="text-secondary">Người dùng</span>
                     {% endif %}
                 </td>
                 <td>
                     {% if u.is_banned %}
-                    <span class="badge badge-danger">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                        Banned
-                    </span>
+                    <span class="badge badge-danger">Đã khóa</span>
                     {% else %}
-                    <span class="text-secondary">—</span>
+                    <span class="badge badge-success">Bình thường</span>
                     {% endif %}
                 </td>
+                <td><span class="text-secondary">{{ u.created_at | time_vn }}</span></td>
                 <td>
-                    <span class="text-secondary">{{ u.created_at | time_vn }}</span>
-                </td>
-                <td>
-                    <a href="/users/{{ u.id }}" class="btn btn-sm btn-outline-primary">Chi tiết</a>
+                    <a href="/users/{{ u.id }}" class="btn btn-sm btn-outline-primary">Xem chi tiết</a>
                 </td>
             </tr>
             {% endfor %}
@@ -99,7 +81,6 @@
     </table>
 </div>
 
-<!-- Pagination -->
 {% if total_pages > 1 %}
 <nav class="mt-3">
     <ul class="pagination">

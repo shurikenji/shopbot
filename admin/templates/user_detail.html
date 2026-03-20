@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}User #{{ user.id }}{% endblock %}
+{% block title %}Người dùng #{{ user.id }}{% endblock %}
 {% block content %}
 <div class="page-header">
     <h1>
@@ -9,7 +9,7 @@
                 <circle cx="12" cy="7" r="4"></circle>
             </svg>
         </span>
-        User {{ user.full_name|default(user.username)|default('#'+user.id|string) }}
+        Hồ sơ người dùng
     </h1>
 </div>
 
@@ -17,7 +17,7 @@
     <div class="col-12 col-md-6">
         <div class="card">
             <div class="card-header">
-                <h3>Thông tin</h3>
+                <h3>Thông tin tài khoản</h3>
             </div>
             <div class="card-body" style="padding: 0;">
                 <table class="table">
@@ -31,29 +31,41 @@
                     </tr>
                     <tr>
                         <th>Username</th>
-                        <td>{{ user.username|default('—') }}</td>
+                        <td>{{ user.username|default('Chưa có') }}</td>
                     </tr>
                     <tr>
-                        <th>Tên</th>
-                        <td>{{ user.full_name|default('—') }}</td>
+                        <th>Họ tên</th>
+                        <td>{{ user.full_name|default('Chưa cập nhật') }}</td>
                     </tr>
                     <tr>
-                        <th>Admin</th>
+                        <th>Vai trò</th>
                         <td>
                             {% if user.is_admin %}
-                            <span class="badge badge-success">Admin</span>
+                            <span class="badge badge-success">Quản trị viên</span>
                             {% else %}
-                            <span class="text-secondary">User</span>
+                            <span class="text-secondary">Người dùng thường</span>
                             {% endif %}
                         </td>
                     </tr>
                     <tr>
-                        <th>Banned</th>
+                        <th>Trạng thái</th>
                         <td>
                             {% if user.is_banned %}
-                            <span class="badge badge-danger">Banned</span>
+                            <span class="badge badge-danger">Đã khóa</span>
                             {% else %}
-                            <span class="text-secondary">Không</span>
+                            <span class="badge badge-success">Đang hoạt động</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Chiết khấu</th>
+                        <td>
+                            {% if user.is_admin %}
+                            <span class="badge badge-warning">Tự động tắt cho tài khoản quản trị</span>
+                            {% elif user.disable_discounts %}
+                            <span class="badge badge-warning">Đã tắt thủ công</span>
+                            {% else %}
+                            <span class="badge badge-success">Đang bật</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -65,10 +77,13 @@
             </div>
             <div class="card-body" style="border-top: 1px solid var(--border);">
                 <a href="/users/{{ user.id }}/toggle-admin" class="btn btn-outline-primary btn-sm">
-                    {{ 'Gỡ Admin' if user.is_admin else 'Set Admin' }}
+                    {{ 'Gỡ quyền quản trị' if user.is_admin else 'Cấp quyền quản trị' }}
                 </a>
                 <a href="/users/{{ user.id }}/toggle-ban" class="btn btn-outline-danger btn-sm">
-                    {{ 'Unban' if user.is_banned else 'Ban' }}
+                    {{ 'Mở khóa tài khoản' if user.is_banned else 'Khóa tài khoản' }}
+                </a>
+                <a href="/users/{{ user.id }}/toggle-discounts" class="btn btn-outline-warning btn-sm">
+                    {{ 'Bật lại chiết khấu' if user.disable_discounts else 'Tắt chiết khấu' }}
                 </a>
             </div>
         </div>
@@ -77,7 +92,7 @@
     <div class="col-12 col-md-6">
         <div class="card mb-3">
             <div class="card-header">
-                <h3>Ví</h3>
+                <h3>Ví điện tử</h3>
             </div>
             <div class="card-body">
                 <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
@@ -86,13 +101,13 @@
                 <form method="POST" action="/users/{{ user.id }}/adjust-wallet">
                     <div class="row g-2">
                         <div class="col-8">
-                            <input name="amount" type="number" class="form-control" placeholder="Số tiền (+ hoặc -)" required>
+                            <input name="amount" type="number" class="form-control" placeholder="Số tiền cộng hoặc trừ" required>
                         </div>
                         <div class="col-4">
-                            <button class="btn btn-primary w-100">Điều chỉnh</button>
+                            <button class="btn btn-primary w-100">Cập nhật</button>
                         </div>
                         <div class="col-12">
-                            <input name="description" class="form-control" placeholder="Ghi chú (tùy chọn)">
+                            <input name="description" class="form-control" placeholder="Lý do điều chỉnh">
                         </div>
                     </div>
                 </form>

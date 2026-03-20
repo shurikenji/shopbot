@@ -237,7 +237,7 @@ async def _handle_standard_product(
             product=product,
         )
     else:
-        quote = await quote_non_api_product(product)
+        quote = await quote_non_api_product(product, user_id=db_user["id"])
 
     # Build product detail text
     lines = [

@@ -1,5 +1,5 @@
 """
-db/queries/users.py — CRUD operations cho bảng users.
+db/queries/users.py - CRUD operations for users.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict,
 
 
 def _build_user_search_filters(search: Optional[str]) -> tuple[str, tuple[str, ...]]:
-    """Tạo phần WHERE và params dùng chung cho filter user."""
+    """Build a shared WHERE clause for user search."""
     if not search:
         return "", ()
 
@@ -22,12 +22,12 @@ def _build_user_search_filters(search: Optional[str]) -> tuple[str, tuple[str, .
 
 
 async def get_user_by_telegram_id(telegram_id: int) -> Optional[dict]:
-    """Lấy user theo Telegram ID."""
+    """Fetch a user by Telegram ID."""
     return await fetch_one_dict("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
 
 
 async def get_user_by_id(user_id: int) -> Optional[dict]:
-    """Lấy user theo internal ID."""
+    """Fetch a user by internal ID."""
     db = await get_db()
     cursor = await db.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     row = await cursor.fetchone()
@@ -39,7 +39,7 @@ async def create_user(
     username: Optional[str] = None,
     full_name: Optional[str] = None,
 ) -> dict:
-    """Tạo user mới, trả về user dict. Dùng INSERT OR IGNORE để tránh race condition."""
+    """Create a user and return the stored row."""
     cursor = await execute_commit(
         """INSERT OR IGNORE INTO users (telegram_id, username, full_name)
            VALUES (?, ?, ?)""",
@@ -55,7 +55,7 @@ async def update_user(
     username: Optional[str] = None,
     full_name: Optional[str] = None,
 ) -> None:
-    """Cập nhật username và full_name."""
+    """Update mutable profile fields."""
     await execute_commit(
         """UPDATE users
            SET username = COALESCE(?, username),
@@ -67,15 +67,23 @@ async def update_user(
 
 
 async def set_admin(user_id: int, is_admin: int = 1) -> None:
-    """Đặt/gỡ quyền admin."""
+    """Grant or revoke admin role."""
     await execute_commit(
         "UPDATE users SET is_admin = ?, updated_at = datetime('now', '+7 hours') WHERE id = ?",
         (is_admin, user_id),
     )
 
 
+async def set_discount_disabled(user_id: int, disable_discounts: int = 1) -> None:
+    """Enable or disable discounts for a user."""
+    await execute_commit(
+        "UPDATE users SET disable_discounts = ?, updated_at = datetime('now', '+7 hours') WHERE id = ?",
+        (disable_discounts, user_id),
+    )
+
+
 async def set_banned(user_id: int, is_banned: int = 1) -> None:
-    """Ban/unban user."""
+    """Ban or unban a user."""
     await execute_commit(
         "UPDATE users SET is_banned = ?, updated_at = datetime('now', '+7 hours') WHERE id = ?",
         (is_banned, user_id),
@@ -87,21 +95,21 @@ async def get_all_users(
     limit: int = 50,
     search: Optional[str] = None,
 ) -> list[dict]:
-    """Lấy danh sách users (phân trang, tìm kiếm)."""
+    """Return paginated users."""
     where_clause, search_params = _build_user_search_filters(search)
     query = f"SELECT * FROM users{where_clause} ORDER BY id DESC LIMIT ? OFFSET ?"
     return await fetch_all_dicts(query, (*search_params, limit, offset))
 
 
 async def count_users(search: Optional[str] = None) -> int:
-    """Đếm tổng số users."""
+    """Count users."""
     where_clause, search_params = _build_user_search_filters(search)
     total = await fetch_scalar(f"SELECT COUNT(*) FROM users{where_clause}", search_params)
     return int(total or 0)
 
 
 async def get_all_user_telegram_ids() -> list[int]:
-    """Lấy tất cả Telegram IDs (dùng cho broadcast)."""
+    """Return Telegram IDs for non-banned users."""
     db = await get_db()
     cursor = await db.execute("SELECT telegram_id FROM users WHERE is_banned = 0")
     rows = await cursor.fetchall()

@@ -13,7 +13,7 @@
                         <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                         <line x1="12" y1="22.08" x2="12" y2="12"></line>
                     </svg>
-                    Product Control Deck
+                    Trung tâm điều phối sản phẩm
                 </h1>
                 <p>Quản lý sản phẩm API keys, tài khoản có sẵn và dịch vụ. Mỗi sản phẩm có thể kết nối với server để lấy thông tin nhóm và quota.</p>
             </div>
@@ -33,7 +33,7 @@
                 <span class="product-kpi-value">{{ products|length }}</span>
             </div>
             <div class="product-kpi">
-                <span class="product-kpi-label">Servers đang bật</span>
+                <span class="product-kpi-label">Máy chủ đang bật</span>
                 <span class="product-kpi-value">{{ servers|selectattr('is_active')|list|length }}</span>
             </div>
             <div class="product-kpi">
@@ -88,7 +88,7 @@
                         </div>
                         <div class="product-meta">
                             {% if p.server_id %}
-                            Server #{{ p.server_id }}
+                            Máy chủ #{{ p.server_id }}
                             {% if p.uses_server_default_group %}
                             <br><span style="color: var(--primary);">Kế thừa từ server</span>
                             {% elif p.group_name %}
@@ -200,7 +200,7 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label class="form-label">Stock (-1 = vô hạn)</label>
+                                <label class="form-label">Tồn kho (-1 = vô hạn)</label>
                                 <input name="stock" type="number" class="form-control" value="-1">
                             </div>
                         </div>
@@ -227,7 +227,7 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label class="form-label">Dollar</label>
+                                    <label class="form-label">Số USD</label>
                                     <input name="dollar_amount" type="number" step="0.1" class="form-control" value="0">
                                 </div>
                             </div>
@@ -235,7 +235,7 @@
 
                         <div class="form-group" id="addGroupWrap" style="display:none;">
                             <div class="d-flex justify-content-between align-items-end mb-2">
-                                <label class="form-label mb-0">Group override</label>
+                                <label class="form-label mb-0">Ghi đè nhóm</label>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearGroupOverride('add')">Mặc định server</button>
                                     <button type="button" class="btn btn-sm btn-outline-info" id="addFetchGroupBtn" onclick="fetchGroups('add')" style="display:none;">Tải lại</button>
@@ -250,18 +250,18 @@
                     </div>
 
                     <div class="form-group" id="addFormatWrap" style="display:none;">
-                        <label class="form-label">Format template</label>
+                        <label class="form-label">Mẫu định dạng</label>
                         <input name="format_template" class="form-control" placeholder="Email|Password|Cookie">
                         <div class="form-text">Cách nhau bằng dấu |</div>
                     </div>
 
                     <div class="form-group" id="addInputPromptWrap" style="display:none;">
-                        <label class="form-label">Input prompt</label>
+                        <label class="form-label">Hướng dẫn nhập liệu</label>
                         <input name="input_prompt" class="form-control" placeholder="Nhập thông tin khách cần cung cấp...">
                     </div>
 
                     <div class="form-group" id="addPromotionWrap">
-                        <label class="form-label">Promotion</label>
+                        <label class="form-label">Chương trình khuyến mãi</label>
                         <div class="row">
                             <div class="col-md-4">
                                 <input name="promotion_name" class="form-control" placeholder="Tên chương trình">
@@ -269,9 +269,9 @@
                             <div class="col-md-4">
                                 <select name="promotion_type" class="form-select">
                                     <option value="">- Không áp dụng -</option>
-                                    <option value="percent_off">Percent Off</option>
-                                    <option value="fixed_off">Fixed Off</option>
-                                    <option value="override_price">Override Price</option>
+                                    <option value="percent_off">Giảm theo phần trăm</option>
+                                    <option value="fixed_off">Giảm số tiền cố định</option>
+                                    <option value="override_price">Chốt giá bán</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -280,7 +280,7 @@
                         </div>
                         <div class="row mt-2">
                             <div class="col-md-4">
-                                <input name="promotion_priority" type="number" class="form-control" value="0" placeholder="Priority">
+                                <input name="promotion_priority" type="number" class="form-control" value="0" placeholder="Độ ưu tiên">
                             </div>
                             <div class="col-md-4">
                                 <input name="promotion_start_at" class="form-control" placeholder="2026-03-20T09:00:00">
@@ -291,7 +291,7 @@
                         </div>
                         <div class="form-check mt-2">
                             <input class="form-check-input" type="checkbox" name="promotion_is_active" id="addPromotionActive" value="1" checked>
-                            <label class="form-check-label" for="addPromotionActive">Promotion active</label>
+                            <label class="form-check-label" for="addPromotionActive">Đang áp dụng khuyến mãi</label>
                         </div>
                     </div>
 
@@ -357,7 +357,7 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label class="form-label">Stock (-1 = vô hạn)</label>
+                                <label class="form-label">Tồn kho (-1 = vô hạn)</label>
                                 <input name="stock" type="number" class="form-control" value="{{ editing.stock }}">
                             </div>
                         </div>
@@ -384,7 +384,7 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label class="form-label">Dollar</label>
+                                    <label class="form-label">Số USD</label>
                                     <input name="dollar_amount" type="number" step="0.1" class="form-control" value="{{ editing.dollar_amount }}">
                                 </div>
                             </div>
@@ -392,7 +392,7 @@
 
                         <div class="form-group" id="editGroupWrap" style="display:none;">
                             <div class="d-flex justify-content-between align-items-end mb-2">
-                                <label class="form-label mb-0">Group override</label>
+                                <label class="form-label mb-0">Ghi đè nhóm</label>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearGroupOverride('edit')">Mặc định server</button>
                                     <button type="button" class="btn btn-sm btn-outline-info" id="editFetchGroupBtn" onclick="fetchGroups('edit')" style="display:none;">Tải lại</button>
@@ -407,17 +407,17 @@
                     </div>
 
                     <div class="form-group" id="editFormatWrap" style="display:none;">
-                        <label class="form-label">Format template</label>
+                        <label class="form-label">Mẫu định dạng</label>
                         <input name="format_template" class="form-control" value="{{ editing.format_template or '' }}" placeholder="Email|Password|Cookie">
                     </div>
 
                     <div class="form-group" id="editInputPromptWrap" style="display:none;">
-                        <label class="form-label">Input prompt</label>
+                        <label class="form-label">Hướng dẫn nhập liệu</label>
                         <input name="input_prompt" class="form-control" value="{{ editing.input_prompt or '' }}" placeholder="Nhập thông tin khách cần cung cấp...">
                     </div>
 
                     <div class="form-group" id="editPromotionWrap">
-                        <label class="form-label">Promotion</label>
+                        <label class="form-label">Chương trình khuyến mãi</label>
                         <div class="row">
                             <div class="col-md-4">
                                 <input name="promotion_name" class="form-control" value="{{ editing.promotion.name if editing.promotion else '' }}" placeholder="Tên chương trình">
@@ -425,9 +425,9 @@
                             <div class="col-md-4">
                                 <select name="promotion_type" class="form-select">
                                     <option value="">- Không áp dụng -</option>
-                                    <option value="percent_off" {% if editing.promotion and editing.promotion.promotion_type == 'percent_off' %}selected{% endif %}>Percent Off</option>
-                                    <option value="fixed_off" {% if editing.promotion and editing.promotion.promotion_type == 'fixed_off' %}selected{% endif %}>Fixed Off</option>
-                                    <option value="override_price" {% if editing.promotion and editing.promotion.promotion_type == 'override_price' %}selected{% endif %}>Override Price</option>
+                                    <option value="percent_off" {% if editing.promotion and editing.promotion.promotion_type == 'percent_off' %}selected{% endif %}>Giảm theo phần trăm</option>
+                                    <option value="fixed_off" {% if editing.promotion and editing.promotion.promotion_type == 'fixed_off' %}selected{% endif %}>Giảm số tiền cố định</option>
+                                    <option value="override_price" {% if editing.promotion and editing.promotion.promotion_type == 'override_price' %}selected{% endif %}>Chốt giá bán</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -436,7 +436,7 @@
                         </div>
                         <div class="row mt-2">
                             <div class="col-md-4">
-                                <input name="promotion_priority" type="number" class="form-control" value="{{ editing.promotion.priority if editing.promotion else 0 }}" placeholder="Priority">
+                                <input name="promotion_priority" type="number" class="form-control" value="{{ editing.promotion.priority if editing.promotion else 0 }}" placeholder="Độ ưu tiên">
                             </div>
                             <div class="col-md-4">
                                 <input name="promotion_start_at" class="form-control" value="{{ editing.promotion.starts_at if editing.promotion else '' }}" placeholder="2026-03-20T09:00:00">
@@ -447,7 +447,7 @@
                         </div>
                         <div class="form-check mt-2">
                             <input class="form-check-input" type="checkbox" name="promotion_is_active" id="editPromotionActive" value="1" {% if not editing.promotion or editing.promotion.is_active %}checked{% endif %}>
-                            <label class="form-check-label" for="editPromotionActive">Promotion active</label>
+                            <label class="form-check-label" for="editPromotionActive">Đang áp dụng khuyến mãi</label>
                         </div>
                     </div>
 

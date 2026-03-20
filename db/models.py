@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     username        TEXT,
     full_name       TEXT,
     is_admin        INTEGER DEFAULT 0,
+    disable_discounts INTEGER DEFAULT 0,
     is_banned       INTEGER DEFAULT 0,
     created_at      TEXT DEFAULT (datetime('now')),
     updated_at      TEXT DEFAULT (datetime('now'))

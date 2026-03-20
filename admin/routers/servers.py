@@ -33,19 +33,19 @@ router = protected_router(prefix="/servers", tags=["servers"])
 _API_TYPES = [
     {"value": "newapi", "label": "NewAPI"},
     {"value": "rixapi", "label": "RixAPI"},
-    {"value": "other", "label": "Other (Custom)"},
+    {"value": "other", "label": "Khác (tùy chỉnh)"},
 ]
 
 _AUTH_TYPES = [
     {"value": "header", "label": "Header + Bearer"},
-    {"value": "bearer_only", "label": "Bearer Only"},
-    {"value": "cookie", "label": "Cookie Auth"},
-    {"value": "none", "label": "No Auth"},
+    {"value": "bearer_only", "label": "Chỉ dùng Bearer"},
+    {"value": "cookie", "label": "Xác thực bằng cookie"},
+    {"value": "none", "label": "Không xác thực"},
 ]
 
 _DISCOUNT_STACK_MODES = [
-    {"value": "exclusive", "label": "Exclusive"},
-    {"value": "combine_selected_types", "label": "Combine Selected Types"},
+    {"value": "exclusive", "label": "Chỉ lấy ưu đãi tốt nhất"},
+    {"value": "combine_selected_types", "label": "Cộng dồn các loại đã chọn"},
 ]
 
 

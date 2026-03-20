@@ -13,9 +13,36 @@ from db.queries.pricing import (
     sync_server_pricing_version,
 )
 from db.queries.spend import get_user_server_total_spend
+from db.queries.users import get_user_by_id
 
 
 KEY_PRODUCT_TYPES = frozenset({"key_new", "key_topup"})
+
+
+async def _resolve_discount_policy(user_id: int | None) -> dict[str, Any]:
+    if not user_id:
+        return {
+            "discounts_enabled": True,
+            "reason": None,
+            "is_admin": False,
+            "disable_discounts": False,
+        }
+
+    user = await get_user_by_id(user_id)
+    is_admin = bool(user and user.get("is_admin"))
+    disable_discounts = bool(user and user.get("disable_discounts"))
+    reason = None
+    if is_admin:
+        reason = "admin_bypass"
+    elif disable_discounts:
+        reason = "user_discount_disabled"
+
+    return {
+        "discounts_enabled": not is_admin and not disable_discounts,
+        "reason": reason,
+        "is_admin": is_admin,
+        "disable_discounts": disable_discounts,
+    }
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -308,6 +335,7 @@ async def quote_api_order(
     custom_dollar: float | None = None,
     custom_quota: int | None = None,
 ) -> QuoteContext:
+    discount_policy = await _resolve_discount_policy(user_id)
     pricing_version = await get_active_server_pricing_version(server["id"])
     if pricing_version is None:
         pricing_version = await sync_server_pricing_version(server["id"])
@@ -323,7 +351,9 @@ async def quote_api_order(
         }
 
     current_spend = await get_user_server_total_spend(user_id, server["id"])
-    tier = await get_matching_discount_tier(server["id"], current_spend)
+    tier = None
+    if discount_policy["discounts_enabled"]:
+        tier = await get_matching_discount_tier(server["id"], current_spend)
     base_amount, quota_amount, dollar_amount = _base_api_amount(
         product=product,
         custom_dollar=custom_dollar,
@@ -381,6 +411,8 @@ async def quote_api_order(
             "quota_multiple": pricing_version.get("quota_multiple"),
             "stack_mode": server.get("discount_stack_mode") or "exclusive",
             "current_spend_before": current_spend,
+            "discounts_enabled": discount_policy["discounts_enabled"],
+            "discount_policy_reason": discount_policy["reason"],
             "tier_id": tier["id"] if tier else None,
             "tier_name": tier.get("name") if tier else None,
             "benefits": benefit_breakdown,
@@ -391,11 +423,12 @@ async def quote_api_order(
     )
 
 
-async def quote_non_api_product(product: dict) -> QuoteContext:
+async def quote_non_api_product(product: dict, *, user_id: int | None = None) -> QuoteContext:
     base_amount = _safe_int(product.get("price_vnd"), 0)
     discount_amount = 0
     promotion_snapshot: dict[str, Any] | None = None
-    promotions = await get_active_product_promotions(product["id"])
+    discount_policy = await _resolve_discount_policy(user_id)
+    promotions = await get_active_product_promotions(product["id"]) if discount_policy["discounts_enabled"] else []
     if promotions:
         promotion = promotions[0]
         promotion_type = str(promotion.get("promotion_type") or "")
@@ -426,6 +459,11 @@ async def quote_non_api_product(product: dict) -> QuoteContext:
         dollar_amount=_safe_float(product.get("dollar_amount"), 0.0),
         applied_tier_id=None,
         pricing_version_id=None,
-        pricing_snapshot={"kind": "product_price", "product_id": product["id"]},
+        pricing_snapshot={
+            "kind": "product_price",
+            "product_id": product["id"],
+            "discounts_enabled": discount_policy["discounts_enabled"],
+            "discount_policy_reason": discount_policy["reason"],
+        },
         promotion_snapshot=promotion_snapshot,
     )

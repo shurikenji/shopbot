@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Tổng quan{% endblock %}
 {% block content %}
 <div class="page-header">
     <h1>
@@ -11,7 +11,7 @@
                 <rect x="3" y="14" width="7" height="7"></rect>
             </svg>
         </span>
-        Dashboard
+        Bảng điều khiển
     </h1>
     <div class="page-actions">
         <span class="text-secondary" style="font-size: 0.9rem;">
@@ -24,7 +24,6 @@
     </div>
 </div>
 
-<!-- Stats Grid -->
 <div class="row g-4 mb-4">
     <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
@@ -88,7 +87,6 @@
     </div>
 </div>
 
-<!-- Charts Row -->
 <div class="row g-4">
     <div class="col-12 col-md-6">
         <div class="card">
@@ -131,7 +129,7 @@
                         <line x1="6" y1="6" x2="6.01" y2="6"></line>
                         <line x1="6" y1="18" x2="6.01" y2="18"></line>
                     </svg>
-                    Servers
+                    Máy chủ API
                 </h3>
                 <a href="/servers" class="btn btn-sm btn-outline-secondary">Xem tất cả</a>
             </div>
@@ -150,7 +148,7 @@
                             </td>
                             <td class="text-end">
                                 <span class="badge {{ 'badge-success' if srv.is_active else 'badge-secondary' }}">
-                                    {{ 'Hoạt động' if srv.is_active else 'Tắt' }}
+                                    {{ 'Hoạt động' if srv.is_active else 'Tạm tắt' }}
                                 </span>
                             </td>
                         </tr>
@@ -162,7 +160,6 @@
     </div>
 </div>
 
-<!-- Quick Actions -->
 <div class="row g-4 mt-2">
     <div class="col-12">
         <div class="card">
@@ -176,39 +173,13 @@
             </div>
             <div class="card-body">
                 <div class="d-flex flex-wrap gap-3">
-                    <a href="/products" class="btn btn-outline-primary">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Thêm sản phẩm
-                    </a>
-                    <a href="/orders" class="btn btn-outline-primary">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        Quản lý đơn hàng
-                    </a>
-                    <a href="/broadcast" class="btn btn-outline-primary">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4.93 4.93a10 10 0 0 1 14.14 0"></path>
-                            <path d="M7.76 7.76a6 6 0 0 1 8.48 0"></path>
-                            <line x1="12" y1="12" x2="12" y2="21"></line>
-                        </svg>
-                        Gửi thông báo
-                    </a>
-                    <a href="/settings" class="btn btn-outline-secondary">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                        </svg>
-                        Cài đặt
-                    </a>
+                    <a href="/products" class="btn btn-outline-primary">Thêm sản phẩm</a>
+                    <a href="/orders" class="btn btn-outline-primary">Quản lý đơn hàng</a>
+                    <a href="/broadcast" class="btn btn-outline-primary">Gửi thông báo</a>
+                    <a href="/settings" class="btn btn-outline-secondary">Mở cài đặt</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
