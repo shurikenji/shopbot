@@ -327,6 +327,22 @@ CREATE TABLE IF NOT EXISTS user_server_spend_summary (
     PRIMARY KEY (user_id, server_id)
 );
 
+-- ADMIN NOTIFICATION EVENTS (idempotent admin Telegram outbox)
+CREATE TABLE IF NOT EXISTS admin_notification_events (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id        INTEGER NOT NULL REFERENCES orders(id),
+    event_type      TEXT NOT NULL,
+    target_chat_id  INTEGER NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'pending',
+    message_text    TEXT,
+    error_message   TEXT,
+    sent_at         TEXT,
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now')),
+    UNIQUE(order_id, event_type, target_chat_id)
+);
+CREATE INDEX IF NOT EXISTS idx_admin_notify_order_event ON admin_notification_events(order_id, event_type);
+
 -- SETTINGS (key-value)
 CREATE TABLE IF NOT EXISTS settings (
     key             TEXT PRIMARY KEY,
@@ -382,6 +398,11 @@ _DEFAULT_SETTINGS = [
     ("poll_interval", "12", "Poll interval (giây)"),
     ("order_expire_min", "30", "Hết hạn đơn QR (phút)"),
     ("admin_telegram_ids", "", "Telegram IDs admin (phẩy)"),
+    ("admin_notify_enabled", "true", "Bật/tắt thông báo đơn hàng cho admin qua Telegram"),
+    ("admin_notify_order_completed", "true", "Thông báo khi đơn hàng hoàn thành"),
+    ("admin_notify_service_paid", "true", "Thông báo khi đơn dịch vụ đã thanh toán và cần xử lý"),
+    ("admin_notify_service_completed", "true", "Thông báo khi admin hoàn tất đơn dịch vụ"),
+    ("admin_notify_order_refunded", "true", "Thông báo khi đơn hàng được hoàn tiền"),
     ("vietqr_template", "compact2", "Template VietQR"),
     ("support_url", "https://t.me/yoursupport", "Link hỗ trợ"),
     ("support_text", "Liên hệ admin để được hỗ trợ", "Nội dung hỗ trợ"),

@@ -97,15 +97,35 @@ async def main() -> None:
             import admin.routers.orders as orders_router
 
             notifications: list[tuple[int, str]] = []
+            admin_events: list[tuple[str, str]] = []
 
             async def _fake_notify_user(user_id: int, text: str) -> None:
                 notifications.append((user_id, text))
+
+            async def _fake_notify_admin_service_completed(order: dict, *, bot=None) -> tuple[int, int, int]:
+                _ = bot
+                admin_events.append(("service_completed", order["order_code"]))
+                return (1, 0, 0)
+
+            async def _fake_notify_admin_order_refunded(
+                order: dict,
+                *,
+                bot=None,
+                reason: str | None = None,
+            ) -> tuple[int, int, int]:
+                _ = bot
+                admin_events.append(("order_refunded", f"{order['order_code']}|{reason or ''}"))
+                return (1, 0, 0)
 
             app = create_admin_app()
             app.dependency_overrides[require_admin] = lambda: {"admin": True}
 
             original_notify_user = orders_router.notify_user
+            original_notify_admin_service_completed = orders_router.notify_admin_service_completed
+            original_notify_admin_order_refunded = orders_router.notify_admin_order_refunded
             orders_router.notify_user = _fake_notify_user
+            orders_router.notify_admin_service_completed = _fake_notify_admin_service_completed
+            orders_router.notify_admin_order_refunded = _fake_notify_admin_order_refunded
             try:
                 with TestClient(app) as client:
                     detail_response = client.get(f"/orders/{refund_order_id}")
@@ -123,6 +143,7 @@ async def main() -> None:
                     assert completed_order is not None
                     assert completed_order["status"] == "completed"
                     assert any("ADMINCOMPLETE001" in text for _, text in notifications)
+                    assert ("service_completed", "ADMINCOMPLETE001") in admin_events
                     print("[OK] order_complete marks service upgrades completed and notifies the user")
 
                     refund_response = client.get(
@@ -136,11 +157,14 @@ async def main() -> None:
                     assert refunded_order["status"] == "refunded"
                     assert refunded_order["is_refunded"] == 1
                     assert any("ADMINREFUND001" in text for _, text in notifications)
+                    assert ("order_refunded", "ADMINREFUND001|Admin hoàn tiền") in admin_events
                     print("[OK] order_refund credits the wallet and redirects back to order detail")
 
                 print("\n=== ADMIN ORDER ACTION VERIFICATION PASSED ===")
             finally:
                 orders_router.notify_user = original_notify_user
+                orders_router.notify_admin_service_completed = original_notify_admin_service_completed
+                orders_router.notify_admin_order_refunded = original_notify_admin_order_refunded
         finally:
             await close_db()
             object.__setattr__(settings, "db_path", original_db_path)

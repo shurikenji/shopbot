@@ -58,9 +58,15 @@ async def main() -> None:
                 _ = bot
                 notifications.append(("user", user_id, text))
 
-            async def _fake_notify_admins(text: str, bot=None) -> None:
+            async def _fake_notify_admin_order_completed(order: dict, *, bot=None) -> tuple[int, int, int]:
                 _ = bot
-                notifications.append(("admin", None, text))
+                notifications.append(("admin_completed", None, order["order_code"]))
+                return (1, 0, 0)
+
+            async def _fake_notify_admin_service_paid(order: dict, *, bot=None) -> tuple[int, int, int]:
+                _ = bot
+                notifications.append(("admin_service_paid", None, order["order_code"]))
+                return (1, 0, 0)
 
             async def _fake_process_order(bot, order: dict) -> None:
                 _ = bot
@@ -68,12 +74,14 @@ async def main() -> None:
                 await payment_poller.update_order_status(order["id"], "processing")
 
             original_notify_user = payment_poller.notify_user
-            original_notify_admins = payment_poller.notify_admins
+            original_notify_admin_order_completed = payment_poller.notify_admin_order_completed
+            original_notify_admin_service_paid = payment_poller.notify_admin_service_paid
             original_fetch_transactions = payment_poller.fetch_transactions
             original_process_order = payment_poller._process_order
 
             payment_poller.notify_user = _fake_notify_user
-            payment_poller.notify_admins = _fake_notify_admins
+            payment_poller.notify_admin_order_completed = _fake_notify_admin_order_completed
+            payment_poller.notify_admin_service_paid = _fake_notify_admin_service_paid
             payment_poller._process_order = _fake_process_order
 
             try:
@@ -164,7 +172,8 @@ async def main() -> None:
                 print("\n=== PAYMENT POLLER VERIFICATION PASSED ===")
             finally:
                 payment_poller.notify_user = original_notify_user
-                payment_poller.notify_admins = original_notify_admins
+                payment_poller.notify_admin_order_completed = original_notify_admin_order_completed
+                payment_poller.notify_admin_service_paid = original_notify_admin_service_paid
                 payment_poller.fetch_transactions = original_fetch_transactions
                 payment_poller._process_order = original_process_order
         finally:

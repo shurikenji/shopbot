@@ -19,6 +19,14 @@ from db.queries.users import get_user_by_id
 logger = logging.getLogger(__name__)
 
 
+def _parse_chat_ids(raw_ids: str | None) -> list[int]:
+    return [
+        int(chunk.strip())
+        for chunk in (raw_ids or "").split(",")
+        if chunk.strip().isdigit()
+    ]
+
+
 @asynccontextmanager
 async def _resolve_bot(bot: Bot | None = None) -> AsyncIterator[Bot | None]:
     """Yield an existing bot or create a temporary one when needed."""
@@ -70,15 +78,7 @@ async def notify_admins(
     admin_ids_raw: str | None = None,
 ) -> tuple[int, int]:
     """Send a message to all configured admins."""
-    raw_ids = admin_ids_raw
-    if raw_ids is None:
-        raw_ids = await get_setting("admin_telegram_ids") or settings.admin_telegram_ids
-
-    admin_ids = [
-        int(chunk.strip())
-        for chunk in (raw_ids or "").split(",")
-        if chunk.strip().isdigit()
-    ]
+    admin_ids = await resolve_admin_chat_ids(admin_ids_raw=admin_ids_raw)
     if not admin_ids:
         return 0, 0
 
@@ -94,6 +94,14 @@ async def notify_admins(
             else:
                 failed += 1
         return sent, failed
+
+
+async def resolve_admin_chat_ids(*, admin_ids_raw: str | None = None) -> list[int]:
+    """Resolve configured admin Telegram chat ids."""
+    raw_ids = admin_ids_raw
+    if raw_ids is None:
+        raw_ids = await get_setting("admin_telegram_ids") or settings.admin_telegram_ids
+    return _parse_chat_ids(raw_ids)
 
 
 async def broadcast_text(

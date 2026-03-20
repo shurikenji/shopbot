@@ -15,15 +15,14 @@ from aiogram import Bot
 
 from bot.config import settings as env_settings
 from bot.services.api_clients import get_api_client
+from bot.services.admin_order_notifications import (
+    notify_admin_order_completed,
+    notify_admin_service_paid,
+)
 from bot.services.mbbank import extract_order_code, fetch_transactions
 from bot.services.spend_ledger import SpendLedgerService
-from bot.services.refund_service import (
-    refund_order,
-    refund_transaction_description,
-    refund_user_message,
-    refund_admin_message,
-)
-from bot.services.notifier import notify_admins, notify_user
+from bot.services.refund_service import refund_order
+from bot.services.notifier import notify_user
 from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar
 from db.queries.account_stocks import mark_account_sold
 from db.queries.logs import add_log
@@ -176,8 +175,6 @@ async def _process_order(bot: Bot, order: Order) -> None:
 
 async def _process_service_upgrade(bot: Bot, order: Order) -> None:
     """Thông báo cho user và admin rằng đơn nâng cấp dịch vụ cần xử lý tay."""
-    from db.queries.users import get_user_by_id
-
     user_input = order.get("user_input_data") or ""
     input_line = f"\n📝 Thông tin KH: <code>{user_input}</code>" if user_input else ""
     support_url = await get_setting("support_url", "https://t.me/admin")
@@ -191,24 +188,7 @@ async def _process_service_upgrade(bot: Bot, order: Order) -> None:
         ),
         bot=bot,
     )
-
-    user = await get_user_by_id(order["user_id"])
-    contact_line = ""
-    if user and user.get("telegram_id"):
-        contact_line = (
-            f"\n👉 <a href='tg://user?id={user['telegram_id']}'>💬 Bấm vào đây để inbox Khách</a>"
-        )
-
-    await notify_admins(
-        (
-            f"📦 Đơn <b>{order['order_code']}</b> cần xử lý!\n"
-            f"Loại: <b>service_upgrade</b>\n"
-            f"Product: {order.get('product_name', 'N/A')}"
-            f"{input_line}{contact_line}"
-        ),
-        bot=bot,
-    )
-
+    await notify_admin_service_paid(order, bot=bot)
 
 async def _process_key_new(bot: Bot, order: Order) -> None:
     """Tạo API key mới trên server được chọn."""
@@ -286,6 +266,9 @@ async def _process_key_new(bot: Bot, order: Order) -> None:
         server=f"<b>{server['name']}</b>",
     )
     await notify_user(order["user_id"], message, bot=bot)
+    fresh_order = await get_order_by_id(order["id"])
+    if fresh_order:
+        await notify_admin_order_completed(fresh_order, bot=bot)
 
 
 async def _process_key_topup(bot: Bot, order: Order) -> None:
@@ -369,6 +352,9 @@ async def _process_key_topup(bot: Bot, order: Order) -> None:
         dollar_after=f"<b>{quota_to_dollar(new_quota, mult)}</b>",
     )
     await notify_user(order["user_id"], message, bot=bot)
+    fresh_order = await get_order_by_id(order["id"])
+    if fresh_order:
+        await notify_admin_order_completed(fresh_order, bot=bot)
 
 
 async def _process_account_stocked(bot: Bot, order: Order) -> None:
@@ -407,6 +393,9 @@ async def _process_account_stocked(bot: Bot, order: Order) -> None:
         "⚠️ Vui lòng lưu thông tin cẩn thận!"
     )
     await notify_user(order["user_id"], message, bot=bot)
+    fresh_order = await get_order_by_id(order["id"])
+    if fresh_order:
+        await notify_admin_order_completed(fresh_order, bot=bot)
 
 
 async def _process_wallet_topup(bot: Bot, order: Order) -> None:
@@ -438,6 +427,9 @@ async def _process_wallet_topup(bot: Bot, order: Order) -> None:
         balance=f"<b>{format_vnd(new_balance)}</b>",
     )
     await notify_user(order["user_id"], message, bot=bot)
+    fresh_order = await get_order_by_id(order["id"])
+    if fresh_order:
+        await notify_admin_order_completed(fresh_order, bot=bot)
 
 
 async def _refund_order(bot: Bot, order: Order, reason: str) -> None:

@@ -10,6 +10,10 @@ from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
+from bot.services.admin_order_notifications import (
+    notify_admin_order_refunded,
+    notify_admin_service_completed,
+)
 from bot.services.notifier import notify_user
 from bot.services.spend_ledger import SpendLedgerService
 from bot.utils.formatting import format_vnd
@@ -116,6 +120,9 @@ async def order_complete(order_id: Annotated[int, Path()]):
 
     await update_order_status(order_id, "completed")
     await notify_user(order["user_id"], _completed_service_upgrade_message(order))
+    completed_order = await get_order_by_id(order_id)
+    if completed_order:
+        await notify_admin_service_completed(completed_order)
     return _redirect_to_order_detail(order_id)
 
 
@@ -150,5 +157,8 @@ async def order_refund(order_id: Annotated[int, Path()]):
         module="admin",
     )
     await notify_user(order["user_id"], _refund_notification_message(order, new_balance))
+    refunded_order = await get_order_by_id(order_id)
+    if refunded_order:
+        await notify_admin_order_refunded(refunded_order, reason="Admin hoàn tiền")
 
     return _redirect_to_order_detail(order_id)

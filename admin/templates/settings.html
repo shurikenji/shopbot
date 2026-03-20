@@ -210,6 +210,44 @@
                             </div>
                             <div class="col-12">
                                 <div class="form-group">
+                                    <label class="form-label">Thông báo Telegram cho admin</label>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="admin_notify_enabled" name="admin_notify_enabled" value="true" {% if all_settings.get('admin_notify_enabled', 'true') == 'true' %}checked{% endif %}>
+                                                <label class="form-check-label" for="admin_notify_enabled">Bật thông báo đơn hàng cho admin</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="admin_notify_order_completed" name="admin_notify_order_completed" value="true" {% if all_settings.get('admin_notify_order_completed', 'true') == 'true' %}checked{% endif %}>
+                                                <label class="form-check-label" for="admin_notify_order_completed">Thông báo khi đơn hoàn thành</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="admin_notify_service_paid" name="admin_notify_service_paid" value="true" {% if all_settings.get('admin_notify_service_paid', 'true') == 'true' %}checked{% endif %}>
+                                                <label class="form-check-label" for="admin_notify_service_paid">Thông báo khi đơn dịch vụ đã thanh toán</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="admin_notify_service_completed" name="admin_notify_service_completed" value="true" {% if all_settings.get('admin_notify_service_completed', 'true') == 'true' %}checked{% endif %}>
+                                                <label class="form-check-label" for="admin_notify_service_completed">Thông báo khi đơn dịch vụ hoàn tất</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="admin_notify_order_refunded" name="admin_notify_order_refunded" value="true" {% if all_settings.get('admin_notify_order_refunded', 'true') == 'true' %}checked{% endif %}>
+                                                <label class="form-check-label" for="admin_notify_order_refunded">Thông báo khi đơn được hoàn tiền</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-text">Danh sách nhận thông báo dùng từ trường Telegram ID quản trị ở trên, ngăn cách bằng dấu phẩy.</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
                                     <label class="form-label">Mật khẩu quản trị</label>
                                     <input name="admin_password" type="password" class="form-control" value="{{ all_settings.get('admin_password', '') }}">
                                 </div>

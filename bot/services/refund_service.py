@@ -10,7 +10,8 @@ from typing import Any
 
 from aiogram import Bot
 
-from bot.services.notifier import notify_admins, notify_user
+from bot.services.admin_order_notifications import notify_admin_order_refunded
+from bot.services.notifier import notify_user
 from bot.services.spend_ledger import SpendLedgerService
 from bot.utils.formatting import format_vnd
 from db.queries.logs import add_log
@@ -64,10 +65,7 @@ async def refund_order(
         ),
         bot=bot,
     )
-    await notify_admins(
-        refund_admin_message(order_code=order["order_code"], amount=amount, reason=reason),
-        bot=bot,
-    )
+    await notify_admin_order_refunded(order, bot=bot, reason=reason)
 
 
 def refund_transaction_description(reason: str) -> str:

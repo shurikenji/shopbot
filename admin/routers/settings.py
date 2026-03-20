@@ -31,6 +31,11 @@ _EDITABLE_KEYS = [
     "pagination_size",
     "admin_telegram_ids",
     "admin_password",
+    "admin_notify_enabled",
+    "admin_notify_order_completed",
+    "admin_notify_service_paid",
+    "admin_notify_service_completed",
+    "admin_notify_order_refunded",
     "msg_key_new",
     "msg_key_topup",
     "msg_chatgpt",
@@ -85,6 +90,14 @@ async def settings_save(request: Request):
         if value is not None:
             await set_setting(key, value)
     await set_setting("ai_enabled", "true" if form.get("ai_enabled") else "false")
+    for key in (
+        "admin_notify_enabled",
+        "admin_notify_order_completed",
+        "admin_notify_service_paid",
+        "admin_notify_service_completed",
+        "admin_notify_order_refunded",
+    ):
+        await set_setting(key, "true" if form.get(key) else "false")
     return RedirectResponse("/settings?saved=1", status_code=303)
 
 
