@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_entity_controls.html" import entity_state_badge, entity_toggle_form, entity_state_checkbox %}
 {% block title %}Sản phẩm{% endblock %}
 {% block content %}
 <div class="product-shell">
@@ -32,7 +33,7 @@
                 <span class="product-kpi-value">{{ products|length }}</span>
             </div>
             <div class="product-kpi">
-                <span class="product-kpi-label">Servers hoạt động</span>
+                <span class="product-kpi-label">Servers đang bật</span>
                 <span class="product-kpi-value">{{ servers|selectattr('is_active')|list|length }}</span>
             </div>
             <div class="product-kpi">
@@ -57,12 +58,14 @@
                     <th>Loại giao hàng</th>
                     <th>Giá</th>
                     <th>Trạng thái</th>
+                    <th>Kho</th>
                     <th>Thao tác</th>
                 </tr>
             </thead>
             <tbody>
                 {% for p in products %}
                 <tr>
+                    {% set next_url = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
                     <td data-label="Sản phẩm">
                         <div class="product-title">{{ p.name }}</div>
                         {% if p.description_short %}
@@ -119,15 +122,24 @@
                         </div>
                     </td>
                     <td data-label="Trạng thái">
-                        <div class="product-status">
-                            <span class="badge {{ 'badge-success' if p.is_active else 'badge-secondary' }}">
-                                {{ 'Bật' if p.is_active else 'Tắt' }}
-                            </span>
-                            <span class="product-meta">Kho: {{ '∞' if p.stock == -1 else p.stock }}</span>
+                        <div class="product-status">{{ entity_state_badge(p.is_active) }}</div>
+                    </td>
+                    <td data-label="Kho">
+                        <div class="product-stock">
+                            {% if p.stock == -1 %}
+                            <span class="product-stock-value">Không giới hạn</span>
+                            {% elif p.product_type == 'account_stocked' %}
+                            <span class="product-stock-value">{{ p.stock }}</span>
+                            <span class="product-meta">Tài khoản khả dụng</span>
+                            {% else %}
+                            <span class="product-stock-value">{{ p.stock }}</span>
+                            <span class="product-meta">Sẵn sàng bán</span>
+                            {% endif %}
                         </div>
                     </td>
                     <td data-label="Thao tác">
                         <div class="product-actions">
+                            {{ entity_toggle_form('/products/' ~ p.id ~ '/toggle-active', p.is_active, next_url) }}
                             <a href="/products/{{ p.id }}/edit" class="btn btn-sm btn-outline-primary">Sửa</a>
                             <a href="/products/{{ p.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
                         </div>
@@ -374,10 +386,7 @@
                         <textarea name="description" class="form-control" rows="3">{{ editing.description or '' }}</textarea>
                     </div>
 
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
-                        <label class="form-check-label" for="editActive">Kích hoạt</label>
-                    </div>
+                    {{ entity_state_checkbox('editActive', editing.is_active) }}
                 </div>
                 <div class="modal-footer">
                     <a href="/products" class="btn btn-outline-secondary">Hủy</a>

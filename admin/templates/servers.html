@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_entity_controls.html" import entity_state_badge, entity_toggle_form, entity_state_checkbox %}
 {% block title %}Servers{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -42,6 +43,7 @@
         <tbody>
             {% for s in servers %}
             <tr>
+                {% set next_url = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
                 <td>{{ s.id }}</td>
                 <td>
                     <span class="fw-bold">{{ s.name }}</span>
@@ -67,14 +69,10 @@
                     <span class="badge badge-secondary">OFF</span>
                     {% endif %}
                 </td>
-                <td>
-                    <span class="status-badge {{ 'paid' if s.is_active else 'cancelled' }}">
-                        <span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor;"></span>
-                        {{ 'Active' if s.is_active else 'Off' }}
-                    </span>
-                </td>
+                <td>{{ entity_state_badge(s.is_active) }}</td>
                 <td>
                     <div class="actions">
+                        {{ entity_toggle_form('/servers/' ~ s.id ~ '/toggle-active', s.is_active, next_url) }}
                         <a href="/servers/{{ s.id }}/groups" class="btn btn-sm btn-outline-secondary" title="Groups">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -242,10 +240,7 @@
                     <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('edit')">Tải groups</button></div>
                     <div id="edit_group_preview" class="mb-2" style="display:none;"></div>
 
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {% if editing.is_active %}checked{% endif %}>
-                        <label class="form-check-label" for="editActive">Active</label>
-                    </div>
+                    {{ entity_state_checkbox('editActive', editing.is_active) }}
                 </div>
                 <div class="modal-footer">
                     <a href="/servers" class="btn btn-outline-secondary">Hủy</a>

@@ -15,6 +15,7 @@ SCRIPTS = [
     ROOT_DIR / "verification" / "verify_server_groups.py",
     ROOT_DIR / "verification" / "verify_server_queries.py",
     ROOT_DIR / "verification" / "verify_ai_translator.py",
+    ROOT_DIR / "verification" / "verify_admin_entity_states.py",
 ]
 
 

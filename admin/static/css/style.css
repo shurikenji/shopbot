@@ -515,6 +515,11 @@ code {
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    flex-wrap: wrap;
+}
+
+.table .actions form {
+    margin: 0;
 }
 
 /* ============================================
@@ -838,6 +843,74 @@ textarea.form-control {
 .status-badge.cancelled {
     background: var(--background-subtle);
     color: var(--text-secondary);
+}
+
+.entity-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.34rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.entity-state__dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: currentColor;
+    flex: 0 0 auto;
+}
+
+.entity-state--on {
+    background: var(--success-bg);
+    color: #047857;
+}
+
+.entity-state--off {
+    background: var(--background-subtle);
+    color: var(--text-secondary);
+}
+
+.entity-toggle-form {
+    display: inline-flex;
+    margin: 0;
+}
+
+.entity-toggle-btn {
+    min-width: 56px;
+}
+
+.entity-toggle-btn--enable {
+    border-color: rgba(4, 120, 87, 0.18);
+    background: rgba(4, 120, 87, 0.08);
+    color: #047857;
+}
+
+.entity-toggle-btn--enable:hover {
+    background: rgba(4, 120, 87, 0.14);
+    color: #065f46;
+}
+
+.entity-toggle-btn--disable {
+    border-color: rgba(180, 83, 9, 0.18);
+    background: rgba(245, 158, 11, 0.1);
+    color: #b45309;
+}
+
+.entity-toggle-btn--disable:hover {
+    background: rgba(245, 158, 11, 0.16);
+    color: #92400e;
+}
+
+.entity-checkbox {
+    margin-top: 0.25rem;
+}
+
+.entity-checkbox .form-check-label {
+    font-weight: 600;
 }
 
 /* ============================================
@@ -1574,10 +1647,25 @@ textarea.form-control {
     min-width: 80px;
 }
 
+.product-stock {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 110px;
+}
+
+.product-stock-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
 .product-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+}
+
+.product-actions form {
+    margin: 0;
 }
 
 .product-flash {

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import aiosqlite
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -20,6 +21,17 @@ from db.queries.categories import (
 )
 
 router = protected_router(prefix="/categories", tags=["categories"])
+
+
+def _resolve_redirect_target(candidate: object, fallback: str) -> str:
+    if candidate is not None:
+        value = str(candidate).strip()
+        if value.startswith("/"):
+            return value
+        parsed = urlsplit(value)
+        if parsed.path.startswith("/"):
+            return parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    return fallback
 
 
 def _build_flash_context(request: Request) -> dict:
@@ -111,6 +123,21 @@ async def categories_edit_submit(request: Request, cat_id: Annotated[int, Path()
         is_active=1 if form.get("is_active") else 0,
     )
     return RedirectResponse("/categories", status_code=303)
+
+
+@router.post("/{cat_id}/toggle-active")
+async def categories_toggle_active(request: Request, cat_id: Annotated[int, Path()]):
+    category = await get_category_by_id(cat_id)
+    if not category:
+        return RedirectResponse("/categories?error=not_found", status_code=303)
+
+    form = await request.form()
+    redirect_target = _resolve_redirect_target(
+        form.get("next") or request.headers.get("referer"),
+        "/categories",
+    )
+    await update_category(cat_id, is_active=0 if category.get("is_active") else 1)
+    return RedirectResponse(redirect_target, status_code=303)
 
 
 @router.get("/{cat_id}/delete")

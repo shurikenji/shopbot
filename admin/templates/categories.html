@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_entity_controls.html" import entity_state_badge, entity_toggle_form, entity_state_checkbox %}
 {% block title %}Danh mục{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -38,6 +39,7 @@
         <tbody>
             {% for c in categories %}
             <tr>
+                {% set next_url = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
                 <td>{{ c.id }}</td>
                 <td>
                     <span style="font-size: 1.5rem;">{{ c.icon }}</span>
@@ -54,13 +56,10 @@
                     </span>
                 </td>
                 <td>{{ c.sort_order }}</td>
-                <td>
-                    <span class="badge {{ 'badge-success' if c.is_active else 'badge-secondary' }}">
-                        {{ 'Hoạt động' if c.is_active else 'Tắt' }}
-                    </span>
-                </td>
+                <td>{{ entity_state_badge(c.is_active) }}</td>
                 <td>
                     <div class="actions">
+                        {{ entity_toggle_form('/categories/' ~ c.id ~ '/toggle-active', c.is_active, next_url) }}
                         <a href="/categories/{{ c.id }}/edit" class="btn btn-sm btn-outline-primary">Sửa</a>
                         <a href="/categories/{{ c.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
                     </div>
@@ -146,10 +145,7 @@
                         <label class="form-label">Thứ tự</label>
                         <input name="sort_order" type="number" class="form-control" value="{{ editing.sort_order }}">
                     </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="is_active" id="editActive" {{ 'checked' if editing.is_active }}>
-                        <label class="form-check-label" for="editActive">Kích hoạt</label>
-                    </div>
+                    {{ entity_state_checkbox('editActive', editing.is_active) }}
                 </div>
                 <div class="modal-footer">
                     <a href="/categories" class="btn btn-outline-secondary">Hủy</a>

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -63,6 +64,17 @@ async def _load_servers_for_page() -> list[dict]:
 
 def _redirect_to_servers() -> RedirectResponse:
     return RedirectResponse("/servers", status_code=303)
+
+
+def _resolve_redirect_target(candidate: object, fallback: str) -> str:
+    if candidate is not None:
+        value = str(candidate).strip()
+        if value.startswith("/"):
+            return value
+        parsed = urlsplit(value)
+        if parsed.path.startswith("/"):
+            return parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    return fallback
 
 
 def _server_not_found_payload() -> dict[str, object]:
@@ -419,6 +431,21 @@ async def servers_edit_submit(request: Request, server_id: Annotated[int, Path()
     payload["is_active"] = 1 if form.get("is_active") else 0
     await update_server(server_id, **payload)
     return _redirect_to_servers()
+
+
+@router.post("/{server_id}/toggle-active")
+async def servers_toggle_active(request: Request, server_id: Annotated[int, Path()]):
+    server = await get_server_by_id(server_id)
+    if not server:
+        return _redirect_to_servers()
+
+    form = await request.form()
+    redirect_target = _resolve_redirect_target(
+        form.get("next") or request.headers.get("referer"),
+        "/servers",
+    )
+    await update_server(server_id, is_active=0 if server.get("is_active") else 1)
+    return RedirectResponse(redirect_target, status_code=303)
 
 
 @router.get("/{server_id}/delete")

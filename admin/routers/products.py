@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Annotated
 from urllib.parse import urlencode
+from urllib.parse import urlsplit
 
 import aiosqlite
 from fastapi import Path, Request
@@ -101,6 +102,17 @@ def _build_form_redirect(product_id: int | None, error: str) -> RedirectResponse
     target = f"/products/{product_id}/edit" if product_id else "/products"
     separator = "&" if "?" in target else "?"
     return RedirectResponse(f"{target}{separator}error={error}", status_code=303)
+
+
+def _resolve_redirect_target(candidate: object, fallback: str) -> str:
+    if candidate is not None:
+        value = str(candidate).strip()
+        if value.startswith("/"):
+            return value
+        parsed = urlsplit(value)
+        if parsed.path.startswith("/"):
+            return parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    return fallback
 
 
 async def _build_product_payload(
@@ -250,6 +262,21 @@ async def products_edit_submit(request: Request, product_id: Annotated[int, Path
         input_prompt=payload["input_prompt"],
     )
     return RedirectResponse("/products", status_code=303)
+
+
+@router.post("/{product_id}/toggle-active")
+async def products_toggle_active(request: Request, product_id: Annotated[int, Path()]):
+    product = await get_product_by_id(product_id)
+    if not product:
+        return RedirectResponse("/products?error=not_found", status_code=303)
+
+    form = await request.form()
+    redirect_target = _resolve_redirect_target(
+        form.get("next") or request.headers.get("referer"),
+        "/products",
+    )
+    await update_product(product_id, is_active=0 if product.get("is_active") else 1)
+    return RedirectResponse(redirect_target, status_code=303)
 
 
 @router.get("/{product_id}/delete")
