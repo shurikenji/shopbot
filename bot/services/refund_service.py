@@ -11,6 +11,7 @@ from typing import Any
 from aiogram import Bot
 
 from bot.services.notifier import notify_admins, notify_user
+from bot.services.spend_ledger import SpendLedgerService
 from bot.utils.formatting import format_vnd
 from db.queries.logs import add_log
 
@@ -45,6 +46,7 @@ async def refund_order(
     if new_balance is None:
         logger.warning("Order %s already refunded or missing, skipping", order["order_code"])
         return
+    await SpendLedgerService.record_order_refund(order)
 
     await add_log(
         f"Refund {format_vnd(amount)} for order {order['order_code']}: {reason}",

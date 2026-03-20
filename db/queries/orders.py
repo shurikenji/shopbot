@@ -23,6 +23,8 @@ _ORDER_UPDATEABLE_FIELDS = frozenset(
         "refund_reason",
         "refunded_at",
         "user_input_data",
+        "pricing_snapshot",
+        "promotion_snapshot",
     }
 )
 _ORDER_SELECT = "SELECT * FROM orders"
@@ -64,14 +66,24 @@ async def create_order(
     custom_quota: Optional[int] = None,
     qr_content: Optional[str] = None,
     expired_at: Optional[str] = None,
+    base_amount: Optional[int] = None,
+    discount_amount: int = 0,
+    cashback_amount: int = 0,
+    spend_credit_amount: int = 0,
+    pricing_version_id: Optional[int] = None,
+    applied_tier_id: Optional[int] = None,
+    pricing_snapshot: Optional[str] = None,
+    promotion_snapshot: Optional[str] = None,
 ) -> int:
     """Tạo đơn hàng mới, trả về ID."""
     cursor = await execute_commit(
         """INSERT INTO orders
            (order_code, user_id, product_id, product_name, product_type,
             amount, payment_method, server_id, group_name, existing_key,
-            custom_quota, qr_content, expired_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            custom_quota, qr_content, expired_at, base_amount, discount_amount,
+            cashback_amount, spend_credit_amount, pricing_version_id,
+            applied_tier_id, pricing_snapshot, promotion_snapshot)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             order_code,
             user_id,
@@ -86,6 +98,14 @@ async def create_order(
             custom_quota,
             qr_content,
             expired_at,
+            base_amount,
+            discount_amount,
+            cashback_amount,
+            spend_credit_amount,
+            pricing_version_id,
+            applied_tier_id,
+            pricing_snapshot,
+            promotion_snapshot,
         ),
     )
     return cursor.lastrowid  # type: ignore[return-value]

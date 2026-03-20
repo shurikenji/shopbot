@@ -45,6 +45,24 @@
                         <th>Số tiền</th>
                         <td><span class="fw-bold" style="font-size: 1.1rem;">{{ format_vnd(order.amount) }}</span></td>
                     </tr>
+                    {% if order.base_amount %}
+                    <tr>
+                        <th>Giá gốc</th>
+                        <td>{{ format_vnd(order.base_amount) }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if order.discount_amount %}
+                    <tr>
+                        <th>Giảm giá</th>
+                        <td>-{{ format_vnd(order.discount_amount) }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if order.cashback_amount %}
+                    <tr>
+                        <th>Cashback</th>
+                        <td>{{ format_vnd(order.cashback_amount) }}</td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <th>Thanh toán</th>
                         <td>

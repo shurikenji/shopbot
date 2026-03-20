@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS api_servers (
     quota_per_unit  INTEGER NOT NULL,
     is_active       INTEGER DEFAULT 1,
     sort_order      INTEGER DEFAULT 0,
+    default_group   TEXT,
     -- New fields for multi-type support
     api_type                TEXT DEFAULT 'newapi',
     supports_multi_group   INTEGER DEFAULT 0,
@@ -71,6 +72,9 @@ CREATE TABLE IF NOT EXISTS api_servers (
     -- Custom
     custom_headers         TEXT,
     groups_endpoint        TEXT,
+    import_spend_accrual_enabled INTEGER DEFAULT 0,
+    discount_stack_mode    TEXT DEFAULT 'exclusive',
+    discount_allowed_stack_types TEXT DEFAULT 'cashback',
     created_at      TEXT DEFAULT (datetime('now')),
     updated_at      TEXT DEFAULT (datetime('now'))
 );
@@ -160,6 +164,14 @@ CREATE TABLE IF NOT EXISTS orders (
     custom_quota    INTEGER,
     delivery_info   TEXT,
     user_input_data TEXT,
+    base_amount     INTEGER,
+    discount_amount INTEGER DEFAULT 0,
+    cashback_amount INTEGER DEFAULT 0,
+    spend_credit_amount INTEGER DEFAULT 0,
+    pricing_version_id INTEGER,
+    applied_tier_id INTEGER,
+    pricing_snapshot TEXT,
+    promotion_snapshot TEXT,
     mb_transaction_id TEXT,
     qr_content      TEXT,
     paid_at         TEXT,
@@ -174,6 +186,70 @@ CREATE INDEX IF NOT EXISTS idx_ord_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_ord_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_ord_code ON orders(order_code);
 
+-- SERVER PRICING VERSIONS
+CREATE TABLE IF NOT EXISTS server_pricing_versions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id       INTEGER NOT NULL REFERENCES api_servers(id),
+    version_code    INTEGER NOT NULL,
+    name            TEXT,
+    effective_from  TEXT NOT NULL,
+    price_per_unit  INTEGER NOT NULL,
+    quota_per_unit  INTEGER NOT NULL,
+    dollar_per_unit REAL NOT NULL DEFAULT 10.0,
+    quota_multiple  REAL NOT NULL DEFAULT 1.0,
+    rounding_mode   TEXT DEFAULT 'round',
+    rounding_step   INTEGER DEFAULT 1,
+    min_payable_amount INTEGER DEFAULT 1000,
+    is_active       INTEGER DEFAULT 1,
+    created_at      TEXT DEFAULT (datetime('now')),
+    UNIQUE(server_id, version_code)
+);
+CREATE INDEX IF NOT EXISTS idx_spv_server_effective ON server_pricing_versions(server_id, effective_from);
+
+-- SERVER DISCOUNT TIERS
+CREATE TABLE IF NOT EXISTS server_discount_tiers (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id       INTEGER NOT NULL REFERENCES api_servers(id),
+    name            TEXT NOT NULL,
+    min_spend_vnd   INTEGER NOT NULL,
+    is_active       INTEGER DEFAULT 1,
+    sort_order      INTEGER DEFAULT 0,
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sdt_server ON server_discount_tiers(server_id, min_spend_vnd);
+
+-- SERVER TIER BENEFITS
+CREATE TABLE IF NOT EXISTS server_tier_benefits (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    tier_id         INTEGER NOT NULL REFERENCES server_discount_tiers(id),
+    benefit_type    TEXT NOT NULL,
+    value_amount    REAL,
+    config_json     TEXT,
+    is_active       INTEGER DEFAULT 1,
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_stb_tier ON server_tier_benefits(tier_id);
+
+-- PRODUCT PROMOTIONS
+CREATE TABLE IF NOT EXISTS product_promotions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id      INTEGER NOT NULL REFERENCES products(id),
+    name            TEXT NOT NULL,
+    promotion_type  TEXT NOT NULL,
+    value_amount    REAL,
+    config_json     TEXT,
+    conditions_json TEXT,
+    starts_at       TEXT,
+    ends_at         TEXT,
+    priority        INTEGER DEFAULT 0,
+    is_active       INTEGER DEFAULT 1,
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_pp_product ON product_promotions(product_id, priority);
+
 -- USER KEYS (Keys của tôi)
 CREATE TABLE IF NOT EXISTS user_keys (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -187,6 +263,68 @@ CREATE TABLE IF NOT EXISTS user_keys (
     updated_at      TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_ukeys_user ON user_keys(user_id);
+
+-- API KEY REGISTRY
+CREATE TABLE IF NOT EXISTS api_key_registry (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id       INTEGER NOT NULL REFERENCES api_servers(id),
+    api_key_hash    TEXT NOT NULL,
+    owner_user_id   INTEGER NOT NULL REFERENCES users(id),
+    masked_key      TEXT,
+    last_observed_total_quota INTEGER DEFAULT 0,
+    last_pricing_version_id INTEGER REFERENCES server_pricing_versions(id),
+    first_seen_at   TEXT DEFAULT (datetime('now')),
+    last_seen_at    TEXT DEFAULT (datetime('now')),
+    is_owner_locked INTEGER DEFAULT 1,
+    UNIQUE(server_id, api_key_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_akr_owner ON api_key_registry(owner_user_id, server_id);
+
+-- API KEY VALUATION EVENTS
+CREATE TABLE IF NOT EXISTS api_key_valuation_events (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id       INTEGER NOT NULL REFERENCES api_servers(id),
+    api_key_registry_id INTEGER REFERENCES api_key_registry(id),
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    pricing_version_id INTEGER REFERENCES server_pricing_versions(id),
+    source          TEXT NOT NULL,
+    source_ref      TEXT,
+    status          TEXT NOT NULL,
+    observed_total_quota INTEGER DEFAULT 0,
+    previous_recorded_quota INTEGER DEFAULT 0,
+    credited_delta_quota INTEGER DEFAULT 0,
+    credited_value_vnd INTEGER DEFAULT 0,
+    detail_json     TEXT,
+    created_at      TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_akve_registry ON api_key_valuation_events(api_key_registry_id, created_at);
+
+-- SPEND LEDGER
+CREATE TABLE IF NOT EXISTS spend_ledger (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    server_id       INTEGER NOT NULL REFERENCES api_servers(id),
+    source_type     TEXT NOT NULL,
+    source_ref      TEXT NOT NULL,
+    amount          INTEGER NOT NULL,
+    direction       TEXT NOT NULL,
+    description     TEXT,
+    detail_json     TEXT,
+    created_at      TEXT DEFAULT (datetime('now')),
+    UNIQUE(source_type, source_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_spend_ledger_user_server ON spend_ledger(user_id, server_id, created_at);
+
+-- USER SERVER SPEND SUMMARY
+CREATE TABLE IF NOT EXISTS user_server_spend_summary (
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    server_id       INTEGER NOT NULL REFERENCES api_servers(id),
+    total_spend_vnd INTEGER DEFAULT 0,
+    last_ledger_id  INTEGER REFERENCES spend_ledger(id),
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, server_id)
+);
 
 -- SETTINGS (key-value)
 CREATE TABLE IF NOT EXISTS settings (

@@ -260,6 +260,41 @@
                         <input name="input_prompt" class="form-control" placeholder="Nhập thông tin khách cần cung cấp...">
                     </div>
 
+                    <div class="form-group" id="addPromotionWrap">
+                        <label class="form-label">Promotion</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <input name="promotion_name" class="form-control" placeholder="Tên chương trình">
+                            </div>
+                            <div class="col-md-4">
+                                <select name="promotion_type" class="form-select">
+                                    <option value="">- Không áp dụng -</option>
+                                    <option value="percent_off">Percent Off</option>
+                                    <option value="fixed_off">Fixed Off</option>
+                                    <option value="override_price">Override Price</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input name="promotion_value" type="number" step="0.01" class="form-control" placeholder="Giá trị">
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <input name="promotion_priority" type="number" class="form-control" value="0" placeholder="Priority">
+                            </div>
+                            <div class="col-md-4">
+                                <input name="promotion_start_at" class="form-control" placeholder="2026-03-20T09:00:00">
+                            </div>
+                            <div class="col-md-4">
+                                <input name="promotion_end_at" class="form-control" placeholder="2026-03-31T23:59:59">
+                            </div>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="promotion_is_active" id="addPromotionActive" value="1" checked>
+                            <label class="form-check-label" for="addPromotionActive">Promotion active</label>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">Mô tả</label>
                         <textarea name="description" class="form-control" rows="3"></textarea>
@@ -379,6 +414,41 @@
                     <div class="form-group" id="editInputPromptWrap" style="display:none;">
                         <label class="form-label">Input prompt</label>
                         <input name="input_prompt" class="form-control" value="{{ editing.input_prompt or '' }}" placeholder="Nhập thông tin khách cần cung cấp...">
+                    </div>
+
+                    <div class="form-group" id="editPromotionWrap">
+                        <label class="form-label">Promotion</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <input name="promotion_name" class="form-control" value="{{ editing.promotion.name if editing.promotion else '' }}" placeholder="Tên chương trình">
+                            </div>
+                            <div class="col-md-4">
+                                <select name="promotion_type" class="form-select">
+                                    <option value="">- Không áp dụng -</option>
+                                    <option value="percent_off" {% if editing.promotion and editing.promotion.promotion_type == 'percent_off' %}selected{% endif %}>Percent Off</option>
+                                    <option value="fixed_off" {% if editing.promotion and editing.promotion.promotion_type == 'fixed_off' %}selected{% endif %}>Fixed Off</option>
+                                    <option value="override_price" {% if editing.promotion and editing.promotion.promotion_type == 'override_price' %}selected{% endif %}>Override Price</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input name="promotion_value" type="number" step="0.01" class="form-control" value="{{ editing.promotion.value_amount if editing.promotion else '' }}" placeholder="Giá trị">
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <input name="promotion_priority" type="number" class="form-control" value="{{ editing.promotion.priority if editing.promotion else 0 }}" placeholder="Priority">
+                            </div>
+                            <div class="col-md-4">
+                                <input name="promotion_start_at" class="form-control" value="{{ editing.promotion.starts_at if editing.promotion else '' }}" placeholder="2026-03-20T09:00:00">
+                            </div>
+                            <div class="col-md-4">
+                                <input name="promotion_end_at" class="form-control" value="{{ editing.promotion.ends_at if editing.promotion else '' }}" placeholder="2026-03-31T23:59:59">
+                            </div>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="promotion_is_active" id="editPromotionActive" value="1" {% if not editing.promotion or editing.promotion.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="editPromotionActive">Promotion active</label>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -530,6 +600,7 @@
         document.getElementById('addGroupWrap').style.display = isKeyNew ? '' : 'none';
         document.getElementById('addFormatWrap').style.display = isAccount ? '' : 'none';
         document.getElementById('addInputPromptWrap').style.display = isService ? '' : 'none';
+        document.getElementById('addPromotionWrap').style.display = isKey ? 'none' : '';
 
         const stockInput = document.querySelector("#addModal input[name='stock']");
         if (stockInput) {
@@ -557,6 +628,7 @@
         document.getElementById('editGroupWrap').style.display = isKeyNew ? '' : 'none';
         document.getElementById('editFormatWrap').style.display = isAccount ? '' : 'none';
         document.getElementById('editInputPromptWrap').style.display = isService ? '' : 'none';
+        document.getElementById('editPromotionWrap').style.display = isKey ? 'none' : '';
 
         const stockInput = document.querySelector("#editForm input[name='stock']");
         if (stockInput) {

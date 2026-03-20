@@ -30,6 +30,17 @@ _BEST_EFFORT_MIGRATIONS = [
     "ALTER TABLE api_servers ADD COLUMN auth_cookie TEXT",
     "ALTER TABLE api_servers ADD COLUMN custom_headers TEXT",
     "ALTER TABLE api_servers ADD COLUMN groups_endpoint TEXT",
+    "ALTER TABLE api_servers ADD COLUMN import_spend_accrual_enabled INTEGER DEFAULT 0",
+    "ALTER TABLE api_servers ADD COLUMN discount_stack_mode TEXT DEFAULT 'exclusive'",
+    "ALTER TABLE api_servers ADD COLUMN discount_allowed_stack_types TEXT DEFAULT 'cashback'",
+    "ALTER TABLE orders ADD COLUMN base_amount INTEGER",
+    "ALTER TABLE orders ADD COLUMN discount_amount INTEGER DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN cashback_amount INTEGER DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN spend_credit_amount INTEGER DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN pricing_version_id INTEGER",
+    "ALTER TABLE orders ADD COLUMN applied_tier_id INTEGER",
+    "ALTER TABLE orders ADD COLUMN pricing_snapshot TEXT",
+    "ALTER TABLE orders ADD COLUMN promotion_snapshot TEXT",
     """UPDATE orders
        SET payment_method = 'wallet',
            updated_at = datetime('now')

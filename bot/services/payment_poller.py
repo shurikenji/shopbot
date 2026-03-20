@@ -16,6 +16,7 @@ from aiogram import Bot
 from bot.config import settings as env_settings
 from bot.services.api_clients import get_api_client
 from bot.services.mbbank import extract_order_code, fetch_transactions
+from bot.services.spend_ledger import SpendLedgerService
 from bot.services.refund_service import (
     refund_order,
     refund_transaction_description,
@@ -260,6 +261,7 @@ async def _process_key_new(bot: Bot, order: Order) -> None:
         label=mask_api_key(full_key),
     )
     await update_order_status(order["id"], "completed", api_key=full_key, quota_after=quota)
+    await SpendLedgerService.record_order_completion(order)
     await add_log(
         f"Key mới tạo cho order {order['order_code']}: {mask_api_key(full_key)}",
         module="poller",
@@ -339,6 +341,7 @@ async def _process_key_topup(bot: Bot, order: Order) -> None:
         quota_before=current_quota,
         quota_after=new_quota,
     )
+    await SpendLedgerService.record_order_completion(order)
     await add_log(
         (
             f"Topup key cho order {order['order_code']}: "

@@ -10,6 +10,7 @@ Nhiệm vụ:
 from __future__ import annotations
 from bot.utils.time_utils import get_now_vn
 
+import json
 import logging
 
 from aiogram import Router, F
@@ -24,6 +25,7 @@ from bot.callback_data.factories import (
 from bot.keyboards.inline_kb import (
     categories_kb, key_action_kb, products_kb, back_only_kb,
 )
+from bot.services.pricing_resolver import quote_api_order, quote_non_api_product
 from db.queries.categories import get_active_categories, get_category_by_id
 from db.queries.products import get_active_products_by_category, get_product_by_id
 from db.queries.settings import get_setting_int
@@ -228,12 +230,26 @@ async def _handle_standard_product(
         await callback.answer("❌ Gói nạp thêm phải có giá trị tối thiểu $1.", show_alert=True)
         return
 
+    if ptype in ("key_new", "key_topup") and server:
+        quote = await quote_api_order(
+            user_id=db_user["id"],
+            server=server,
+            product=product,
+        )
+    else:
+        quote = await quote_non_api_product(product)
+
     # Build product detail text
     lines = [
         f"📦 <b>{product['name']}</b>",
         f"━━━━━━━━━━━━━━━━━━━━",
-        f"💰 Giá: <b>{format_vnd(product['price_vnd'])}</b>",
+        f"💰 Giá: <b>{format_vnd(quote.payable_amount)}</b>",
     ]
+    if quote.discount_amount > 0:
+        lines.append(f"🏷 Giá gốc: <b>{format_vnd(quote.base_amount)}</b>")
+        lines.append(f"💸 Giảm giá: <b>-{format_vnd(quote.discount_amount)}</b>")
+    if quote.cashback_amount > 0:
+        lines.append(f"🪙 Cashback sau thanh toán: <b>{format_vnd(quote.cashback_amount)}</b>")
 
     if product.get("description"):
         lines.append(f"📝 {product['description']}")
@@ -275,12 +291,24 @@ async def _handle_standard_product(
         product_id=product["id"],
         product_name=product["name"],
         product_type=product["product_type"],
-        amount=product["price_vnd"],
+        amount=quote.payable_amount,
         payment_method="qr",  # Default, sẽ update khi chọn
         server_id=product.get("server_id"),
         group_name=effective_group or None,
         existing_key=existing_key,
         expired_at=expired_at,
+        base_amount=quote.base_amount,
+        discount_amount=quote.discount_amount,
+        cashback_amount=quote.cashback_amount,
+        spend_credit_amount=quote.spend_credit_amount,
+        pricing_version_id=quote.pricing_version_id,
+        applied_tier_id=quote.applied_tier_id,
+        pricing_snapshot=json.dumps(quote.pricing_snapshot, ensure_ascii=True),
+        promotion_snapshot=(
+            json.dumps(quote.promotion_snapshot, ensure_ascii=True)
+            if quote.promotion_snapshot
+            else None
+        ),
     )
 
     # [NEW] Nếu là tài khoản có sẵn, lập tức xí chỗ (reserve)
@@ -311,7 +339,7 @@ async def _handle_standard_product(
         show_qr = (dollar_amount >= 10)
         warning_msg = "⚠️ Dưới $10 chỉ hỗ trợ thanh toán bằng ví nội bộ."
     else:
-        show_qr = (product["price_vnd"] >= 1000)
+        show_qr = (quote.payable_amount >= 1000)
         warning_msg = "⚠️ Dưới 1.000đ chỉ hỗ trợ thanh toán bằng ví."
 
     if not show_qr:

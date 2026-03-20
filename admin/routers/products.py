@@ -12,6 +12,7 @@ from fastapi import Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
+from db.queries.pricing import get_primary_product_promotion, replace_primary_product_promotion
 from db.queries.categories import get_all_categories, get_category_by_id
 from db.queries.products import (
     create_product,
@@ -115,6 +116,28 @@ def _resolve_redirect_target(candidate: object, fallback: str) -> str:
     return fallback
 
 
+def _build_product_promotion_payload(form, *, product_type: str) -> dict | None:
+    if product_type in KEY_API_PRODUCT_TYPES:
+        return None
+
+    promotion_type = (form.get("promotion_type") or "").strip()
+    if not promotion_type:
+        return None
+
+    value_amount_raw = form.get("promotion_value")
+    return {
+        "name": (form.get("promotion_name") or "Default promotion").strip(),
+        "promotion_type": promotion_type,
+        "value_amount": float(value_amount_raw) if value_amount_raw else 0,
+        "starts_at": (form.get("promotion_start_at") or "").strip() or None,
+        "ends_at": (form.get("promotion_end_at") or "").strip() or None,
+        "priority": int(form.get("promotion_priority") or 0),
+        "is_active": bool(form.get("promotion_is_active")),
+        "config": {},
+        "conditions": {},
+    }
+
+
 async def _build_product_payload(
     form,
     product_id: int | None = None,
@@ -146,6 +169,7 @@ async def _build_product_payload(
         "stock": int(form.get("stock", -1)),
         "format_template": (form.get("format_template") or None) if is_account else None,
         "input_prompt": (form.get("input_prompt") or None) if is_service else None,
+        "promotion_payload": _build_product_promotion_payload(form, product_type=product_type),
     }
     return payload, None
 
@@ -210,7 +234,9 @@ async def products_add(request: Request):
     payload, error_redirect = await _build_product_payload(form)
     if error_redirect:
         return error_redirect
-    await create_product(**payload)
+    promotion_payload = payload.pop("promotion_payload", None)
+    product_id = await create_product(**payload)
+    await replace_primary_product_promotion(product_id, promotion_payload)
     return RedirectResponse("/products", status_code=303)
 
 
@@ -224,6 +250,7 @@ async def products_edit_page(request: Request, product_id: Annotated[int, Path()
     categories = await get_all_categories()
     servers = await get_all_servers()
     _decorate_products(products, categories, servers)
+    product["promotion"] = await get_primary_product_promotion(product_id)
 
     templates = get_templates()
     return templates.TemplateResponse(
@@ -245,6 +272,7 @@ async def products_edit_submit(request: Request, product_id: Annotated[int, Path
     payload, error_redirect = await _build_product_payload(form, product_id=product_id)
     if error_redirect:
         return error_redirect
+    promotion_payload = payload.pop("promotion_payload", None)
     await update_product(
         product_id,
         category_id=payload["category_id"],
@@ -261,6 +289,7 @@ async def products_edit_submit(request: Request, product_id: Annotated[int, Path
         format_template=payload["format_template"],
         input_prompt=payload["input_prompt"],
     )
+    await replace_primary_product_promotion(product_id, promotion_payload)
     return RedirectResponse("/products", status_code=303)
 
 

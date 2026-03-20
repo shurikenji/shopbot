@@ -25,6 +25,10 @@
     </div>
 </div>
 
+{% if flash_message %}
+<div class="alert alert-{{ flash_type or 'info' }} mt-3">{{ flash_message }}</div>
+{% endif %}
+
 <!-- Servers Table -->
 <div class="table-card">
     <table class="table">
@@ -148,6 +152,31 @@
                         <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2" placeholder='[{"key": "X-Custom", "value": "固定值"}]'></textarea></div>
                     </div>
                     <hr>
+                    <h6 class="text-muted mb-2">Loyalty &amp; Discount</h6>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="import_spend_accrual_enabled" id="add_import_spend_accrual_enabled" value="1">
+                        <label class="form-check-label" for="add_import_spend_accrual_enabled">Enable import-based spend accrual</label>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <label class="form-label">Stack Mode</label>
+                            <select name="discount_stack_mode" class="form-select">
+                                {% for mode in discount_stack_modes %}
+                                <option value="{{ mode.value }}">{{ mode.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Allowed Stack Types</label>
+                            <input name="discount_allowed_stack_types" class="form-control" value="cashback" placeholder="cashback,fixed_off">
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <label class="form-label">Discount Tiers JSON</label>
+                        <textarea name="discount_tiers_json" class="form-control" rows="8" placeholder='[{"name":"Silver","min_spend_vnd":100000,"benefits":[{"type":"percent_off","value":5}]}]'></textarea>
+                        <div class="form-text">Supported benefit types: percent_off, fixed_off, cashback, tier_price.</div>
+                    </div>
+                    <hr>
                     <h6 class="text-muted mb-2">Pricing</h6>
                     <div class="row">
                         <div class="col"><label class="form-label">Giá/$ (VNĐ)</label><input name="price_per_unit" type="number" class="form-control" required></div>
@@ -225,6 +254,61 @@
                         <div class="mb-2"><label class="form-label">Manual Groups</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
                         <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2">{{ editing.custom_headers or '' }}</textarea></div>
                     </div>
+
+                    <hr>
+                    <h6 class="text-muted mb-2">Loyalty &amp; Discount</h6>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="import_spend_accrual_enabled" id="edit_import_spend_accrual_enabled" value="1" {% if editing.import_spend_accrual_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="edit_import_spend_accrual_enabled">Enable import-based spend accrual</label>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col">
+                            <label class="form-label">Stack Mode</label>
+                            <select name="discount_stack_mode" class="form-select">
+                                {% for mode in discount_stack_modes %}
+                                <option value="{{ mode.value }}" {% if editing.discount_stack_mode == mode.value %}selected{% endif %}>{{ mode.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Allowed Stack Types</label>
+                            <input name="discount_allowed_stack_types" class="form-control" value="{{ editing.discount_allowed_stack_types or 'cashback' }}" placeholder="cashback,fixed_off">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Discount Tiers JSON</label>
+                        <textarea name="discount_tiers_json" class="form-control" rows="10">{{ editing.discount_tiers_json or '[]' }}</textarea>
+                        <div class="form-text">Each tier is an object with <code>min_spend_vnd</code> and <code>benefits</code>.</div>
+                    </div>
+                    {% if editing.pricing_versions %}
+                    <div class="mb-3">
+                        <label class="form-label">Pricing History</label>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Version</th>
+                                        <th>Effective From</th>
+                                        <th>Giá/$</th>
+                                        <th>Quota/$</th>
+                                        <th>Multiple</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for version in editing.pricing_versions %}
+                                    <tr>
+                                        <td>#{{ version.version_code }}</td>
+                                        <td><code>{{ version.effective_from }}</code></td>
+                                        <td>{{ format_vnd(version.price_per_unit) }}</td>
+                                        <td>{{ version.quota_per_unit }}</td>
+                                        <td>{{ version.quota_multiple }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <hr>
                     <h6 class="text-muted mb-2">Pricing</h6>

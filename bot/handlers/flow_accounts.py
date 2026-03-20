@@ -12,6 +12,7 @@ Flow service_upgrade:
 from __future__ import annotations
 from bot.utils.time_utils import get_now_vn
 from datetime import timedelta
+import json
 
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
@@ -20,6 +21,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from bot.callback_data.factories import BackCB
 from bot.keyboards.inline_kb import payment_method_kb, products_kb, back_only_kb
+from bot.services.pricing_resolver import quote_non_api_product
 from bot.utils.formatting import format_vnd
 from bot.utils.order_code import generate_order_code
 
@@ -181,8 +183,9 @@ async def upgrade_user_input_received(
 
     await state.set_state(None)
     product_name = product.get("name") or "Dịch vụ"
-    price_vnd = int(product.get("price_vnd") or 0)
     product_type = product.get("product_type") or "service_upgrade"
+    quote = await quote_non_api_product(product)
+    price_vnd = quote.payable_amount
 
     # Tạo order
     order_code = generate_order_code()
@@ -198,6 +201,16 @@ async def upgrade_user_input_received(
         amount=price_vnd,
         payment_method="qr",
         expired_at=expired_at,
+        base_amount=quote.base_amount,
+        discount_amount=quote.discount_amount,
+        cashback_amount=quote.cashback_amount,
+        spend_credit_amount=quote.spend_credit_amount,
+        pricing_snapshot=json.dumps(quote.pricing_snapshot, ensure_ascii=True),
+        promotion_snapshot=(
+            json.dumps(quote.promotion_snapshot, ensure_ascii=True)
+            if quote.promotion_snapshot
+            else None
+        ),
     )
 
     # Lưu user_input vào order

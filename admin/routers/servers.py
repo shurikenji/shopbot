@@ -14,6 +14,12 @@ from admin.deps import get_templates, protected_router
 from bot.services.ai_translator import get_translator
 from bot.services.api_clients import get_api_client
 from bot.utils.time_utils import get_now_vn
+from db.queries.pricing import (
+    get_server_discount_tiers,
+    list_server_pricing_versions,
+    replace_server_discount_tiers,
+    sync_server_pricing_version,
+)
 from db.queries.servers import (
     create_server,
     delete_server,
@@ -37,11 +43,52 @@ _AUTH_TYPES = [
     {"value": "none", "label": "No Auth"},
 ]
 
+_DISCOUNT_STACK_MODES = [
+    {"value": "exclusive", "label": "Exclusive"},
+    {"value": "combine_selected_types", "label": "Combine Selected Types"},
+]
+
 
 def _clean_str(value: object, default: str = "") -> str:
     if value is None:
         return default
     return str(value).strip()
+
+
+def _parse_discount_tiers_json(raw_value: object) -> list[dict]:
+    raw_text = _clean_str(raw_value)
+    if not raw_text:
+        return []
+
+    payload = json.loads(raw_text)
+    if not isinstance(payload, list):
+        raise ValueError("Discount tiers JSON must be an array.")
+
+    tiers: list[dict] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise ValueError("Each discount tier must be an object.")
+        benefits = item.get("benefits") or []
+        if not isinstance(benefits, list):
+            raise ValueError("Tier benefits must be an array.")
+        tiers.append(
+            {
+                "name": _clean_str(item.get("name"), "Tier"),
+                "min_spend_vnd": int(item.get("min_spend_vnd") or 0),
+                "is_active": bool(item.get("is_active", True)),
+                "benefits": [
+                    {
+                        "type": _clean_str(benefit.get("type")),
+                        "value": benefit.get("value"),
+                        "config": benefit.get("config") if isinstance(benefit, dict) else {},
+                        "is_active": bool(benefit.get("is_active", True)) if isinstance(benefit, dict) else True,
+                    }
+                    for benefit in benefits
+                    if isinstance(benefit, dict) and _clean_str(benefit.get("type"))
+                ],
+            }
+        )
+    return tiers
 
 
 def _server_page_context(*, request: Request, servers: list[dict], **extra: object) -> dict[str, object]:
@@ -50,6 +97,8 @@ def _server_page_context(*, request: Request, servers: list[dict], **extra: obje
         "servers": servers,
         "api_types": _API_TYPES,
         "auth_types": _AUTH_TYPES,
+        "discount_stack_modes": _DISCOUNT_STACK_MODES,
+        **_build_server_flash_context(request),
         **extra,
     }
 
@@ -60,6 +109,43 @@ async def _load_servers_for_page() -> list[dict]:
         if _clean_str(server.get("api_type", "newapi"), "newapi").lower() == "rixapi":
             server["supports_multi_group"] = 1
     return servers
+
+
+def _build_server_flash_context(request: Request) -> dict[str, str]:
+    error = _clean_str(request.query_params.get("error"))
+    if error == "invalid_discount_tiers":
+        return {
+            "flash_message": "Cấu hình discount tiers không hợp lệ. Vui lòng kiểm tra lại JSON.",
+            "flash_type": "danger",
+        }
+    return {}
+
+
+async def _hydrate_server_pricing_context(server: dict) -> dict:
+    tiers = await get_server_discount_tiers(server["id"])
+    server["discount_tiers_json"] = json.dumps(
+        [
+            {
+                "name": tier.get("name"),
+                "min_spend_vnd": tier.get("min_spend_vnd"),
+                "is_active": bool(tier.get("is_active", 1)),
+                "benefits": [
+                    {
+                        "type": benefit.get("benefit_type") or benefit.get("type"),
+                        "value": benefit.get("value_amount") if "value_amount" in benefit else benefit.get("value"),
+                        "config": benefit.get("config", {}),
+                        "is_active": bool(benefit.get("is_active", 1)),
+                    }
+                    for benefit in tier.get("benefits", [])
+                ],
+            }
+            for tier in tiers
+        ],
+        indent=2,
+        ensure_ascii=True,
+    )
+    server["pricing_versions"] = await list_server_pricing_versions(server["id"])
+    return server
 
 
 def _redirect_to_servers() -> RedirectResponse:
@@ -261,6 +347,9 @@ def _get_server_form_payload(form) -> dict:
         "quota_multiple": float(form.get("quota_multiple", 1.0)),
         "default_group": _clean_str(form.get("default_group")),
         "api_type": api_type,
+        "import_spend_accrual_enabled": 1 if form.get("import_spend_accrual_enabled") else 0,
+        "discount_stack_mode": _clean_str(form.get("discount_stack_mode"), "exclusive"),
+        "discount_allowed_stack_types": _clean_str(form.get("discount_allowed_stack_types"), "cashback"),
     }
 
     if api_type == "newapi":
@@ -336,6 +425,11 @@ def _normalize_server_for_form(server: dict) -> dict:
     server["auth_cookie"] = server.get("auth_cookie", "") or ""
     server["auth_token"] = token
     server["auth_user_value"] = legacy_user_id
+    server["import_spend_accrual_enabled"] = server.get("import_spend_accrual_enabled", 0)
+    server["discount_stack_mode"] = server.get("discount_stack_mode", "exclusive") or "exclusive"
+    server["discount_allowed_stack_types"] = (
+        server.get("discount_allowed_stack_types", "cashback") or "cashback"
+    )
 
     if api_type == "rixapi":
         server["supports_multi_group"] = 1
@@ -403,7 +497,14 @@ async def servers_list(request: Request):
 @router.post("/add")
 async def servers_add(request: Request):
     form = await request.form()
-    await create_server(**_get_server_form_payload(form))
+    try:
+        tiers = _parse_discount_tiers_json(form.get("discount_tiers_json"))
+    except ValueError:
+        return RedirectResponse("/servers?error=invalid_discount_tiers", status_code=303)
+
+    server_id = await create_server(**_get_server_form_payload(form))
+    await sync_server_pricing_version(server_id)
+    await replace_server_discount_tiers(server_id, tiers)
     return RedirectResponse("/servers", status_code=303)
 
 
@@ -414,12 +515,13 @@ async def servers_edit_page(request: Request, server_id: Annotated[int, Path()])
         return server
 
     templates = get_templates()
+    hydrated_server = await _hydrate_server_pricing_context(_normalize_server_for_form(server))
     return templates.TemplateResponse(
         "servers.html",
         _server_page_context(
             request=request,
             servers=await _load_servers_for_page(),
-            editing=_normalize_server_for_form(server),
+            editing=hydrated_server,
         ),
     )
 
@@ -427,9 +529,15 @@ async def servers_edit_page(request: Request, server_id: Annotated[int, Path()])
 @router.post("/{server_id}/edit")
 async def servers_edit_submit(request: Request, server_id: Annotated[int, Path()]):
     form = await request.form()
+    try:
+        tiers = _parse_discount_tiers_json(form.get("discount_tiers_json"))
+    except ValueError:
+        return RedirectResponse(f"/servers/{server_id}/edit?error=invalid_discount_tiers", status_code=303)
     payload = _get_server_form_payload(form)
     payload["is_active"] = 1 if form.get("is_active") else 0
     await update_server(server_id, **payload)
+    await sync_server_pricing_version(server_id)
+    await replace_server_discount_tiers(server_id, tiers)
     return _redirect_to_servers()
 
 

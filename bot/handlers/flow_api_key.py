@@ -9,6 +9,7 @@ Flow:
 from __future__ import annotations
 from bot.utils.time_utils import get_now_vn
 
+import json
 import logging
 from datetime import datetime, timedelta
 
@@ -26,6 +27,8 @@ from bot.keyboards.inline_kb import (
     servers_kb, products_kb, payment_method_kb, my_keys_kb, back_only_kb,
 )
 from bot.services.api_clients import get_api_client
+from bot.services.key_valuation import KeyValuationService
+from bot.services.pricing_resolver import quote_api_order
 from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar
 from bot.utils.group_labels import format_group_display_names
 from bot.utils.order_code import generate_order_code
@@ -38,7 +41,7 @@ from db.queries.categories import get_active_categories, get_category_by_id
 from db.queries.products import get_active_products_by_category, get_product_by_id
 from db.queries.servers import get_active_servers, get_server_by_id
 from db.queries.orders import create_order, get_order_by_id
-from db.queries.user_keys import get_user_keys, get_user_key_by_id
+from db.queries.user_keys import get_user_keys, get_user_key_by_id, upsert_user_key
 from db.queries.wallets import get_balance
 from db.queries.settings import get_setting_int
 
@@ -89,6 +92,7 @@ async def _show_key_products_for_server(
         return True
 
     per_page = await get_setting_int("pagination_size", 6)
+    extra_text = ("\n" + "\n".join(accrual_lines)) if accrual_lines else ""
     title = "🔑 Mua key mới" if action == "new" else "💳 Nạp key cũ"
     await callback.message.edit_text(
         f"{title} — <b>{server['name']}</b>\n\nChọn gói:",
@@ -312,8 +316,47 @@ async def input_key_received(
         )
         return  # Giữ FSM state để user nhập lại
 
-    await state.update_data(existing_key=api_key)
+    normalized_key = api_key if api_key.startswith("sk-") else f"sk-{api_key}"
+    await state.update_data(existing_key=normalized_key)
     await state.set_state(None)
+
+    accrual_lines: list[str] = []
+    if server.get("import_spend_accrual_enabled"):
+        valuation = await KeyValuationService.evaluate_imported_key(
+            user_id=db_user["id"],
+            server=server,
+            api_key=normalized_key,
+            token_data=token_data,
+            source="manual_topup_input",
+            source_ref=f"server:{server_id}",
+        )
+        status = valuation.get("status")
+        if status == "owner_mismatch":
+            await message.answer(
+                "❌ Key này đã được liên kết với tài khoản khác trong hệ thống, không thể dùng để nạp.",
+                reply_markup=back_only_kb("key_input_back"),
+            )
+            await state.set_state(ApiKeyStates.waiting_existing_key)
+            return
+        if status == "credited":
+            accrual_lines.append(
+                "🎯 Đã ghi nhận thêm chi tiêu hợp lệ: "
+                f"<b>{format_vnd(int(valuation.get('credited_value_vnd') or 0))}</b>"
+            )
+        elif status == "no_change":
+            accrual_lines.append("ℹ️ Key đã tồn tại trong hệ thống, chưa có giá trị tăng thêm để cộng tier.")
+        else:
+            accrual_lines.append(
+                "⚠️ Server không trả đủ `remain_quota` và `used_quota`, lần nhập này chỉ xác thực key."
+            )
+    else:
+        await upsert_user_key(
+            user_id=db_user["id"],
+            server_id=server["id"],
+            api_key=normalized_key,
+            api_token_id=token_data.get("id"),
+            label=mask_api_key(normalized_key),
+        )
 
     # Hiện gói topup
     products = await get_active_products_by_category(
@@ -333,8 +376,8 @@ async def input_key_received(
 
     per_page = await get_setting_int("pagination_size", 6)
     await message.answer(
-        f"💳 <b>Nạp key</b>: <code>{mask_api_key(api_key)}</code>\n"
-        f"💵 Số dư hiện tại: <b>{current_dollar}</b>\n\nChọn gói nạp:",
+        f"💳 <b>Nạp key</b>: <code>{mask_api_key(normalized_key)}</code>\n"
+        f"💵 Số dư hiện tại: <b>{current_dollar}</b>{extra_text}\n\nChọn gói nạp:",
         reply_markup=products_kb(
             products, cat_id=cat_id, srv_id=server_id,
             ptype="key_topup", page=0, per_page=per_page,
@@ -457,13 +500,27 @@ async def custom_dollar_received(
 
     logger.info("Custom dollar result: quota=%d, vnd=%d", custom_quota, vnd_amount)
 
+    quote = await quote_api_order(
+        user_id=db_user["id"],
+        server=server,
+        custom_dollar=dollar_amount,
+    )
+    custom_quota = quote.quota_amount
+    vnd_amount = quote.payable_amount
+    base_amount = quote.base_amount
+    if vnd_amount < 1000:
+        vnd_amount = 1000
+        if base_amount < 1000:
+            base_amount = 1000
+        quote.spend_credit_amount = vnd_amount
+
     await state.set_state(None)
 
     # Tạo product type
     product_type = "key_new" if action == "new" else "key_topup"
 
     # Build detail text
-    rate_vnd_per_dollar = int(price_per_dollar)
+    rate_vnd_per_dollar = int(base_amount / dollar_amount) if dollar_amount > 0 else 0
     lines = [
         f"💵 <b>Nạp ${dollar_amount:,.2f}</b>",
         f"━━━━━━━━━━━━━━━━━━━━",
@@ -477,6 +534,11 @@ async def custom_dollar_received(
             lines.append(f"👥 Group mặc định của server: <b>{display_group}</b>")
     if existing_key:
         lines.append(f"🔑 Key nạp: <code>{mask_api_key(existing_key)}</code>")
+    if quote.discount_amount > 0:
+        lines.append(f"🏷 Giá gốc: <b>{format_vnd(base_amount)}</b>")
+        lines.append(f"💸 Giảm giá tier: <b>-{format_vnd(quote.discount_amount)}</b>")
+    if quote.cashback_amount > 0:
+        lines.append(f"🪙 Cashback sau thanh toán: <b>{format_vnd(quote.cashback_amount)}</b>")
 
     # Tạo order
     order_code = generate_order_code()
@@ -495,6 +557,13 @@ async def custom_dollar_received(
         existing_key=existing_key,
         custom_quota=custom_quota,
         expired_at=expired_at,
+        base_amount=base_amount,
+        discount_amount=quote.discount_amount,
+        cashback_amount=quote.cashback_amount,
+        spend_credit_amount=quote.spend_credit_amount,
+        pricing_version_id=quote.pricing_version_id,
+        applied_tier_id=quote.applied_tier_id,
+        pricing_snapshot=json.dumps(quote.pricing_snapshot, ensure_ascii=True),
     )
 
     await state.update_data(current_order_id=order_id)

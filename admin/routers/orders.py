@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from admin.deps import get_templates, protected_router
 from bot.services.notifier import notify_user
+from bot.services.spend_ledger import SpendLedgerService
 from bot.utils.formatting import format_vnd
 from db.queries.logs import add_log
 from db.queries.orders import (
@@ -142,6 +143,7 @@ async def order_refund(order_id: Annotated[int, Path()]):
     )
     if new_balance is None:
         return _redirect_to_order_detail(order_id)
+    await SpendLedgerService.record_order_refund(order)
 
     await add_log(
         f"Admin hoàn tiền đơn {order['order_code']}, số tiền {format_vnd(order['amount'])}",
