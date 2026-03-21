@@ -21,11 +21,12 @@ from aiogram.fsm.state import State, StatesGroup
 from bot.callback_data.factories import (
     KeyActionCB, ServerSelectCB, ProductPageCB,
     ProductSelectCB, PaymentMethodCB, OrderCancelCB,
-    MyKeySelectCB, MyKeyInputCB, CustomAmountCB,
+    MyKeySelectCB, MyKeysPageCB, MyKeySearchCB, MyKeyInputCB, CustomAmountCB,
     BackServersCB, BackKeyInputCB, BackCustomAmountCB,
 )
 from bot.keyboards.inline_kb import (
-    categories_kb, servers_kb, products_kb, payment_method_kb, my_keys_kb, back_only_kb,
+    categories_kb, servers_kb, products_kb, payment_method_kb,
+    my_keys_kb, my_keys_all_kb, my_key_search_results_kb, back_only_kb,
 )
 from bot.services.api_clients import get_api_client
 from bot.services.key_valuation import KeyValuationService
@@ -42,7 +43,12 @@ from db.queries.categories import get_active_categories, get_category_by_id
 from db.queries.products import get_active_products_by_category, get_product_by_id
 from db.queries.servers import get_active_servers, get_server_by_id
 from db.queries.orders import create_order, get_order_by_id
-from db.queries.user_keys import get_user_keys, get_user_key_by_id, upsert_user_key
+from db.queries.user_keys import (
+    get_user_keys,
+    get_user_key_by_id,
+    search_user_keys,
+    upsert_user_key,
+)
 from db.queries.wallets import get_balance
 from db.queries.settings import get_setting_int
 
@@ -55,16 +61,55 @@ async def _show_existing_keys_for_server(
     user_id: int,
     server_id: int,
     cat_id: int,
+    view: str = "recent",
+    page: int = 0,
 ) -> bool:
     keys = await get_user_keys(user_id, server_id=server_id)
     server = await get_server_by_id(server_id)
     if not server:
         return False
 
+    per_page = await get_setting_int("pagination_size", 6)
+    total_count = len(keys)
+    if view == "all" and total_count:
+        text = (
+            f"💳 <b>Nạp key cũ — {server['name']}</b>\n\n"
+            "Tất cả key đã lưu trên server này:"
+        )
+        reply_markup = my_keys_all_kb(
+            keys,
+            server_id=server_id,
+            cat_id=cat_id,
+            page=page,
+            per_page=per_page,
+        )
+    elif total_count:
+        text = (
+            f"💳 <b>Nạp key cũ — {server['name']}</b>\n\n"
+            "Chọn key gần đây bạn muốn nạp thêm quota:"
+        )
+        reply_markup = my_keys_kb(
+            keys[:per_page],
+            server_id=server_id,
+            cat_id=cat_id,
+            total_count=total_count,
+        )
+    else:
+        text = (
+            f"💳 <b>Nạp key cũ — {server['name']}</b>\n\n"
+            "Bạn chưa có key nào đã lưu trên server này.\n"
+            "Hãy dán API key để tiếp tục nạp."
+        )
+        reply_markup = my_keys_kb(
+            [],
+            server_id=server_id,
+            cat_id=cat_id,
+            total_count=0,
+        )
+
     await callback.message.edit_text(
-        f"💳 <b>Nạp key cũ — {server['name']}</b>\n\n"
-        f"Chọn key bạn muốn nạp thêm quota:",
-        reply_markup=my_keys_kb(keys, server_id=server_id, cat_id=cat_id),
+        text,
+        reply_markup=reply_markup,
         parse_mode="HTML",
     )
     return True
@@ -135,6 +180,7 @@ async def _show_expired_catalog_prompt(
 
 class ApiKeyStates(StatesGroup):
     waiting_existing_key = State()   # Nhập key cũ khi topup
+    waiting_key_search = State()     # Tìm key cũ theo ký tự cuối
     waiting_custom_dollar = State()  # Nhập số $ tùy chọn
 
 
@@ -194,13 +240,11 @@ async def select_server(
     )
 
     if action == "topup":
-        # Topup: hiện danh sách key hiện có + nút nhập mới
-        keys = await get_user_keys(db_user["id"], server_id=server_id)
-        await callback.message.edit_text(
-            f"💳 <b>Nạp key cũ — {server['name']}</b>\n\n"
-            f"Chọn key bạn muốn nạp thêm quota:",
-            reply_markup=my_keys_kb(keys, server_id=server_id, cat_id=cat_id),
-            parse_mode="HTML",
+        await _show_existing_keys_for_server(
+            callback,
+            user_id=db_user["id"],
+            server_id=server_id,
+            cat_id=cat_id,
         )
     else:
         # New: hiện danh sách gói key_new
@@ -227,6 +271,49 @@ async def select_server(
             ),
             parse_mode="HTML",
         )
+    await callback.answer()
+
+
+@router.callback_query(MyKeysPageCB.filter())
+async def show_all_my_keys(
+    callback: CallbackQuery,
+    callback_data: MyKeysPageCB,
+    db_user: dict,
+) -> None:
+    """Mở danh sách toàn bộ key đã lưu với phân trang."""
+    await _show_existing_keys_for_server(
+        callback,
+        user_id=db_user["id"],
+        server_id=callback_data.server_id,
+        cat_id=callback_data.cat_id,
+        view="all",
+        page=callback_data.page,
+    )
+    await callback.answer()
+
+
+@router.callback_query(MyKeySearchCB.filter())
+async def prompt_key_search(
+    callback: CallbackQuery,
+    callback_data: MyKeySearchCB,
+    state: FSMContext,
+) -> None:
+    """Yêu cầu user nhập vài ký tự cuối để tìm key đã lưu."""
+    await state.update_data(
+        current_server_id=callback_data.server_id,
+        current_cat_id=callback_data.cat_id,
+        key_action="topup",
+    )
+    await callback.message.edit_text(
+        "🔎 <b>Tìm key đã lưu</b>\n\n"
+        "Nhập 4-8 ký tự cuối của key để lọc nhanh trong danh sách đã lưu.\n"
+        "Nếu muốn dán full key, hãy quay lại và chọn <b>Dán key khác</b>.",
+        reply_markup=back_only_kb(
+            BackKeyInputCB(server_id=callback_data.server_id, cat_id=callback_data.cat_id)
+        ),
+        parse_mode="HTML",
+    )
+    await state.set_state(ApiKeyStates.waiting_key_search)
     await callback.answer()
 
 
@@ -287,15 +374,15 @@ async def input_key_prompt(
     callback_data: MyKeyInputCB,
     state: FSMContext,
 ) -> None:
-    """Yêu cầu nhập API key mới."""
+    """Yêu cầu user dán full API key để topup."""
     await state.update_data(
         current_server_id=callback_data.server_id,
         current_cat_id=callback_data.cat_id,
         key_action="topup",
     )
     await callback.message.edit_text(
-        "✏️ <b>Nhập API Key</b>\n\n"
-        "Nhập API key bạn muốn nạp thêm quota:\n"
+        "✏️ <b>Dán API Key</b>\n\n"
+        "Dán API key bạn muốn nạp thêm quota:\n"
         "Ví dụ: <code>sk-abcdefghijklmn...</code>",
         reply_markup=back_only_kb(
             BackKeyInputCB(server_id=callback_data.server_id, cat_id=callback_data.cat_id)
@@ -426,6 +513,76 @@ async def input_key_received(
             products, cat_id=cat_id, srv_id=server_id,
             ptype="key_topup", page=0, per_page=per_page,
             action="topup",
+        ),
+        parse_mode="HTML",
+    )
+
+
+@router.message(ApiKeyStates.waiting_key_search)
+async def key_search_received(
+    message: Message,
+    state: FSMContext,
+    db_user: dict,
+) -> None:
+    """Nhận từ khóa ngắn để tìm key đã lưu trên server hiện tại."""
+    keyword = (message.text or "").strip()
+    fsm_data = await state.get_data()
+    server_id = int(fsm_data.get("current_server_id") or 0)
+    cat_id = int(fsm_data.get("current_cat_id") or 0)
+    search_back = (
+        BackKeyInputCB(server_id=server_id, cat_id=cat_id)
+        if server_id and cat_id
+        else "cat"
+    )
+
+    if len(keyword) < 4:
+        await message.answer(
+            "❌ Từ khóa quá ngắn. Hãy nhập ít nhất 4 ký tự cuối của key.",
+            reply_markup=back_only_kb(search_back),
+        )
+        return
+
+    if not server_id or not cat_id:
+        await state.clear()
+        await message.answer(
+            "⚠️ Phiên tìm key đã hết hạn. Vui lòng mở lại mục Sản phẩm và chọn server để nạp key.",
+            reply_markup=back_only_kb("cat"),
+        )
+        return
+
+    server = await get_server_by_id(server_id)
+    if not server:
+        await state.clear()
+        await message.answer(
+            "❌ Server không tồn tại.",
+            reply_markup=back_only_kb(BackServersCB(cat_id=cat_id, action="topup")),
+        )
+        return
+
+    matched_keys = await search_user_keys(
+        db_user["id"],
+        server_id=server_id,
+        keyword=keyword,
+    )
+    total_count = len(await get_user_keys(db_user["id"], server_id=server_id))
+
+    if not matched_keys:
+        await message.answer(
+            "❌ Không tìm thấy key phù hợp trong danh sách đã lưu.\n\n"
+            "Hãy thử nhập lại vài ký tự cuối khác, hoặc quay lại để dán full key.",
+            reply_markup=back_only_kb(search_back),
+        )
+        return
+
+    await state.set_state(None)
+    await message.answer(
+        f"🔎 <b>Kết quả tìm key — {server['name']}</b>\n\n"
+        f"Tìm thấy <b>{len(matched_keys)}</b> key phù hợp. Chọn key bạn muốn nạp:",
+        reply_markup=my_key_search_results_kb(
+            matched_keys,
+            server_id=server_id,
+            cat_id=cat_id,
+            total_count=total_count,
         ),
         parse_mode="HTML",
     )

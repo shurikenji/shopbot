@@ -23,6 +23,8 @@ from bot.callback_data.factories import (
     PaymentMethodCB,
     OrderCancelCB,
     MyKeySelectCB,
+    MyKeysPageCB,
+    MyKeySearchCB,
     MyKeyInputCB,
     CustomAmountCB,
     WalletActionCB,
@@ -53,6 +55,14 @@ def _pack_callback_data(value: str | object) -> str:
     if hasattr(value, "pack"):
         return value.pack()
     return str(value)
+
+
+def _format_key_label(key_row: dict) -> str:
+    """Trả về nhãn key ngắn gọn, an toàn cho inline button."""
+    label = key_row.get("label") or key_row.get("api_key", "")
+    if len(label) > 20:
+        return f"{label[:8]}...{label[-4:]}"
+    return str(label)
 
 
 # ── Danh mục ────────────────────────────────────────────────────────────────
@@ -284,20 +294,115 @@ def my_keys_kb(
     keys: Sequence[dict],
     server_id: int,
     cat_id: int,
+    *,
+    total_count: int | None = None,
 ) -> InlineKeyboardMarkup:
-    """Inline keyboard chọn key hiện có hoặc nhập key mới."""
+    """Inline keyboard key gần đây cho luồng topup."""
     builder = InlineKeyboardBuilder()
     for key_row in keys:
-        label = key_row.get("label") or key_row.get("api_key", "")
-        # Mask key cho an toàn
-        if len(label) > 20:
-            label = f"{label[:8]}...{label[-4:]}"
         builder.button(
-            text=f"🔑 {label}",
+            text=f"🔑 {_format_key_label(key_row)}",
             callback_data=MyKeySelectCB(key_id=key_row["id"]),
         )
+    if total_count and total_count > len(keys):
+        builder.button(
+            text=f"📚 Xem tất cả ({total_count})",
+            callback_data=MyKeysPageCB(server_id=server_id, cat_id=cat_id, page=0),
+        )
+    if total_count:
+        builder.button(
+            text="🔎 Tìm key",
+            callback_data=MyKeySearchCB(server_id=server_id, cat_id=cat_id),
+        )
     builder.button(
-        text="✏️ Nhập key mới",
+        text="✏️ Dán key khác",
+        callback_data=MyKeyInputCB(server_id=server_id, cat_id=cat_id),
+    )
+    builder.button(
+        text="⬅️ Quay lại",
+        callback_data=BackServersCB(cat_id=cat_id, action="topup"),
+    )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def my_keys_all_kb(
+    keys: Sequence[dict],
+    *,
+    server_id: int,
+    cat_id: int,
+    page: int = 0,
+    per_page: int = 6,
+) -> InlineKeyboardMarkup:
+    """Inline keyboard toàn bộ key đã lưu, có phân trang."""
+    page_items, total_pages = _paginate(keys, page, per_page)
+    builder = InlineKeyboardBuilder()
+    for key_row in page_items:
+        builder.button(
+            text=f"🔑 {_format_key_label(key_row)}",
+            callback_data=MyKeySelectCB(key_id=key_row["id"]),
+        )
+    builder.adjust(1)
+
+    if total_pages > 1:
+        builder.row(
+            *build_pagination_buttons(
+                page=page,
+                total_pages=total_pages,
+                prev_callback=MyKeysPageCB(
+                    server_id=server_id,
+                    cat_id=cat_id,
+                    page=page - 1,
+                ).pack(),
+                next_callback=MyKeysPageCB(
+                    server_id=server_id,
+                    cat_id=cat_id,
+                    page=page + 1,
+                ).pack(),
+            ).inline_keyboard[0]
+        )
+
+    builder.button(
+        text="🔎 Tìm key",
+        callback_data=MyKeySearchCB(server_id=server_id, cat_id=cat_id),
+    )
+    builder.button(
+        text="✏️ Dán key khác",
+        callback_data=MyKeyInputCB(server_id=server_id, cat_id=cat_id),
+    )
+    builder.button(
+        text="⬅️ Quay lại",
+        callback_data=BackServersCB(cat_id=cat_id, action="topup"),
+    )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def my_key_search_results_kb(
+    keys: Sequence[dict],
+    *,
+    server_id: int,
+    cat_id: int,
+    total_count: int | None = None,
+) -> InlineKeyboardMarkup:
+    """Inline keyboard kết quả tìm key đã lưu."""
+    builder = InlineKeyboardBuilder()
+    for key_row in keys:
+        builder.button(
+            text=f"🔑 {_format_key_label(key_row)}",
+            callback_data=MyKeySelectCB(key_id=key_row["id"]),
+        )
+    if total_count:
+        builder.button(
+            text=f"📚 Xem tất cả ({total_count})",
+            callback_data=MyKeysPageCB(server_id=server_id, cat_id=cat_id, page=0),
+        )
+    builder.button(
+        text="🔎 Tìm lại",
+        callback_data=MyKeySearchCB(server_id=server_id, cat_id=cat_id),
+    )
+    builder.button(
+        text="✏️ Dán key khác",
         callback_data=MyKeyInputCB(server_id=server_id, cat_id=cat_id),
     )
     builder.button(

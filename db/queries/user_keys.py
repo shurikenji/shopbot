@@ -14,7 +14,7 @@ def _build_user_keys_filters(
     *,
     server_id: Optional[int] = None,
     active_only: bool = True,
-) -> tuple[str, tuple[int, ...]]:
+) -> tuple[str, tuple[object, ...]]:
     """Tạo phần WHERE và params dùng chung cho truy vấn user keys."""
     clauses = ["user_id = ?"]
     params: list[int] = [user_id]
@@ -33,6 +33,7 @@ async def get_user_keys(
     user_id: int,
     server_id: Optional[int] = None,
     active_only: bool = True,
+    limit: Optional[int] = None,
 ) -> list[dict]:
     """Lấy danh sách keys của user, optional filter theo server."""
     where_clause, params = _build_user_keys_filters(
@@ -40,8 +41,38 @@ async def get_user_keys(
         server_id=server_id,
         active_only=active_only,
     )
-    query = f"SELECT * FROM user_keys{where_clause} ORDER BY id DESC"
+    query = f"SELECT * FROM user_keys{where_clause} ORDER BY updated_at DESC, id DESC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params = (*params, limit)
     return await fetch_all_dicts(query, params)
+
+
+async def search_user_keys(
+    user_id: int,
+    *,
+    server_id: int,
+    keyword: str,
+    active_only: bool = True,
+    limit: int = 10,
+) -> list[dict]:
+    """Tìm key đã lưu theo label hoặc chuỗi con của api_key."""
+    normalized = keyword.strip()
+    if not normalized:
+        return []
+
+    where_clause, params = _build_user_keys_filters(
+        user_id,
+        server_id=server_id,
+        active_only=active_only,
+    )
+    like_pattern = f"%{normalized}%"
+    query = (
+        "SELECT * FROM user_keys"
+        f"{where_clause} AND (api_key LIKE ? OR COALESCE(label, '') LIKE ?)"
+        " ORDER BY updated_at DESC, id DESC LIMIT ?"
+    )
+    return await fetch_all_dicts(query, (*params, like_pattern, like_pattern, limit))
 
 
 async def get_user_key_by_id(key_id: int) -> Optional[dict]:

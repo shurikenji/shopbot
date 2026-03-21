@@ -88,6 +88,19 @@ class MyKeySelectCB(CallbackData, prefix="mk"):
     key_id: int
 
 
+class MyKeysPageCB(CallbackData, prefix="mkp"):
+    """Xem danh sách key đã lưu theo trang."""
+    server_id: int
+    cat_id: int
+    page: int
+
+
+class MyKeySearchCB(CallbackData, prefix="mks"):
+    """Mở màn tìm key đã lưu."""
+    server_id: int
+    cat_id: int
+
+
 class MyKeyInputCB(CallbackData, prefix="mki"):
     """Nhập key mới cho server (trigger FSM)."""
     server_id: int
