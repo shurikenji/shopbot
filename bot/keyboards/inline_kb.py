@@ -17,6 +17,9 @@ from bot.callback_data.factories import (
     ServerSelectCB,
     ProductPageCB,
     ProductSelectCB,
+    QuantityAdjustCB,
+    QuantityBackCB,
+    QuantityConfirmCB,
     PaymentMethodCB,
     OrderCancelCB,
     MyKeySelectCB,
@@ -189,6 +192,62 @@ def products_kb(
                 if back_target == "srv"
                 else BackCB(target=back_target).pack()
             ),
+        )
+    )
+    return builder.as_markup()
+
+
+def quantity_picker_kb(
+    *,
+    product_id: int,
+    quantity: int,
+    max_quantity: int,
+) -> InlineKeyboardMarkup:
+    """Inline keyboard chọn số lượng cho 1 SKU."""
+    builder = InlineKeyboardBuilder()
+    previous_qty = max(1, quantity - 1)
+    next_qty = min(max_quantity, quantity + 1)
+
+    builder.row(
+        InlineKeyboardButton(
+            text="➖",
+            callback_data=QuantityAdjustCB(product_id=product_id, qty=previous_qty).pack(),
+        ),
+        InlineKeyboardButton(text=f"x{quantity}", callback_data="noop"),
+        InlineKeyboardButton(
+            text="➕",
+            callback_data=QuantityAdjustCB(product_id=product_id, qty=next_qty).pack(),
+        ),
+    )
+
+    quick_values = []
+    for value in (1, 2, 3, 5, 10):
+        if 1 <= value <= max_quantity and value not in quick_values:
+            quick_values.append(value)
+    if max_quantity not in quick_values:
+        quick_values.append(max_quantity)
+
+    if len(quick_values) > 1:
+        builder.row(
+            *[
+                InlineKeyboardButton(
+                    text=f"x{value}",
+                    callback_data=QuantityAdjustCB(product_id=product_id, qty=value).pack(),
+                )
+                for value in quick_values
+            ]
+        )
+
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ Tiếp tục thanh toán",
+            callback_data=QuantityConfirmCB(product_id=product_id, qty=quantity).pack(),
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="⬅️ Quay lại",
+            callback_data=QuantityBackCB(product_id=product_id).pack(),
         )
     )
     return builder.as_markup()

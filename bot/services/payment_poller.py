@@ -190,6 +190,43 @@ async def _process_service_upgrade(bot: Bot, order: Order) -> None:
     )
     await notify_admin_service_paid(order, bot=bot)
 
+
+def _order_quantity(order: Order) -> int:
+    try:
+        return max(1, int(order.get("quantity") or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+async def _create_key_with_retry(
+    client,
+    *,
+    server: dict,
+    quota: int,
+    group_name: str,
+    base_token_name: str,
+    sequence: int,
+) -> str | None:
+    token_name = f"{base_token_name}_{sequence}"
+    for _ in range(3):
+        result = await client.create_token(
+            server=server,
+            quota=quota,
+            group=group_name,
+            name=token_name,
+        )
+        if result:
+            api_key = _extract_created_key(result)
+            if not api_key:
+                await asyncio.sleep(1)
+                found = await client.search_token_by_name(server, token_name)
+                if found:
+                    api_key = found.get("key", "")
+            if api_key:
+                return api_key if api_key.startswith("sk-") else f"sk-{api_key}"
+        await asyncio.sleep(1)
+    return None
+
 async def _process_key_new(bot: Bot, order: Order) -> None:
     """Tạo API key mới trên server được chọn."""
     server, product = await _load_key_order_context(order)
@@ -200,7 +237,8 @@ async def _process_key_new(bot: Bot, order: Order) -> None:
         await _refund_order(bot, order, "Sản phẩm không tồn tại")
         return
 
-    token_name = "key_" + "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    quantity = _order_quantity(order)
+    token_batch_name = "key_" + "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
     quota = order.get("custom_quota") or (product["quota_amount"] if product else 0)
     group_name = (
         order.get("group_name")
@@ -210,61 +248,104 @@ async def _process_key_new(bot: Bot, order: Order) -> None:
     )
 
     client = get_api_client(server)
-    result = await client.create_token(
-        server=server,
-        quota=quota,
-        group=group_name,
-        name=token_name,
+    created_keys: list[str] = []
+    for sequence in range(1, quantity + 1):
+        full_key = await _create_key_with_retry(
+            client,
+            server=server,
+            quota=quota,
+            group_name=group_name,
+            base_token_name=token_batch_name,
+            sequence=sequence,
+        )
+        if not full_key:
+            if not created_keys:
+                await _refund_order(bot, order, "Không thể tạo key trên server")
+                return
+
+            partial_delivery = "\n".join(created_keys)
+            await update_order_status(
+                order["id"],
+                "processing",
+                api_key=created_keys[0],
+                quota_after=quota,
+                delivery_info=partial_delivery,
+            )
+            await add_log(
+                f"Partial key batch for order {order['order_code']}: delivered {len(created_keys)}/{quantity}",
+                level="error",
+                module="poller",
+            )
+            support_url = await get_setting("support_url", "https://t.me/admin")
+            await notify_user(
+                order["user_id"],
+                (
+                    f"⚠️ Đơn <b>{order['order_code']}</b> đã thanh toán nhưng hệ thống mới tạo được "
+                    f"<b>{len(created_keys)}/{quantity}</b> key.\n"
+                    f"Admin sẽ hoàn tất phần còn lại sớm nhất có thể.\n\n"
+                    f"💬 Hỗ trợ: {support_url}"
+                ),
+                bot=bot,
+            )
+            return
+
+        created_keys.append(full_key)
+        await create_user_key(
+            user_id=order["user_id"],
+            server_id=server["id"],
+            api_key=full_key,
+            label=mask_api_key(full_key),
+        )
+
+    delivery_info = "\n".join(created_keys) if quantity > 1 else None
+    await update_order_status(
+        order["id"],
+        "completed",
+        api_key=created_keys[0],
+        quota_after=quota,
+        delivery_info=delivery_info,
     )
-    if not result:
-        await _refund_order(bot, order, "Không thể tạo key trên server")
-        return
-
-    api_key = _extract_created_key(result)
-    if not api_key:
-        logger.warning("create_token did not return key, searching by name: %s", token_name)
-        await asyncio.sleep(1)
-        found = await client.search_token_by_name(server, token_name)
-        if found:
-            api_key = found.get("key", "")
-            logger.info("Found key by name search: %s", api_key[:20] if api_key else "empty")
-
-    if not api_key:
-        await _refund_order(bot, order, "API không trả về key")
-        return
-
-    full_key = api_key if api_key.startswith("sk-") else f"sk-{api_key}"
-    await create_user_key(
-        user_id=order["user_id"],
-        server_id=server["id"],
-        api_key=full_key,
-        label=mask_api_key(full_key),
-    )
-    await update_order_status(order["id"], "completed", api_key=full_key, quota_after=quota)
     await SpendLedgerService.record_order_completion(order)
     await add_log(
-        f"Key mới tạo cho order {order['order_code']}: {mask_api_key(full_key)}",
+        f"Key mới tạo cho order {order['order_code']}: {len(created_keys)} key(s)",
         module="poller",
     )
 
     mult = server.get("quota_multiple", 1.0)
     dollar_str = quota_to_dollar(quota, mult)
-    template = await get_setting(
-        "msg_key_new",
-        (
-            "✅ Đơn {order_code} hoàn thành!\n\n"
-            "🔑 API Key của bạn:\n{api_key}\n\n"
-            "💵 Số dư: {dollar}\n"
-            "🖥 Server: {server}\n\n"
-            "⚠️ Vui lòng lưu key cẩn thận!"
-        ),
-    )
-    message = template.format(
-        order_code=f"<b>{order['order_code']}</b>",
-        api_key=f"<code>{full_key}</code>",
-        dollar=f"<b>{dollar_str}</b>",
-        server=f"<b>{server['name']}</b>",
-    )
+    if quantity == 1:
+        template = await get_setting(
+            "msg_key_new",
+            (
+                "✅ Đơn {order_code} hoàn thành!\n\n"
+                "🔑 API Key của bạn:\n{api_key}\n\n"
+                "💵 Số dư: {dollar}\n"
+                "🖥 Server: {server}\n\n"
+                "⚠️ Vui lòng lưu key cẩn thận!"
+            ),
+        )
+        message = template.format(
+            order_code=f"<b>{order['order_code']}</b>",
+            api_key=f"<code>{created_keys[0]}</code>",
+            dollar=f"<b>{dollar_str}</b>",
+            server=f"<b>{server['name']}</b>",
+        )
+    else:
+        key_lines = [f"{index}. <code>{key}</code>" for index, key in enumerate(created_keys, start=1)]
+        message = "\n".join(
+            [
+                f"✅ Đơn <b>{order['order_code']}</b> hoàn thành!",
+                "",
+                f"🔢 Số lượng key: <b>{quantity}</b>",
+                f"💵 Mỗi key: <b>{dollar_str}</b>",
+                f"🖥 Server: <b>{server['name']}</b>",
+                "",
+                "🔑 Danh sách API Key:",
+                *key_lines,
+                "",
+                "⚠️ Vui lòng lưu key cẩn thận!",
+            ]
+        )
     await notify_user(order["user_id"], message, bot=bot)
     fresh_order = await get_order_by_id(order["id"])
     if fresh_order:
@@ -364,34 +445,53 @@ async def _process_account_stocked(bot: Bot, order: Order) -> None:
         await _refund_order(bot, order, "Sản phẩm không hợp lệ")
         return
 
-    from db.queries.account_stocks import get_reserved_account
+    from db.queries.account_stocks import get_reserved_accounts
 
     product = await get_product_by_id(product_id)
-    account = await get_reserved_account(order["id"])
-    if not account:
+    quantity = _order_quantity(order)
+    accounts = await get_reserved_accounts(order["id"])
+    if len(accounts) < quantity:
         await _refund_order(bot, order, "Tài khoản giữ chỗ không tồn tại (lỗi kho)")
         return
 
-    await mark_account_sold(
-        account["id"],
-        order["user_id"],
-        order["id"],
-        product_id=product_id,
-    )
+    raw_blocks: list[str] = []
+    formatted_blocks: list[str] = []
+    for index, account in enumerate(accounts[:quantity], start=1):
+        await mark_account_sold(
+            account["id"],
+            order["user_id"],
+            order["id"],
+            product_id=product_id,
+        )
+        raw_data = account["account_data"]
+        formatted_data = _format_account_delivery(
+            raw_data,
+            product.get("format_template") if product else None,
+        )
+        raw_blocks.append(raw_data)
+        if quantity > 1:
+            formatted_blocks.append(f"#{index}\n{formatted_data}")
+        else:
+            formatted_blocks.append(formatted_data)
 
-    raw_data = account["account_data"]
-    formatted_data = _format_account_delivery(
-        raw_data,
-        product.get("format_template") if product else None,
-    )
-    await update_order_status(order["id"], "completed", delivery_info=raw_data)
-    await add_log(f"Account delivered for order {order['order_code']}", module="poller")
+    delivery_info = "\n\n──────────\n\n".join(raw_blocks)
+    await update_order_status(order["id"], "completed", delivery_info=delivery_info)
+    await add_log(f"Account delivered for order {order['order_code']} x{quantity}", module="poller")
 
-    message = (
-        f"✅ Đơn <b>{order['order_code']}</b> hoàn thành!\n\n"
-        f"📦 Thông tin tài khoản:\n{formatted_data}\n\n"
-        "⚠️ Vui lòng lưu thông tin cẩn thận!"
-    )
+    delivery_text = "\n\n━━━━━━━━━━━━\n\n".join(formatted_blocks)
+    if quantity > 1:
+        message = (
+            f"✅ Đơn <b>{order['order_code']}</b> hoàn thành!\n\n"
+            f"🔢 Số lượng: <b>x{quantity}</b>\n\n"
+            f"📦 Thông tin tài khoản:\n{delivery_text}\n\n"
+            "⚠️ Vui lòng lưu thông tin cẩn thận!"
+        )
+    else:
+        message = (
+            f"✅ Đơn <b>{order['order_code']}</b> hoàn thành!\n\n"
+            f"📦 Thông tin tài khoản:\n{delivery_text}\n\n"
+            "⚠️ Vui lòng lưu thông tin cẩn thận!"
+        )
     await notify_user(order["user_id"], message, bot=bot)
     fresh_order = await get_order_by_id(order["id"])
     if fresh_order:

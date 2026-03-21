@@ -12,6 +12,7 @@ from bot.utils.time_utils import get_now_vn
 
 import json
 import logging
+from dataclasses import replace
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -20,19 +21,25 @@ from aiogram.fsm.context import FSMContext
 
 from bot.callback_data.factories import (
     CategoryPageCB, CategorySelectCB, KeyActionCB,
-    ProductPageCB, ProductSelectCB, BackCB,
+    ProductPageCB, ProductSelectCB, QuantityAdjustCB,
+    QuantityBackCB, QuantityConfirmCB, BackCB,
 )
 from bot.keyboards.inline_kb import (
-    categories_kb, key_action_kb, products_kb, back_only_kb,
+    categories_kb, key_action_kb, products_kb,
+    quantity_picker_kb, back_only_kb,
 )
-from bot.services.pricing_resolver import quote_api_order, quote_non_api_product
+from bot.services.pricing_resolver import QuoteContext, quote_api_order, quote_non_api_product
 from db.queries.categories import get_active_categories, get_category_by_id
 from db.queries.products import get_active_products_by_category, get_product_by_id
+from db.queries.servers import get_server_by_id
 from db.queries.settings import get_setting_int
 
 logger = logging.getLogger(__name__)
 
 router = Router(name="catalog")
+_QUANTITY_ENABLED_TYPES = frozenset({"key_new", "account_stocked"})
+_MAX_BULK_KEY_NEW = 10
+_MAX_BULK_ACCOUNT = 10
 
 
 # ── 🛒 Sản phẩm → Danh mục ─────────────────────────────────────────────────
@@ -152,6 +159,193 @@ async def products_page(
     await callback.answer()
 
 
+def _supports_quantity(product: dict) -> bool:
+    return str(product.get("product_type") or "") in _QUANTITY_ENABLED_TYPES
+
+
+def _max_quantity_for_product(product: dict) -> int:
+    ptype = str(product.get("product_type") or "")
+    if ptype == "account_stocked":
+        stock = int(product.get("stock") or 0)
+        if stock <= 1:
+            return 1
+        return min(stock, _MAX_BULK_ACCOUNT)
+    if ptype == "key_new":
+        return _MAX_BULK_KEY_NEW
+    return 1
+
+
+def _normalize_quantity(product: dict, quantity: int) -> tuple[int, int]:
+    max_quantity = _max_quantity_for_product(product)
+    return max(1, min(quantity, max_quantity)), max_quantity
+
+
+def _scale_quote(quote: QuoteContext, quantity: int) -> QuoteContext:
+    if quantity <= 1:
+        return quote
+
+    pricing_snapshot = dict(quote.pricing_snapshot or {})
+    pricing_snapshot.update(
+        {
+            "quantity": quantity,
+            "unit_base_amount": quote.base_amount,
+            "unit_payable_amount": quote.payable_amount,
+            "unit_discount_amount": quote.discount_amount,
+            "unit_cashback_amount": quote.cashback_amount,
+            "total_base_amount": quote.base_amount * quantity,
+            "total_payable_amount": quote.payable_amount * quantity,
+        }
+    )
+
+    promotion_snapshot = (
+        dict(quote.promotion_snapshot)
+        if isinstance(quote.promotion_snapshot, dict)
+        else quote.promotion_snapshot
+    )
+
+    return replace(
+        quote,
+        base_amount=quote.base_amount * quantity,
+        payable_amount=quote.payable_amount * quantity,
+        discount_amount=quote.discount_amount * quantity,
+        cashback_amount=quote.cashback_amount * quantity,
+        spend_credit_amount=quote.spend_credit_amount * quantity,
+        quota_amount=quote.quota_amount * quantity,
+        dollar_amount=quote.dollar_amount * quantity,
+        pricing_snapshot=pricing_snapshot,
+        promotion_snapshot=promotion_snapshot,
+    )
+
+
+async def _quote_product_for_quantity(
+    product: dict,
+    *,
+    user_id: int,
+    quantity: int,
+) -> tuple[QuoteContext, QuoteContext, dict | None]:
+    server = None
+    ptype = str(product.get("product_type") or "")
+
+    if ptype in {"key_new", "key_topup"} and product.get("server_id"):
+        server = await get_server_by_id(product["server_id"])
+        if not server:
+            raise ValueError("Server không tồn tại")
+        single_quote = await quote_api_order(user_id=user_id, server=server, product=product)
+    else:
+        single_quote = await quote_non_api_product(product, user_id=user_id)
+
+    return single_quote, _scale_quote(single_quote, quantity), server
+
+
+async def _show_quantity_picker(
+    callback: CallbackQuery,
+    *,
+    product: dict,
+    quantity: int,
+    user_id: int,
+) -> None:
+    from bot.utils.formatting import format_vnd
+
+    quantity, max_quantity = _normalize_quantity(product, quantity)
+    single_quote, total_quote, server = await _quote_product_for_quantity(
+        product,
+        user_id=user_id,
+        quantity=quantity,
+    )
+
+    lines = [
+        "🧮 <b>Chọn số lượng</b>",
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"📦 <b>{product['name']}</b>",
+        f"🔢 Số lượng: <b>x{quantity}</b>",
+        f"💵 Đơn giá: <b>{format_vnd(single_quote.payable_amount)}</b>",
+        f"💰 Tạm tính: <b>{format_vnd(total_quote.payable_amount)}</b>",
+    ]
+    if total_quote.discount_amount > 0:
+        lines.append(f"🏷 Giá gốc: <b>{format_vnd(total_quote.base_amount)}</b>")
+        lines.append(f"💸 Giảm giá: <b>-{format_vnd(total_quote.discount_amount)}</b>")
+    if total_quote.cashback_amount > 0:
+        lines.append(f"🪙 Cashback: <b>{format_vnd(total_quote.cashback_amount)}</b>")
+    if product.get("description"):
+        lines.append(f"📝 {product['description']}")
+
+    if product.get("product_type") == "key_new":
+        if single_quote.dollar_amount > 0:
+            lines.append(f"💵 Mỗi key: <b>{single_quote.dollar_amount:g}$</b>")
+        if server:
+            lines.append(f"🖥 Server: <b>{server['name']}</b>")
+        group_name = (product.get("group_name") or (server.get("default_group") if server else "") or "").strip()
+        if group_name:
+            lines.append(f"👥 Group: <b>{group_name}</b>")
+    elif product.get("product_type") == "account_stocked":
+        lines.append(f"📦 Tồn kho khả dụng: <b>{product.get('stock', 0)}</b>")
+
+    lines.append(f"📏 Giới hạn mỗi đơn: <b>x{max_quantity}</b>")
+    lines.extend([
+        "━━━━━━━━━━━━━━━━━━━━",
+        "Chọn số lượng rồi bấm <b>Tiếp tục thanh toán</b>.",
+    ])
+
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=quantity_picker_kb(
+            product_id=product["id"],
+            quantity=quantity,
+            max_quantity=max_quantity,
+        ),
+        parse_mode="HTML",
+    )
+
+
+async def _show_product_list_for_quantity_back(callback: CallbackQuery, product: dict) -> None:
+    cat_id = int(product.get("category_id") or 0)
+    per_page = await get_setting_int("pagination_size", 6)
+    ptype = str(product.get("product_type") or "")
+
+    if ptype == "key_new" and product.get("server_id"):
+        server = await get_server_by_id(product["server_id"])
+        products = await get_active_products_by_category(
+            cat_id,
+            server_id=product["server_id"],
+            product_type="key_new",
+        )
+        title = f"🔑 <b>Mua key mới — {server['name']}</b>\n\nChọn gói:" if server else "🔑 <b>Mua key mới</b>\n\nChọn gói:"
+        await callback.message.edit_text(
+            title,
+            reply_markup=products_kb(
+                products,
+                cat_id=cat_id,
+                srv_id=product["server_id"],
+                ptype="key_new",
+                page=0,
+                per_page=per_page,
+                action="new",
+            ),
+            parse_mode="HTML",
+        )
+        return
+
+    category = await get_category_by_id(cat_id)
+    products = await get_active_products_by_category(cat_id)
+    title = (
+        f"{category.get('icon', '📦')} <b>{category['name']}</b>\n\nChọn sản phẩm:"
+        if category
+        else "📦 <b>Chọn sản phẩm</b>"
+    )
+    await callback.message.edit_text(
+        title,
+        reply_markup=products_kb(
+            products,
+            cat_id=cat_id,
+            srv_id=0,
+            ptype="general",
+            page=0,
+            per_page=per_page,
+        ),
+        parse_mode="HTML",
+    )
+
+
 # ── Chọn sản phẩm → Điều hướng theo product_type ───────────────────────────
 
 @router.callback_query(ProductSelectCB.filter())
@@ -185,8 +379,82 @@ async def select_product(
         await handle_upgrade_product(callback, product, state, db_user)
         return
 
+    if _supports_quantity(product):
+        _, max_quantity = _normalize_quantity(product, 1)
+        if max_quantity > 1:
+            try:
+                await _show_quantity_picker(
+                    callback,
+                    product=product,
+                    quantity=1,
+                    user_id=db_user["id"],
+                )
+            except ValueError as exc:
+                await callback.answer(f"❌ {exc}", show_alert=True)
+                return
+            await callback.answer()
+            return
+
     # Tất cả loại khác (key_new, key_topup, account_stocked): tạo order + payment
     await _handle_standard_product(callback, product, state, db_user)
+
+
+@router.callback_query(QuantityAdjustCB.filter())
+async def adjust_quantity(
+    callback: CallbackQuery,
+    callback_data: QuantityAdjustCB,
+    db_user: dict,
+) -> None:
+    product = await get_product_by_id(callback_data.product_id)
+    if not product or not _supports_quantity(product):
+        await callback.answer("❌ Sản phẩm không còn khả dụng.", show_alert=True)
+        return
+
+    if product["stock"] == 0:
+        await callback.answer("❌ Sản phẩm đã hết hàng.", show_alert=True)
+        return
+
+    try:
+        await _show_quantity_picker(
+            callback,
+            product=product,
+            quantity=callback_data.qty,
+            user_id=db_user["id"],
+        )
+    except ValueError as exc:
+        await callback.answer(f"❌ {exc}", show_alert=True)
+        return
+    await callback.answer()
+
+
+@router.callback_query(QuantityConfirmCB.filter())
+async def confirm_quantity(
+    callback: CallbackQuery,
+    callback_data: QuantityConfirmCB,
+    state: FSMContext,
+    db_user: dict,
+) -> None:
+    product = await get_product_by_id(callback_data.product_id)
+    if not product or not _supports_quantity(product):
+        await callback.answer("❌ Sản phẩm không còn khả dụng.", show_alert=True)
+        return
+
+    quantity, _ = _normalize_quantity(product, callback_data.qty)
+    await _handle_standard_product(callback, product, state, db_user, quantity=quantity)
+
+
+@router.callback_query(QuantityBackCB.filter())
+async def quantity_back(
+    callback: CallbackQuery,
+    callback_data: QuantityBackCB,
+) -> None:
+    product = await get_product_by_id(callback_data.product_id)
+    if not product:
+        await callback.answer("❌ Sản phẩm không còn khả dụng.", show_alert=True)
+        return
+
+    await _show_product_list_for_quantity_back(callback, product)
+    await callback.answer()
 
 
 async def _handle_standard_product(
@@ -194,6 +462,8 @@ async def _handle_standard_product(
     product: dict,
     state: FSMContext,
     db_user: dict,
+    *,
+    quantity: int = 1,
 ) -> None:
     """Xử lý sản phẩm dạng chuẩn (chatgpt, account_stocked, general) → tạo order → payment."""
     from datetime import datetime, timedelta
@@ -203,8 +473,6 @@ async def _handle_standard_product(
     from bot.keyboards.inline_kb import payment_method_kb
     from db.queries.orders import create_order
     from db.queries.wallets import get_balance
-    from db.queries.servers import get_server_by_id
-
     # Lấy thông tin server nếu có
     server = None
     server_name = "N/A"
@@ -259,13 +527,14 @@ async def _handle_standard_product(
         return
 
     if ptype in ("key_new", "key_topup") and server:
-        quote = await quote_api_order(
+        single_quote = await quote_api_order(
             user_id=db_user["id"],
             server=server,
             product=product,
         )
     else:
-        quote = await quote_non_api_product(product, user_id=db_user["id"])
+        single_quote = await quote_non_api_product(product, user_id=db_user["id"])
+    quote = _scale_quote(single_quote, quantity)
 
     # Build product detail text
     lines = [
@@ -273,6 +542,9 @@ async def _handle_standard_product(
         f"━━━━━━━━━━━━━━━━━━━━",
         f"💰 Giá: <b>{format_vnd(quote.payable_amount)}</b>",
     ]
+    if quantity > 1:
+        lines.append(f"🔢 Số lượng: <b>x{quantity}</b>")
+        lines.append(f"💵 Đơn giá: <b>{format_vnd(single_quote.payable_amount)}</b>")
     if quote.discount_amount > 0:
         lines.append(f"🏷 Giá gốc: <b>{format_vnd(quote.base_amount)}</b>")
         lines.append(f"💸 Giảm giá: <b>-{format_vnd(quote.discount_amount)}</b>")
@@ -320,6 +592,7 @@ async def _handle_standard_product(
         product_name=product["name"],
         product_type=product["product_type"],
         amount=quote.payable_amount,
+        quantity=quantity,
         payment_method="qr",  # Default, sẽ update khi chọn
         server_id=product.get("server_id"),
         group_name=effective_group or None,
@@ -341,13 +614,13 @@ async def _handle_standard_product(
 
     # [NEW] Nếu là tài khoản có sẵn, lập tức xí chỗ (reserve)
     if product["product_type"] == "account_stocked":
-        from db.queries.account_stocks import reserve_account
+        from db.queries.account_stocks import reserve_accounts
         from db.queries.orders import update_order_status
-        reserved_acc = await reserve_account(product["id"], order_id)
-        if not reserved_acc:
+        reserved_accounts = await reserve_accounts(product["id"], order_id, quantity)
+        if len(reserved_accounts) < quantity:
             # Thu hồi đơn vừa tạo và báo lỗi (ai đó đã nhanh tay hơn)
             await update_order_status(order_id, "cancelled", cancel_reason="Hết hàng (Race condition)")
-            await callback.answer("❌ Có người đã nhanh tay mua mất tài khoản cuối cùng. Vui lòng thử lại sau!", show_alert=True)
+            await callback.answer("❌ Tồn kho không đủ cho số lượng bạn chọn. Vui lòng thử lại với số lượng thấp hơn.", show_alert=True)
             return
 
     await state.update_data(current_order_id=order_id)
@@ -364,7 +637,7 @@ async def _handle_standard_product(
 
     # Hiển thị nút QR hay không
     if ptype in ("key_new", "key_topup"):
-        show_qr = (dollar_amount >= 10)
+        show_qr = (quote.dollar_amount >= 10)
         warning_msg = "⚠️ Dưới $10 chỉ hỗ trợ thanh toán bằng ví nội bộ."
     else:
         show_qr = (quote.payable_amount >= 1000)

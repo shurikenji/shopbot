@@ -16,6 +16,7 @@ _BEST_EFFORT_MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN disable_discounts INTEGER DEFAULT 0",
     "ALTER TABLE api_servers ADD COLUMN quota_multiple REAL NOT NULL DEFAULT 1.0",
     "ALTER TABLE orders ADD COLUMN custom_quota INTEGER",
+    "ALTER TABLE orders ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE api_servers ADD COLUMN default_group TEXT",
     "ALTER TABLE products ADD COLUMN format_template TEXT",
     "ALTER TABLE products ADD COLUMN input_prompt TEXT",

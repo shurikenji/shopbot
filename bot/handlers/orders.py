@@ -135,6 +135,9 @@ async def order_detail(
         f"{emoji} Trạng thái: <b>{status}</b>",
         f"📅 Tạo lúc: <i>{format_time_vn(order.get('created_at', ''))}</i>",
     ]
+    quantity = int(order.get("quantity") or 1)
+    if quantity > 1:
+        lines.append(f"🔢 Số lượng: <b>x{quantity}</b>")
     if order.get("product_type") == "key_new" and order.get("group_name"):
         display_group = await format_group_display_names(order.get("group_name"), server)
         lines.append(f"👥 Group: <b>{display_group or order['group_name']}</b>")

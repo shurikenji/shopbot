@@ -51,6 +51,23 @@ class ProductSelectCB(CallbackData, prefix="ps"):
     product_id: int
 
 
+class QuantityAdjustCB(CallbackData, prefix="qtya"):
+    """Tăng/giảm số lượng cho một sản phẩm đủ điều kiện."""
+    product_id: int
+    qty: int
+
+
+class QuantityConfirmCB(CallbackData, prefix="qtyc"):
+    """Xác nhận số lượng và đi tiếp sang bước tạo order."""
+    product_id: int
+    qty: int
+
+
+class QuantityBackCB(CallbackData, prefix="qtyb"):
+    """Quay lại danh sách sản phẩm từ màn chọn số lượng."""
+    product_id: int
+
+
 # ── Payment ─────────────────────────────────────────────────────────────────
 
 class PaymentMethodCB(CallbackData, prefix="pay"):

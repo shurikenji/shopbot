@@ -54,6 +54,12 @@
                         <th>Số tiền</th>
                         <td><span class="fw-bold" style="font-size: 1.1rem;">{{ format_vnd(order.amount) }}</span></td>
                     </tr>
+                    {% if (order.quantity or 1) > 1 %}
+                    <tr>
+                        <th>Số lượng</th>
+                        <td>x{{ order.quantity }}</td>
+                    </tr>
+                    {% endif %}
                     {% if order.base_amount %}
                     <tr>
                         <th>Giá gốc</th>

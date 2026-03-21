@@ -86,6 +86,9 @@ async def search_order_input(
         f"{emoji} Trạng thái: <b>{status}</b>",
         f"📅 Tạo lúc: <i>{format_time_vn(order.get('created_at', ''))}</i>",
     ]
+    quantity = int(order.get("quantity") or 1)
+    if quantity > 1:
+        lines.append(f"🔢 Số lượng: <b>x{quantity}</b>")
 
     if order.get("api_key"):
         lines.append(f"\n🔑 API Key: <code>{order['api_key']}</code>")

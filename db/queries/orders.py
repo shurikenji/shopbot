@@ -58,6 +58,7 @@ async def create_order(
     product_type: str,
     amount: int,
     payment_method: str,
+    quantity: int = 1,
     product_id: Optional[int] = None,
     product_name: Optional[str] = None,
     server_id: Optional[int] = None,
@@ -79,11 +80,11 @@ async def create_order(
     cursor = await execute_commit(
         """INSERT INTO orders
            (order_code, user_id, product_id, product_name, product_type,
-            amount, payment_method, server_id, group_name, existing_key,
+            amount, quantity, payment_method, server_id, group_name, existing_key,
             custom_quota, qr_content, expired_at, base_amount, discount_amount,
             cashback_amount, spend_credit_amount, pricing_version_id,
             applied_tier_id, pricing_snapshot, promotion_snapshot)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             order_code,
             user_id,
@@ -91,6 +92,7 @@ async def create_order(
             product_name,
             product_type,
             amount,
+            quantity,
             payment_method,
             server_id,
             group_name,

@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS orders (
     product_name    TEXT,
     product_type    TEXT NOT NULL,
     amount          INTEGER NOT NULL,
+    quantity        INTEGER NOT NULL DEFAULT 1,
     payment_method  TEXT NOT NULL,
     status          TEXT DEFAULT 'pending',
     api_key         TEXT,

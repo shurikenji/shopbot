@@ -62,6 +62,19 @@ async def reserve_account(product_id: int, order_id: int) -> Optional[dict]:
     row_details = await cursor.fetchone()
     return dict(row_details) if row_details else None
 
+
+async def reserve_accounts(product_id: int, order_id: int, quantity: int) -> list[dict]:
+    """Xí chỗ nhiều tài khoản cho cùng một đơn; rollback nếu không đủ."""
+    reserved: list[dict] = []
+    for _ in range(max(1, quantity)):
+        account = await reserve_account(product_id, order_id)
+        if not account:
+            if reserved:
+                await release_account_by_order(order_id)
+            return []
+        reserved.append(account)
+    return reserved
+
 async def release_account_by_order(order_id: int) -> None:
     """Hủy xí chỗ cho đơn bị hủy/lỗi trước khi thanh toán."""
     db = await get_db()
@@ -84,6 +97,16 @@ async def get_reserved_account(order_id: int) -> Optional[dict]:
     )
     row = await cursor.fetchone()
     return dict(row) if row else None
+
+
+async def get_reserved_accounts(order_id: int) -> list[dict]:
+    """Lấy toàn bộ tài khoản đã xí chỗ cho một đơn."""
+    return await fetch_all_dicts(
+        """SELECT * FROM account_stocks
+           WHERE sold_order_id = ? AND is_sold = 0
+           ORDER BY id ASC""",
+        (order_id,),
+    )
 
 
 async def mark_account_sold(
