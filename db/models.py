@@ -458,7 +458,7 @@ _DEFAULT_SETTINGS = [
      "✅ Đơn <b>{order_code}</b> hoàn thành!\n\n"
      "📦 Thông tin tài khoản:\n<code>{account_data}</code>\n\n"
      "⚠️ Vui lòng lưu thông tin và đổi mật khẩu ngay!",
-     "Thông báo giao ChatGPT ({order_code},{account_data})"),
+     "Thông báo giao tài khoản tự động ({order_code},{account_data})"),
     ("msg_wallet_topup",
      "✅ Nạp ví thành công!\n\n"
      "💰 Số tiền: <b>{amount}</b>\n"

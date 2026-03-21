@@ -104,12 +104,19 @@
                     <div class="card-header">
                         <h3 style="display: flex; align-items: center; gap: 0.5rem;">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                            Mẫu tin giao hàng
+                            Tin nhắn tự động
                         </h3>
                     </div>
                     <div class="card-body">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.25rem;">Nội dung gửi đến user sau khi thanh toán hoặc giao hàng. Hỗ trợ HTML Telegram.</p>
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.25rem;">Tùy chỉnh nội dung bot gửi tự động sau khi hoàn tất đơn hàng hoặc cộng tiền vào ví. Hỗ trợ HTML Telegram.</p>
                         <div class="row g-3">
+                            <div class="col-12">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.35rem;">
+                                    <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Giao hàng</h4>
+                                    <span style="font-size: 0.75rem; color: var(--text-secondary); background: var(--background-subtle); border: 1px solid var(--border-light); border-radius: 999px; padding: 0.2rem 0.6rem;">Sau khi đơn hoàn tất</span>
+                                </div>
+                                <p style="margin: 0; color: var(--text-secondary); font-size: 0.84rem;">Dùng cho key mới, nạp key cũ và các sản phẩm tài khoản giao tự động.</p>
+                            </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label">Key API mới</label>
@@ -126,12 +133,22 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label">ChatGPT auto</label>
+                                    <label class="form-label">Tài khoản giao tự động</label>
                                     <textarea name="msg_chatgpt" class="form-control" rows="5" style="font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;">{{ all_settings.get('msg_chatgpt', '') }}</textarea>
                                     <div class="form-text">Biến: {order_code}, {account_data}</div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-12">
+                                <div style="height: 1px; background: var(--border-light); margin: 0.1rem 0;"></div>
+                            </div>
+                            <div class="col-12">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.35rem;">
+                                    <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Ví & hệ thống</h4>
+                                    <span style="font-size: 0.75rem; color: var(--text-secondary); background: var(--background-subtle); border: 1px solid var(--border-light); border-radius: 999px; padding: 0.2rem 0.6rem;">Thông báo giao dịch</span>
+                                </div>
+                                <p style="margin: 0; color: var(--text-secondary); font-size: 0.84rem;">Dùng cho các tin nhắn xác nhận nạp ví và cập nhật số dư.</p>
+                            </div>
+                            <div class="col-12">
                                 <div class="form-group">
                                     <label class="form-label">Nạp ví thành công</label>
                                     <textarea name="msg_wallet_topup" class="form-control" rows="5" style="font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;">{{ all_settings.get('msg_wallet_topup', '') }}</textarea>
