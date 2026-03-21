@@ -227,6 +227,26 @@ async def main() -> None:
             assert linked_key is not None
             print("[OK] Owner-locked imported keys skip accrual for other users but still allow topup linkage")
 
+            await KeyValuationService.record_platform_quota_offset(
+                user_id=other_user["id"],
+                server=server,
+                api_key="sk-imported-key-12345678901234567890",
+                quota_delta=250000,
+                resulting_total_quota=1750000,
+                source="platform_key_topup",
+                source_ref="order:sim-topup-1",
+            )
+            imported_after_topup = await KeyValuationService.evaluate_imported_key(
+                user_id=user["id"],
+                server=server,
+                api_key="sk-imported-key-12345678901234567890",
+                token_data={"id": 77, "remain_quota": 500000, "used_quota": 1250000},
+            )
+            assert imported_after_topup["status"] == "no_change"
+            assert imported_after_topup["credited_delta_quota"] == 0
+            assert await get_user_server_total_spend(user["id"], server_id) == 35000
+            print("[OK] Platform topups move the key baseline forward so imports do not recapture other users' paid quota")
+
             await update_server(server_id, price_per_unit=12000)
             await sync_server_pricing_version(server_id)
             versions = await list_server_pricing_versions(server_id)
@@ -265,7 +285,7 @@ async def main() -> None:
             ledger_entries = await list_spend_ledger(user["id"], server_id)
             assert len(ledger_entries) == 4
             valuation_events = await list_key_valuation_events(server_id)
-            assert len(valuation_events) == 4
+            assert len(valuation_events) == 6
             print("[OK] Ledger and valuation event audit trails are persisted as append-only records")
 
             print("\n=== DISCOUNT / LEDGER VERIFICATION PASSED ===")

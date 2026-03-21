@@ -19,6 +19,7 @@ from bot.services.admin_order_notifications import (
     notify_admin_order_completed,
     notify_admin_service_paid,
 )
+from bot.services.key_valuation import KeyValuationService
 from bot.services.mbbank import extract_order_code, fetch_transactions
 from bot.services.spend_ledger import SpendLedgerService
 from bot.services.refund_service import refund_order
@@ -296,6 +297,28 @@ async def _process_key_new(bot: Bot, order: Order) -> None:
             api_key=full_key,
             label=mask_api_key(full_key),
         )
+        try:
+            await KeyValuationService.record_platform_quota_offset(
+                user_id=order["user_id"],
+                server=server,
+                api_key=full_key,
+                quota_delta=quota,
+                resulting_total_quota=quota,
+                source="platform_key_new",
+                source_ref=f"order:{order['id']}:seq:{sequence}",
+            )
+        except Exception as exc:
+            logger.error(
+                "Platform key-new baseline sync failed for order %s: %s",
+                order["order_code"],
+                exc,
+                exc_info=True,
+            )
+            await add_log(
+                f"Platform key-new baseline sync failed for order {order['order_code']}: {exc}",
+                level="error",
+                module="poller",
+            )
 
     delivery_info = "\n".join(created_keys) if quantity > 1 else None
     await update_order_status(
@@ -397,6 +420,28 @@ async def _process_key_topup(bot: Bot, order: Order) -> None:
         api_token_id=token_id,
         label=mask_api_key(existing_key),
     )
+    try:
+        await KeyValuationService.record_platform_quota_offset(
+            user_id=order["user_id"],
+            server=server,
+            api_key=existing_key,
+            quota_delta=add_quota,
+            resulting_total_quota=new_quota,
+            source="platform_key_topup",
+            source_ref=f"order:{order['id']}",
+        )
+    except Exception as exc:
+        logger.error(
+            "Platform key-topup baseline sync failed for order %s: %s",
+            order["order_code"],
+            exc,
+            exc_info=True,
+        )
+        await add_log(
+            f"Platform key-topup baseline sync failed for order {order['order_code']}: {exc}",
+            level="error",
+            module="poller",
+        )
     await update_order_status(
         order["id"],
         "completed",
