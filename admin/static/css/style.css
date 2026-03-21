@@ -2965,29 +2965,29 @@ textarea.form-control {
    Override Bootstrap 5 defaults for snappy, premium feel
    ═══════════════════════════════════════════════════════════ */
 
-/* Faster backdrop */
+/* Modal open/close should feel immediate in admin workflows */
 .modal-backdrop {
-    transition: opacity 0.12s ease-out !important;
+    transition: none !important;
 }
 
 .modal-backdrop.show {
     opacity: 0.4 !important;
 }
 
-/* Override Bootstrap's slow fade — use scale + opacity */
+/* Remove fade/scale animation for fastest perceived response */
 .modal.fade {
-    transition: opacity 0.12s ease-out !important;
+    transition: none !important;
 }
 
 .modal.fade .modal-dialog {
-    transition: transform 0.18s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.15s ease-out !important;
-    transform: scale(0.95) translateY(-8px);
-    opacity: 0;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
 }
 
 .modal.show .modal-dialog {
-    transform: scale(1) translateY(0);
-    opacity: 1;
+    transform: none !important;
+    opacity: 1 !important;
 }
 
 /* Modal content — match design system */
