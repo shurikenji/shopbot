@@ -133,6 +133,48 @@ class KeyValuationService:
                             json.dumps({"registry_owner_user_id": owner_user_id}, ensure_ascii=True),
                         ),
                     )
+                    await db.execute(
+                        """UPDATE api_key_registry
+                           SET last_seen_at = datetime('now')
+                           WHERE id = ?""",
+                        (registry_id,),
+                    )
+                    user_key_cursor = await db.execute(
+                        """SELECT id
+                           FROM user_keys
+                           WHERE user_id = ? AND api_key = ?""",
+                        (user_id, normalized_key),
+                    )
+                    user_key_row = await user_key_cursor.fetchone()
+                    if user_key_row:
+                        await db.execute(
+                            """UPDATE user_keys
+                               SET server_id = ?,
+                                   api_token_id = COALESCE(?, api_token_id),
+                                   label = ?,
+                                   is_active = 1,
+                                   updated_at = datetime('now', '+7 hours')
+                               WHERE id = ?""",
+                            (
+                                server["id"],
+                                token_data.get("id"),
+                                mask_api_key(normalized_key),
+                                int(user_key_row["id"]),
+                            ),
+                        )
+                    else:
+                        await db.execute(
+                            """INSERT INTO user_keys
+                               (user_id, server_id, api_key, api_token_id, label, is_active)
+                               VALUES (?, ?, ?, ?, ?, 1)""",
+                            (
+                                user_id,
+                                server["id"],
+                                normalized_key,
+                                token_data.get("id"),
+                                mask_api_key(normalized_key),
+                            ),
+                        )
                     await db.commit()
                     return {
                         "status": "owner_mismatch",

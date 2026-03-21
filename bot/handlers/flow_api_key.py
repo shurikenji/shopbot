@@ -462,13 +462,11 @@ async def input_key_received(
         )
         status = valuation.get("status")
         if status == "owner_mismatch":
-            await message.answer(
-                "❌ Key này đã được liên kết với tài khoản khác trong hệ thống, không thể dùng để nạp.",
-                reply_markup=back_only_kb(key_input_back),
+            accrual_lines.append(
+                "ℹ️ Key này đã được liên kết với tài khoản khác trong hệ thống."
+                " Bạn vẫn có thể nạp, nhưng tài khoản hiện tại sẽ không được cộng ưu đãi từ key này."
             )
-            await state.set_state(ApiKeyStates.waiting_existing_key)
-            return
-        if status == "credited":
+        elif status == "credited":
             accrual_lines.append(
                 "🎯 Đã ghi nhận thêm chi tiêu hợp lệ: "
                 f"<b>{format_vnd(int(valuation.get('credited_value_vnd') or 0))}</b>"

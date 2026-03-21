@@ -34,6 +34,7 @@ from db.queries.spend import (
     list_key_valuation_events,
     list_spend_ledger,
 )
+from db.queries.user_keys import find_user_key_by_api_key
 from db.queries.users import create_user, set_admin, set_discount_disabled
 from db.queries.wallets import refund_order_to_wallet
 
@@ -219,7 +220,12 @@ async def main() -> None:
             )
             assert mismatch["status"] == "owner_mismatch"
             assert await get_user_server_total_spend(other_user["id"], server_id) == 0
-            print("[OK] Owner-locked imported keys reject accrual attempts from other users")
+            linked_key = await find_user_key_by_api_key(
+                other_user["id"],
+                "sk-imported-key-12345678901234567890",
+            )
+            assert linked_key is not None
+            print("[OK] Owner-locked imported keys skip accrual for other users but still allow topup linkage")
 
             await update_server(server_id, price_per_unit=12000)
             await sync_server_pricing_version(server_id)
