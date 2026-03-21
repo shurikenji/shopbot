@@ -1082,28 +1082,85 @@ textarea.form-control {
 
 .entity-toggle-btn {
     min-width: 56px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
 }
 
 .entity-toggle-btn--enable {
-    border-color: rgba(4, 120, 87, 0.18);
-    background: rgba(4, 120, 87, 0.08);
+    border: 1px solid rgba(4, 120, 87, 0.2);
+    background: rgba(4, 120, 87, 0.06);
     color: #047857;
 }
 
 .entity-toggle-btn--enable:hover {
     background: rgba(4, 120, 87, 0.14);
     color: #065f46;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(4, 120, 87, 0.15);
 }
 
 .entity-toggle-btn--disable {
-    border-color: rgba(180, 83, 9, 0.18);
-    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(180, 83, 9, 0.2);
+    background: rgba(245, 158, 11, 0.06);
     color: #b45309;
 }
 
 .entity-toggle-btn--disable:hover {
-    background: rgba(245, 158, 11, 0.16);
+    background: rgba(245, 158, 11, 0.14);
     color: #92400e;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ACTION BUTTONS — Modern pill style
+   ═══════════════════════════════════════════════════════════ */
+.table .actions {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.table .actions .btn-sm {
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
+    transition: all 0.15s ease;
+    border-width: 1px;
+}
+
+.table .actions .btn-outline-primary {
+    border-color: rgba(5, 150, 105, 0.2);
+    color: var(--primary);
+    background: rgba(5, 150, 105, 0.04);
+}
+
+.table .actions .btn-outline-primary:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+}
+
+.table .actions .btn-outline-danger {
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.table .actions .btn-outline-danger:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
 }
 
 .entity-checkbox {
@@ -2672,9 +2729,10 @@ textarea.form-control {
 }
 
 /* ============================================
-   MOBILE RESPONSIVE TABLES (GENERIC)
+   RESPONSIVE TABLES ? CARD LAYOUT
+   Breakpoint matches sidebar collapse (1024px)
    ============================================ */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .table-responsive-cards thead {
         display: none;
     }
@@ -2716,9 +2774,31 @@ textarea.form-control {
         border-bottom: 1px solid var(--border-light);
     }
 
-    /* Mobile header fix — prevent hamburger clipping title */
-    .page-header h1 {
-        padding-left: 2.5rem;
+    /* Card container styling */
+    .table-responsive-cards tbody tr {
+        background: var(--surface);
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+        padding: 0.75rem 0;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+
+    /* Action row at bottom of each card */
+    .table-responsive-cards .actions {
+        display: flex;
+        gap: 0.5rem;
+        padding-top: 0.5rem;
+        margin-top: 0.25rem;
+        border-top: 1px solid var(--border-light);
+        justify-content: flex-start;
+    }
+
+    .table-responsive-cards .actions .btn-sm,
+    .table-responsive-cards .actions .entity-toggle-btn {
+        flex: 0 0 auto;
+        padding: 0.4rem 0.85rem;
+        font-size: 0.82rem;
     }
 }
 
@@ -2878,4 +2958,184 @@ textarea.form-control {
 .pagination .page-link:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL — Modern, Fast Animations
+   Override Bootstrap 5 defaults for snappy, premium feel
+   ═══════════════════════════════════════════════════════════ */
+
+/* Faster backdrop */
+.modal-backdrop {
+    transition: opacity 0.12s ease-out !important;
+}
+
+.modal-backdrop.show {
+    opacity: 0.4 !important;
+}
+
+/* Override Bootstrap's slow fade — use scale + opacity */
+.modal.fade {
+    transition: opacity 0.12s ease-out !important;
+}
+
+.modal.fade .modal-dialog {
+    transition: transform 0.18s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.15s ease-out !important;
+    transform: scale(0.95) translateY(-8px);
+    opacity: 0;
+}
+
+.modal.show .modal-dialog {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+/* Modal content — match design system */
+.modal-content {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+    background: var(--surface);
+}
+
+/* Modal header */
+.modal-header {
+    background: var(--background-subtle);
+    border-bottom: 1px solid var(--border-light);
+    padding: 1rem 1.25rem;
+}
+
+.modal-header .modal-title {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+}
+
+.modal-header .btn-close {
+    opacity: 0.4;
+    transition: all 0.15s ease;
+    border-radius: 50%;
+    padding: 0.5rem;
+}
+
+.modal-header .btn-close:hover {
+    opacity: 1;
+    background-color: var(--danger-bg);
+    transform: scale(1.1);
+}
+
+/* Modal body */
+.modal-body {
+    padding: 1.25rem;
+}
+
+.modal-body .form-label {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+}
+
+.modal-body .form-control,
+.modal-body .form-select {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.88rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modal-body .form-control:focus,
+.modal-body .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+/* Modal footer */
+.modal-footer {
+    border-top: 1px solid var(--border-light);
+    padding: 0.75rem 1.25rem;
+    background: var(--background-subtle);
+    gap: 0.5rem;
+}
+
+.modal-footer .btn {
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.15s ease;
+}
+
+.modal-footer .btn-primary,
+.modal-footer .btn-success {
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);
+}
+
+.modal-footer .btn-primary:hover,
+.modal-footer .btn-success:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.modal-footer .btn-secondary {
+    background: var(--background-subtle);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.modal-footer .btn-secondary:hover {
+    background: var(--border-light);
+    color: var(--text-primary);
+}
+
+/* Section headings inside modal body */
+.modal-body h6 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    margin-top: 0.5rem;
+}
+
+.modal-body hr {
+    border-color: var(--border-light);
+    margin: 1rem 0;
+    opacity: 0.6;
+}
+
+/* Checkbox inside modal */
+.modal-body .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Scrollbar in large modals */
+.modal-body::-webkit-scrollbar {
+    width: 5px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 10px;
+}
+
+/* Delete confirmation modal — danger styling */
+.modal-content .btn-danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+.modal-content .btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
