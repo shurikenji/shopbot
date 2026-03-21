@@ -1390,6 +1390,11 @@ textarea.form-control {
 
     .main-content {
         margin-left: 0;
+        padding-top: 3.5rem;
+    }
+
+    .page-header {
+        padding-left: 3rem;
     }
 }
 
@@ -2710,4 +2715,167 @@ textarea.form-control {
     .table-responsive-cards tbody tr:not(:last-child) {
         border-bottom: 1px solid var(--border-light);
     }
+
+    /* Mobile header fix — prevent hamburger clipping title */
+    .page-header h1 {
+        padding-left: 2.5rem;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABLE CELL UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+.cell-id {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+.cell-code--subtle {
+    font-size: 0.8rem;
+    background: var(--background-subtle);
+    padding: 0.2rem 0.5rem;
+    border-radius: 5px;
+    color: var(--text-secondary);
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+.cell-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.cell-meta {
+    font-size: 0.82rem;
+    color: var(--text-tertiary);
+    margin-top: 0.15rem;
+}
+
+.cell-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.cell-price {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.cell-url {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    word-break: break-all;
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+.cell-sort {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.cell-icon-lg {
+    font-size: 1.75rem;
+    display: block;
+    line-height: 1;
+}
+
+.cell-truncate {
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOG STYLING
+   ═══════════════════════════════════════════════════════════ */
+.log-row--error {
+    background: rgba(239, 68, 68, 0.03);
+}
+
+.log-row--warning {
+    background: rgba(245, 158, 11, 0.03);
+}
+
+.log-message--error {
+    color: #991b1b;
+    font-weight: 500;
+}
+
+.log-detail {
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    margin-top: 0.25rem;
+    font-family: 'IBM Plex Mono', monospace;
+    word-break: break-all;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABLE ROW HOVER & MICRO-INTERACTIONS
+   ═══════════════════════════════════════════════════════════ */
+.table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(16, 185, 129, 0.03);
+}
+
+.table tbody tr:hover .cell-name {
+    color: var(--primary);
+}
+
+/* Action buttons — subtle scale on hover */
+.actions .btn {
+    transition: all 0.2s ease;
+}
+
+.actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Stat cards — lift on hover */
+.stat-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Badge subtle pulse for active states */
+.badge {
+    transition: all 0.2s ease;
+}
+
+/* Page header action buttons */
+.page-actions .btn {
+    transition: all 0.2s ease;
+}
+
+.page-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+/* Filter bar inputs — focus glow */
+.filter-bar .form-control:focus,
+.filter-bar .form-select:focus {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+    border-color: var(--primary);
+}
+
+/* Pagination hover */
+.pagination .page-link {
+    transition: all 0.15s ease;
+}
+
+.pagination .page-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
