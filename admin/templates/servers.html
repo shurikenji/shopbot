@@ -780,11 +780,11 @@ function renderDiscountBuilder(prefix) {
                 <div class="discount-tier-card__meta">
                     <div>
                         <label class="form-label">Tên bậc</label>
-                        <input type="text" class="form-control" value="${escapeAttribute(tier.name || '')}" oninput="updateDiscountTierField('${prefix}', ${tierIndex}, 'name', this.value)">
+                        <input type="text" class="form-control" data-discount-focus-key="${prefix}-tier-${tierIndex}-name" value="${escapeAttribute(tier.name || '')}" oninput="updateDiscountTierField('${prefix}', ${tierIndex}, 'name', this.value)">
                     </div>
                     <div>
                         <label class="form-label">Chi tiêu tối thiểu (VNĐ)</label>
-                        <input type="number" class="form-control" value="${escapeAttribute(tier.min_spend_vnd || 0)}" oninput="updateDiscountTierField('${prefix}', ${tierIndex}, 'min_spend_vnd', this.value)">
+                        <input type="number" class="form-control" data-discount-focus-key="${prefix}-tier-${tierIndex}-min-spend" value="${escapeAttribute(tier.min_spend_vnd || 0)}" oninput="updateDiscountTierField('${prefix}', ${tierIndex}, 'min_spend_vnd', this.value)">
                     </div>
                     <div>
                         <label class="form-label">Trạng thái</label>
@@ -818,7 +818,7 @@ function renderDiscountBenefit(prefix, tierIndex, benefit, benefitIndex) {
             <div class="discount-benefit-item__row">
                 <div>
                     <label class="form-label">Loại quyền lợi</label>
-                    <select class="form-select" onchange="updateDiscountBenefitField('${prefix}', ${tierIndex}, ${benefitIndex}, 'type', this.value)">
+                    <select class="form-select" data-discount-focus-key="${prefix}-tier-${tierIndex}-benefit-${benefitIndex}-type" onchange="updateDiscountBenefitField('${prefix}', ${tierIndex}, ${benefitIndex}, 'type', this.value)">
                         ${Object.entries(discountBenefitLabels).map(([value, label]) => `
                             <option value="${value}" ${value === type ? 'selected' : ''}>${label}</option>
                         `).join('')}
@@ -826,7 +826,7 @@ function renderDiscountBenefit(prefix, tierIndex, benefit, benefitIndex) {
                 </div>
                 <div>
                     <label class="form-label">${type === 'percent_off' ? 'Phần trăm giảm' : type === 'fixed_off' ? 'Số tiền giảm' : type === 'cashback' ? 'Giá trị hoàn' : 'Giá trị'}</label>
-                    <input type="number" step="0.01" class="form-control" value="${escapeAttribute(benefit.value ?? '')}" oninput="updateDiscountBenefitField('${prefix}', ${tierIndex}, ${benefitIndex}, 'value', this.value)">
+                    <input type="number" step="0.01" class="form-control" data-discount-focus-key="${prefix}-tier-${tierIndex}-benefit-${benefitIndex}-value" value="${escapeAttribute(benefit.value ?? '')}" oninput="updateDiscountBenefitField('${prefix}', ${tierIndex}, ${benefitIndex}, 'value', this.value)">
                 </div>
                 <div class="discount-builder__actions">
                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeDiscountBenefit('${prefix}', ${tierIndex}, ${benefitIndex})">Xóa</button>
@@ -836,7 +836,7 @@ function renderDiscountBenefit(prefix, tierIndex, benefit, benefitIndex) {
                 ${type === 'cashback' ? `
                     <div>
                         <label class="form-label">Cách tính hoàn tiền</label>
-                        <select class="form-select" onchange="updateDiscountBenefitConfig('${prefix}', ${tierIndex}, ${benefitIndex}, 'mode', this.value)">
+                        <select class="form-select" data-discount-focus-key="${prefix}-tier-${tierIndex}-benefit-${benefitIndex}-mode" onchange="updateDiscountBenefitConfig('${prefix}', ${tierIndex}, ${benefitIndex}, 'mode', this.value)">
                             <option value="percent" ${cashbackMode === 'percent' ? 'selected' : ''}>Theo phần trăm</option>
                             <option value="fixed" ${cashbackMode === 'fixed' ? 'selected' : ''}>Số tiền cố định</option>
                         </select>
@@ -845,7 +845,7 @@ function renderDiscountBenefit(prefix, tierIndex, benefit, benefitIndex) {
                 ${type === 'tier_price' ? `
                     <div>
                         <label class="form-label">Giá theo mỗi 1$</label>
-                        <input type="number" step="0.01" class="form-control" value="${escapeAttribute(pricePerDollar)}" oninput="updateDiscountBenefitConfig('${prefix}', ${tierIndex}, ${benefitIndex}, 'price_per_dollar', this.value)">
+                        <input type="number" step="0.01" class="form-control" data-discount-focus-key="${prefix}-tier-${tierIndex}-benefit-${benefitIndex}-price-per-dollar" value="${escapeAttribute(pricePerDollar)}" oninput="updateDiscountBenefitConfig('${prefix}', ${tierIndex}, ${benefitIndex}, 'price_per_dollar', this.value)">
                     </div>
                 ` : ''}
                 <div>
@@ -860,21 +860,70 @@ function renderDiscountBenefit(prefix, tierIndex, benefit, benefitIndex) {
     `;
 }
 
+function captureDiscountBuilderView(prefix) {
+    const root = document.getElementById(`${prefix}_discount_tiers_builder`);
+    if (!root) return null;
+
+    const scrollContainer = root.closest('.modal-body') || document.scrollingElement;
+    const activeElement = document.activeElement;
+    const focusKey = activeElement?.dataset?.discountFocusKey || '';
+    const selectionStart = typeof activeElement?.selectionStart === 'number' ? activeElement.selectionStart : null;
+    const selectionEnd = typeof activeElement?.selectionEnd === 'number' ? activeElement.selectionEnd : null;
+    const scrollTop = scrollContainer === document.scrollingElement
+        ? window.scrollY
+        : scrollContainer?.scrollTop || 0;
+
+    return { focusKey, scrollTop, selectionStart, selectionEnd };
+}
+
+function restoreDiscountBuilderView(prefix, viewState) {
+    if (!viewState) return;
+
+    requestAnimationFrame(() => {
+        const root = document.getElementById(`${prefix}_discount_tiers_builder`);
+        const scrollContainer = root?.closest('.modal-body') || document.scrollingElement;
+        if (scrollContainer === document.scrollingElement) {
+            window.scrollTo({ top: viewState.scrollTop, behavior: 'instant' });
+        } else if (scrollContainer) {
+            scrollContainer.scrollTop = viewState.scrollTop;
+        }
+
+        if (!viewState.focusKey) return;
+        const target = document.querySelector(`[data-discount-focus-key="${viewState.focusKey}"]`);
+        if (!target) return;
+
+        target.focus({ preventScroll: true });
+        if (
+            typeof viewState.selectionStart === 'number' &&
+            typeof viewState.selectionEnd === 'number' &&
+            typeof target.setSelectionRange === 'function'
+        ) {
+            target.setSelectionRange(viewState.selectionStart, viewState.selectionEnd);
+        }
+    });
+}
+
+function rerenderDiscountBuilder(prefix, preserveView = false) {
+    const viewState = preserveView ? captureDiscountBuilderView(prefix) : null;
+    renderDiscountBuilder(prefix);
+    restoreDiscountBuilderView(prefix, viewState);
+}
+
 function addDiscountTier(prefix) {
     discountBuilderState[prefix].push(normalizeDiscountTier({}, discountBuilderState[prefix].length));
-    renderDiscountBuilder(prefix);
+    rerenderDiscountBuilder(prefix, true);
 }
 
 function removeDiscountTier(prefix, tierIndex) {
     discountBuilderState[prefix].splice(tierIndex, 1);
-    renderDiscountBuilder(prefix);
+    rerenderDiscountBuilder(prefix, true);
 }
 
 function toggleDiscountTierActive(prefix, tierIndex) {
     const tier = discountBuilderState[prefix][tierIndex];
     if (!tier) return;
     tier.is_active = tier.is_active === false;
-    renderDiscountBuilder(prefix);
+    rerenderDiscountBuilder(prefix, true);
 }
 
 function updateDiscountTierField(prefix, tierIndex, field, value) {
@@ -896,7 +945,7 @@ function addDiscountBenefit(prefix, tierIndex) {
     if (!tier) return;
     tier.benefits = tier.benefits || [];
     tier.benefits.push(normalizeDiscountBenefit({ type: 'percent_off', value: 5 }));
-    renderDiscountBuilder(prefix);
+    rerenderDiscountBuilder(prefix, true);
 }
 
 function removeDiscountBenefit(prefix, tierIndex, benefitIndex) {
@@ -906,7 +955,7 @@ function removeDiscountBenefit(prefix, tierIndex, benefitIndex) {
     if (!tier.benefits.length) {
         tier.benefits.push(normalizeDiscountBenefit({ type: 'percent_off', value: 5 }));
     }
-    renderDiscountBuilder(prefix);
+    rerenderDiscountBuilder(prefix, true);
 }
 
 function updateDiscountBenefitField(prefix, tierIndex, benefitIndex, field, value) {
@@ -916,7 +965,11 @@ function updateDiscountBenefitField(prefix, tierIndex, benefitIndex, field, valu
     if (field === 'type' && value !== 'cashback') {
         delete benefit.config.mode;
     }
-    renderDiscountBuilder(prefix);
+    if (field === 'value') {
+        serializeDiscountBuilder(prefix);
+        return;
+    }
+    rerenderDiscountBuilder(prefix, true);
 }
 
 function updateDiscountBenefitConfig(prefix, tierIndex, benefitIndex, key, value) {
