@@ -186,14 +186,36 @@ function confirmDelete() {
 
 function initializeCategoriesEditModal() {}
 
+function showEditModalFallback(modalEl, redirectUrl, onReady) {
+    if (!modalEl) return;
+
+    if (window.AdminRemoteModal && typeof window.AdminRemoteModal.showExisting === 'function') {
+        AdminRemoteModal.showExisting(modalEl, {
+            onReady,
+            onHiddenNavigate: redirectUrl,
+        });
+        return;
+    }
+
+    if (typeof onReady === 'function') {
+        onReady(modalEl);
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const handleHidden = function () {
+        modalEl.removeEventListener('hidden.bs.modal', handleHidden);
+        window.location.href = redirectUrl;
+    };
+
+    modalEl.addEventListener('hidden.bs.modal', handleHidden);
+    modal.show();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     {% if editing %}
     const editModalEl = document.getElementById('editModal');
     if (editModalEl) {
-        AdminRemoteModal.showExisting(editModalEl, {
-            onReady: initializeCategoriesEditModal,
-            onHiddenNavigate: '/categories',
-        });
+        showEditModalFallback(editModalEl, '/categories', initializeCategoriesEditModal);
     }
     {% endif %}
 });
