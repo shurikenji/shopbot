@@ -8,7 +8,6 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
 from bot.callback_data.factories import OrderListPageCB, OrderDetailCB, BackCB
-from bot.keyboards.reply_kb import main_menu_kb
 from bot.keyboards.inline_kb import orders_list_kb, order_detail_kb
 from bot.utils.group_labels import format_group_display_names
 from bot.utils.formatting import (
@@ -57,8 +56,6 @@ async def _get_owned_order_or_alert(
 @router.message(F.text == "📋 Đơn hàng")
 async def orders_list(message: Message, db_user: dict) -> None:
     """Hiện danh sách đơn hàng."""
-    if (message.text or "").startswith("/"):
-        await message.answer("🏠 Menu chính đã được khôi phục.", reply_markup=main_menu_kb())
     await _show_orders(message, db_user, page=0)
 
 

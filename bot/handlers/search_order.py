@@ -9,7 +9,6 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from bot.keyboards.reply_kb import main_menu_kb
 from bot.keyboards.inline_kb import back_only_kb
 from bot.utils.formatting import (
     format_vnd, status_emoji, status_text_vi,
@@ -28,8 +27,6 @@ class SearchOrderStates(StatesGroup):
 @router.message(F.text == "🔎 Tìm đơn")
 async def search_order_prompt(message: Message, state: FSMContext) -> None:
     """Yêu cầu nhập mã đơn hàng."""
-    if (message.text or "").startswith("/"):
-        await message.answer("🏠 Menu chính đã được khôi phục.", reply_markup=main_menu_kb())
     await message.answer(
         "🔎 <b>Tìm đơn hàng</b>\n\n"
         "Nhập mã đơn hàng (vd: <code>ORD1A2B3C4D</code>):",

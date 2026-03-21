@@ -24,7 +24,6 @@ from bot.callback_data.factories import (
     ProductPageCB, ProductSelectCB, QuantityAdjustCB,
     QuantityBackCB, QuantityConfirmCB, BackCB,
 )
-from bot.keyboards.reply_kb import main_menu_kb
 from bot.keyboards.inline_kb import (
     categories_kb, key_action_kb, products_kb,
     quantity_picker_kb, back_only_kb,
@@ -46,12 +45,10 @@ _MAX_BULK_ACCOUNT = 10
 # ── 🛒 Sản phẩm → Danh mục ─────────────────────────────────────────────────
 
 @router.message(Command("products"))
-@router.message(F.text == "🛒 Sản phẩm")
+@router.message(F.text.in_({"🛒 Sản phẩm", "🛒 Mua hàng"}))
 async def show_categories(message: Message, state: FSMContext) -> None:
     """Hiện danh sách danh mục sản phẩm."""
     await state.clear()
-    if (message.text or "").startswith("/"):
-        await message.answer("🏠 Menu chính đã được khôi phục.", reply_markup=main_menu_kb())
     categories = await get_active_categories()
 
     if not categories:
@@ -60,7 +57,7 @@ async def show_categories(message: Message, state: FSMContext) -> None:
 
     per_page = await get_setting_int("pagination_size", 6)
     await message.answer(
-        "🛒 <b>Danh mục sản phẩm</b>\n\nChọn danh mục:",
+        "🛒 <b>Bắt đầu mua hàng</b>\n\nChọn danh mục:",
         reply_markup=categories_kb(categories, page=0, per_page=per_page),
         parse_mode="HTML",
     )
@@ -77,7 +74,7 @@ async def categories_page(
     categories = await get_active_categories()
     per_page = await get_setting_int("pagination_size", 6)
     await callback.message.edit_text(
-        "🛒 <b>Danh mục sản phẩm</b>\n\nChọn danh mục:",
+        "🛒 <b>Bắt đầu mua hàng</b>\n\nChọn danh mục:",
         reply_markup=categories_kb(categories, page=callback_data.page, per_page=per_page),
         parse_mode="HTML",
     )
@@ -666,7 +663,7 @@ async def back_to_categories(callback: CallbackQuery, state: FSMContext) -> None
     categories = await get_active_categories()
     per_page = await get_setting_int("pagination_size", 6)
     await callback.message.edit_text(
-        "🛒 <b>Danh mục sản phẩm</b>\n\nChọn danh mục:",
+        "🛒 <b>Bắt đầu mua hàng</b>\n\nChọn danh mục:",
         reply_markup=categories_kb(categories, page=0, per_page=per_page),
         parse_mode="HTML",
     )

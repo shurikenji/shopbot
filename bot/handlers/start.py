@@ -3,11 +3,11 @@ bot/handlers/start.py — /start command + welcome message + reply keyboard.
 """
 from __future__ import annotations
 
-from aiogram import Router, F
+from aiogram import Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
-from bot.keyboards.reply_kb import main_menu_kb
+from bot.keyboards.reply_kb import main_menu_kb, primary_menu_label
 from db.queries.settings import get_setting
 
 router = Router(name="start")
@@ -27,9 +27,10 @@ async def _send_main_menu(message: Message, db_user: dict, *, show_welcome: bool
             f"Sử dụng menu bên dưới để bắt đầu 👇"
         )
     else:
+        primary_label = primary_menu_label()
         text = (
-            "🏠 <b>Menu chính đã được khôi phục</b>\n\n"
-            "Bạn có thể tiếp tục dùng các nút bên dưới hoặc chọn lệnh từ Telegram Menu."
+            "👋 <b>Chào mừng bạn đến với cửa hàng!</b>\n\n"
+            f'Nhấn "{primary_label}" để bắt đầu.'
         )
 
     await message.answer(text, reply_markup=main_menu_kb(), parse_mode="HTML")
@@ -42,7 +43,6 @@ async def cmd_start(message: Message, db_user: dict) -> None:
 
 
 @router.message(Command("menu"))
-@router.message(F.text == "🏠 Menu chính")
 async def cmd_menu(message: Message, db_user: dict) -> None:
     """Khôi phục reply keyboard chính mà không cần /start lại."""
     await _send_main_menu(message, db_user, show_welcome=False)
