@@ -8,7 +8,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 
 def main_menu_kb() -> ReplyKeyboardMarkup:
-    """Reply keyboard chính — 6 nút chia 2 cột."""
+    """Reply keyboard chính — 7 nút với hàng cuối để khôi phục menu."""
     return ReplyKeyboardMarkup(
         keyboard=[
             [
@@ -22,6 +22,9 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
             [
                 KeyboardButton(text="👤 Tài khoản"),
                 KeyboardButton(text="🆘 Hỗ trợ"),
+            ],
+            [
+                KeyboardButton(text="🏠 Menu chính"),
             ],
         ],
         resize_keyboard=True,

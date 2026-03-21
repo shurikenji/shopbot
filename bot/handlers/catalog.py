@@ -24,6 +24,7 @@ from bot.callback_data.factories import (
     ProductPageCB, ProductSelectCB, QuantityAdjustCB,
     QuantityBackCB, QuantityConfirmCB, BackCB,
 )
+from bot.keyboards.reply_kb import main_menu_kb
 from bot.keyboards.inline_kb import (
     categories_kb, key_action_kb, products_kb,
     quantity_picker_kb, back_only_kb,
@@ -49,6 +50,8 @@ _MAX_BULK_ACCOUNT = 10
 async def show_categories(message: Message, state: FSMContext) -> None:
     """Hiện danh sách danh mục sản phẩm."""
     await state.clear()
+    if (message.text or "").startswith("/"):
+        await message.answer("🏠 Menu chính đã được khôi phục.", reply_markup=main_menu_kb())
     categories = await get_active_categories()
 
     if not categories:

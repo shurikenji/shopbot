@@ -7,6 +7,7 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from bot.keyboards.reply_kb import main_menu_kb
 from bot.utils.formatting import format_vnd, format_time_vn
 from db.queries.wallets import get_balance
 from db.queries.orders import count_orders_by_user
@@ -42,4 +43,4 @@ async def account_info(message: Message, db_user: dict) -> None:
         f"📅 Ngày tạo: <i>{format_time_vn(db_user.get('created_at', ''))}</i>"
     )
 
-    await message.answer(text, parse_mode="HTML")
+    await message.answer(text, parse_mode="HTML", reply_markup=main_menu_kb())

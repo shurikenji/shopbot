@@ -7,6 +7,7 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from bot.keyboards.reply_kb import main_menu_kb
 from db.queries.settings import get_setting
 
 router = Router(name="support")
@@ -28,4 +29,4 @@ async def support_info(message: Message) -> None:
         f"💡 <i>Khi liên hệ, vui lòng cung cấp mã đơn hàng để được hỗ trợ nhanh hơn.</i>"
     )
 
-    await message.answer(text, parse_mode="HTML")
+    await message.answer(text, parse_mode="HTML", reply_markup=main_menu_kb())

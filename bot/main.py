@@ -24,6 +24,7 @@ from db.database import close_db
 logger = logging.getLogger(__name__)
 
 BOT_COMMANDS = (
+    BotCommand(command="menu", description="🏠 Khôi phục menu"),
     BotCommand(command="products", description="🛒 Sản phẩm"),
     BotCommand(command="wallet", description="👛 Ví của tôi"),
     BotCommand(command="orders", description="📋 Lịch sử đơn hàng"),

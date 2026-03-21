@@ -13,6 +13,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from bot.callback_data.factories import WalletActionCB, WalletTopupAmountCB, BackCB
+from bot.keyboards.reply_kb import main_menu_kb
 from bot.keyboards.inline_kb import wallet_menu_kb, wallet_topup_amounts_kb, back_only_kb
 from bot.utils.formatting import format_vnd, status_emoji, format_time_vn
 from bot.utils.order_code import generate_order_code
@@ -36,6 +37,8 @@ class WalletTopupStates(StatesGroup):
 @router.message(F.text == "👛 Ví")
 async def wallet_menu(message: Message, db_user: dict) -> None:
     """Hiện menu ví: số dư + nút nạp/lịch sử."""
+    if (message.text or "").startswith("/"):
+        await message.answer("🏠 Menu chính đã được khôi phục.", reply_markup=main_menu_kb())
     balance = await get_balance(db_user["id"])
     text = (
         f"👛 <b>Ví của bạn</b>\n"
