@@ -2,154 +2,253 @@
 {% from "_entity_controls.html" import entity_state_badge, entity_toggle_form, entity_state_checkbox %}
 {% block title %}Sản phẩm{% endblock %}
 {% block content %}
-<div class="product-shell">
-    <!-- Hero Section -->
-    <section class="product-hero">
-        <div class="product-hero-top">
-            <div>
-                <h1>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 0.5rem;">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    Trung tâm điều phối sản phẩm
-                </h1>
-                <p>Quản lý sản phẩm API keys, tài khoản có sẵn và dịch vụ. Mỗi sản phẩm có thể kết nối với server để lấy thông tin nhóm và quota.</p>
-            </div>
-            <div>
-                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addModal">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Thêm sản phẩm
-                </button>
-            </div>
-        </div>
-        <div class="product-kpis">
-            <div class="product-kpi">
-                <span class="product-kpi-label">Tổng sản phẩm</span>
-                <span class="product-kpi-value">{{ products|length }}</span>
-            </div>
-            <div class="product-kpi">
-                <span class="product-kpi-label">Máy chủ đang bật</span>
-                <span class="product-kpi-value">{{ servers|selectattr('is_active')|list|length }}</span>
-            </div>
-            <div class="product-kpi">
-                <span class="product-kpi-label">Danh mục</span>
-                <span class="product-kpi-value">{{ categories|length }}</span>
-            </div>
-        </div>
-    </section>
 
-    <!-- Flash Message -->
-    {% if flash_message %}
-    <div class="alert alert-{{ flash_type or 'info' }} product-flash animate-slide-up">{{ flash_message }}</div>
-    {% endif %}
-
-    <!-- Products Table -->
-    <section class="product-board">
-        <table class="table product-table">
-            <thead>
-                <tr>
-                    <th>Sản phẩm</th>
-                    <th>Ngữ cảnh</th>
-                    <th>Loại giao hàng</th>
-                    <th>Giá</th>
-                    <th>Trạng thái</th>
-                    <th>Kho</th>
-                    <th>Thao tác</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in products %}
-                <tr>
-                    {% set next_url = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
-                    <td data-label="Sản phẩm">
-                        <div class="product-title">{{ p.name }}</div>
-                        {% if p.description_short %}
-                        <div class="product-description">{{ p.description_short }}</div>
-                        {% else %}
-                        <div class="product-empty">Không có mô tả</div>
-                        {% endif %}
-                    </td>
-                    <td data-label="Ngữ cảnh">
-                        <div class="product-stack">
-                            <span class="product-chip">{{ p.cat_name|default('-') }}</span>
-                            {% if p.srv_name and p.srv_name != '-' %}
-                            <span class="product-chip server">{{ p.srv_name }}</span>
-                            {% endif %}
-                            {% if p.effective_group_name %}
-                            <span class="product-chip group {{ 'inherited' if p.uses_server_default_group else '' }}">
-                                {{ p.effective_group_name }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        <div class="product-meta">
-                            {% if p.server_id %}
-                            Máy chủ #{{ p.server_id }}
-                            {% if p.uses_server_default_group %}
-                            <br><span style="color: var(--primary);">Kế thừa từ server</span>
-                            {% elif p.group_name %}
-                            <br><span style="color: var(--warning);">Override nhóm</span>
-                            {% endif %}
-                            {% else %}
-                            Không có server
-                            {% endif %}
-                        </div>
-                    </td>
-                    <td data-label="Loại giao hàng">
-                        <div class="product-delivery">
-                            <span class="badge {{ p.type_theme }}" style="background: var(--{{ p.type_theme }}-bg); color: var(--{{ p.type_theme }});">{{ p.type_label }}</span>
-                            {% if p.format_template %}
-                            <code>{{ p.format_template }}</code>
-                            {% elif p.input_prompt %}
-                            <div class="product-description">{{ p.input_prompt[:60] }}{% if p.input_prompt|length > 60 %}...{% endif %}</div>
-                            {% else %}
-                            <div class="product-empty">—</div>
-                            {% endif %}
-                        </div>
-                    </td>
-                    <td data-label="Giá">
-                        <div class="product-price">{{ format_vnd(p.price_vnd) }}</div>
-                        <div class="product-price-meta">
-                            {% if p.server_id %}
-                            Quota: {{ "{:,}".format(p.quota_amount or 0) }} | ${{ p.dollar_amount or 0 }}
-                            {% else %}
-                            Sản phẩm độc lập
-                            {% endif %}
-                        </div>
-                    </td>
-                    <td data-label="Trạng thái">
-                        <div class="product-status">{{ entity_state_badge(p.is_active) }}</div>
-                    </td>
-                    <td data-label="Kho">
-                        <div class="product-stock">
-                            {% if p.stock == -1 %}
-                            <span class="product-stock-value">Không giới hạn</span>
-                            {% elif p.product_type == 'account_stocked' %}
-                            <span class="product-stock-value">{{ p.stock }}</span>
-                            <span class="product-meta">Tài khoản khả dụng</span>
-                            {% else %}
-                            <span class="product-stock-value">{{ p.stock }}</span>
-                            <span class="product-meta">Sẵn sàng bán</span>
-                            {% endif %}
-                        </div>
-                    </td>
-                    <td data-label="Thao tác">
-                        <div class="product-actions">
-                            {{ entity_toggle_form('/products/' ~ p.id ~ '/toggle-active', p.is_active, next_url) }}
-                            <a href="/products/{{ p.id }}/edit" class="btn btn-sm btn-outline-primary">Sửa</a>
-                            <a href="/products/{{ p.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </section>
+<!-- Page Header -->
+<div class="page-header animate-fade-up">
+    <div>
+        <h1>
+            <span class="icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+            </span>
+            Quản lý sản phẩm
+        </h1>
+        <p style="margin: 0.3rem 0 0; color: var(--text-secondary); font-size: 0.9rem;">API keys, tài khoản có sẵn và dịch vụ. Mỗi sản phẩm kết nối với server để lấy thông tin nhóm và quota.</p>
+    </div>
+    <div class="page-actions">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Thêm sản phẩm
+        </button>
+    </div>
 </div>
+
+<!-- KPI Row -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;" class="animate-fade-up">
+    <div class="stat-card">
+        <div class="stat-icon emerald">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ products|length }}</div>
+            <div class="stat-label">Tổng sản phẩm</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon sky">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line></svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ servers|selectattr('is_active')|list|length }}</div>
+            <div class="stat-label">Máy chủ bật</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ categories|length }}</div>
+            <div class="stat-label">Danh mục</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon rose">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ products | selectattr('is_active') | list | length }}</div>
+            <div class="stat-label">Đang bật</div>
+        </div>
+    </div>
+</div>
+
+<!-- Search/Filter Bar -->
+<div class="card animate-fade-up" style="margin-bottom: 1.25rem;">
+    <div class="card-body" style="padding: 0.875rem 1.25rem;">
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <div style="position: relative; flex: 1; min-width: 200px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); pointer-events: none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="productSearch" class="form-control" placeholder="Tìm sản phẩm theo tên..." style="padding-left: 2.25rem;" oninput="filterProducts()">
+            </div>
+            <select id="filterType" class="form-select" style="flex: 0 0 180px;" onchange="filterProducts()">
+                <option value="">Tất cả loại</option>
+                <option value="key_new">Key mới</option>
+                <option value="key_topup">Nạp key</option>
+                <option value="account_stocked">Tài khoản</option>
+                <option value="service_upgrade">Dịch vụ</option>
+            </select>
+            <select id="filterStatus" class="form-select" style="flex: 0 0 150px;" onchange="filterProducts()">
+                <option value="">Tất cả trạng thái</option>
+                <option value="active">Đang bật</option>
+                <option value="inactive">Đã tắt</option>
+            </select>
+            <span id="filterCount" style="font-size: 0.8rem; color: var(--text-tertiary); white-space: nowrap; flex-shrink: 0;"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Products Table -->
+<div class="table-card animate-fade-up">
+    {% if products %}
+    <table class="table product-table" id="productsTable">
+        <thead>
+            <tr>
+                <th>Sản phẩm</th>
+                <th>Ngữ cảnh</th>
+                <th>Loại giao hàng</th>
+                <th>Giá</th>
+                <th>Trạng thái</th>
+                <th>Kho</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody id="productsTableBody">
+            {% for p in products %}
+            <tr data-name="{{ p.name | lower }}" data-type="{{ p.product_type }}" data-active="{{ 'active' if p.is_active else 'inactive' }}">
+                {% set next_url = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+                <td data-label="Sản phẩm">
+                    <div class="product-title" style="font-weight: 600;">{{ p.name }}</div>
+                    {% if p.description_short %}
+                    <div class="product-description" style="color: var(--text-secondary); font-size: 0.82rem;">{{ p.description_short }}</div>
+                    {% else %}
+                    <div class="product-empty" style="color: var(--text-tertiary); font-size: 0.8rem; font-style: italic;">Không có mô tả</div>
+                    {% endif %}
+                </td>
+                <td data-label="Ngữ cảnh">
+                    <div class="product-stack" style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
+                        <span class="product-chip">{{ p.cat_name|default('-') }}</span>
+                        {% if p.srv_name and p.srv_name != '-' %}
+                        <span class="product-chip server">{{ p.srv_name }}</span>
+                        {% endif %}
+                        {% if p.effective_group_name %}
+                        <span class="product-chip group {{ 'inherited' if p.uses_server_default_group else '' }}">
+                            {{ p.effective_group_name }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="product-meta" style="font-size: 0.78rem; color: var(--text-tertiary);">
+                        {% if p.server_id %}
+                        Máy chủ #{{ p.server_id }}
+                        {% if p.uses_server_default_group %}
+                        <br><span style="color: var(--primary); font-weight: 500;">Kế thừa từ server</span>
+                        {% elif p.group_name %}
+                        <br><span style="color: var(--warning); font-weight: 500;">Override nhóm</span>
+                        {% endif %}
+                        {% else %}
+                        Không có server
+                        {% endif %}
+                    </div>
+                </td>
+                <td data-label="Loại giao hàng">
+                    <div class="product-delivery">
+                        <span class="badge {{ p.type_theme }}" style="background: var(--{{ p.type_theme }}-bg); color: var(--{{ p.type_theme }});">{{ p.type_label }}</span>
+                        {% if p.format_template %}
+                        <code style="display: block; margin-top: 0.25rem; font-size: 0.78rem;">{{ p.format_template }}</code>
+                        {% elif p.input_prompt %}
+                        <div class="product-description" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">{{ p.input_prompt[:60] }}{% if p.input_prompt|length > 60 %}...{% endif %}</div>
+                        {% endif %}
+                    </div>
+                </td>
+                <td data-label="Giá">
+                    <div class="product-price" style="font-weight: 700; font-size: 0.95rem;">{{ format_vnd(p.price_vnd) }}</div>
+                    <div class="product-price-meta" style="font-size: 0.78rem; color: var(--text-tertiary);">
+                        {% if p.server_id %}
+                        Q: {{ "{:,}".format(p.quota_amount or 0) }} | ${{ p.dollar_amount or 0 }}
+                        {% else %}
+                        Sản phẩm độc lập
+                        {% endif %}
+                    </div>
+                </td>
+                <td data-label="Trạng thái">
+                    {{ entity_state_badge(p.is_active) }}
+                </td>
+                <td data-label="Kho">
+                    {% if p.stock == -1 %}
+                    <span style="font-size: 0.85rem; color: var(--primary); font-weight: 500;">♾ Vô hạn</span>
+                    {% elif p.product_type == 'account_stocked' %}
+                    <span style="font-weight: 700; font-size: 0.95rem; {% if p.stock < 5 %}color: var(--danger);{% elif p.stock < 20 %}color: var(--warning);{% endif %}">{{ p.stock }}</span>
+                    <div style="font-size: 0.78rem; color: var(--text-tertiary);">Tài khoản</div>
+                    {% else %}
+                    <span style="font-weight: 700; font-size: 0.95rem;">{{ p.stock }}</span>
+                    <div style="font-size: 0.78rem; color: var(--text-tertiary);">Sẵn sàng</div>
+                    {% endif %}
+                </td>
+                <td data-label="Thao tác">
+                    <div class="actions">
+                        {{ entity_toggle_form('/products/' ~ p.id ~ '/toggle-active', p.is_active, next_url) }}
+                        <a href="/products/{{ p.id }}/edit" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        <a href="/products/{{ p.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div id="emptyFilter" style="display: none; padding: 3rem 2rem; text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🔍</div>
+        <h3 style="color: var(--text-secondary); font-weight: 500; margin-bottom: 0.5rem;">Không tìm thấy sản phẩm nào</h3>
+        <p style="color: var(--text-tertiary);">Thử thay đổi từ khóa hoặc bộ lọc.</p>
+    </div>
+    {% else %}
+    <div style="padding: 4rem 2rem; text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+        <h3 style="color: var(--text-secondary); font-weight: 500;">Chưa có sản phẩm nào</h3>
+        <p style="color: var(--text-tertiary); margin-bottom: 1.5rem;">Tạo sản phẩm đầu tiên để bắt đầu bán hàng.</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">Thêm sản phẩm đầu tiên</button>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function filterProducts() {
+    const search = (document.getElementById('productSearch')?.value || '').toLowerCase();
+    const typeFilter = document.getElementById('filterType')?.value || '';
+    const statusFilter = document.getElementById('filterStatus')?.value || '';
+    const rows = document.querySelectorAll('#productsTableBody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const name = (row.dataset.name || '');
+        const type = (row.dataset.type || '');
+        const active = (row.dataset.active || '');
+
+        const matchName = !search || name.includes(search);
+        const matchType = !typeFilter || type === typeFilter;
+        const matchStatus = !statusFilter || active === statusFilter;
+
+        if (matchName && matchType && matchStatus) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const countEl = document.getElementById('filterCount');
+    if (countEl) countEl.textContent = `Hiển thị ${visibleCount} / ${rows.length} sản phẩm`;
+
+    const emptyFilter = document.getElementById('emptyFilter');
+    const table = document.getElementById('productsTable');
+    if (emptyFilter && table) {
+        if (visibleCount === 0) {
+            table.style.display = 'none';
+            emptyFilter.style.display = 'block';
+        } else {
+            table.style.display = '';
+            emptyFilter.style.display = 'none';
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', filterProducts);
+</script>
 
 <!-- Add Modal -->
 <div class="modal fade" id="addModal" tabindex="-1">

@@ -2,21 +2,25 @@
 {% from "_entity_controls.html" import entity_state_badge, entity_toggle_form, entity_state_checkbox %}
 {% block title %}Máy chủ API{% endblock %}
 {% block content %}
-<div class="page-header">
-    <h1>
-        <span class="icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-                <line x1="6" y1="6" x2="6.01" y2="6"></line>
-                <line x1="6" y1="18" x2="6.01" y2="18"></line>
-            </svg>
-        </span>
-        Máy chủ API
-    </h1>
+
+<div class="page-header animate-fade-up">
+    <div>
+        <h1>
+            <span class="icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                </svg>
+            </span>
+            Quản lý máy chủ API
+        </h1>
+        <p class="page-subtitle">Cấu hình các máy chủ API, nhóm và chính sách giảm giá theo bậc chi tiêu.</p>
+    </div>
     <div class="page-actions">
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
@@ -25,55 +29,90 @@
     </div>
 </div>
 
-{% if flash_message %}
-<div class="alert alert-{{ flash_type or 'info' }} mt-3">{{ flash_message }}</div>
-{% endif %}
+<!-- KPI Row -->
+<div class="kpi-grid animate-fade-up">
+    <div class="stat-card">
+        <div class="stat-icon emerald">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect></svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ servers|length }}</div>
+            <div class="stat-label">Tổng server</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon sky">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ servers | selectattr('is_active') | list | length }}</div>
+            <div class="stat-label">Đang bật</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value">{{ servers | selectattr('supports_multi_group') | list | length }}</div>
+            <div class="stat-label">Multi-group</div>
+        </div>
+    </div>
+</div>
 
 <!-- Servers Table -->
-<div class="table-card">
-    <table class="table">
+<div class="table-card animate-fade-up">
+    {% if servers %}
+    <table class="table table-responsive-cards">
         <thead>
             <tr>
-                <th>#</th>
-                <th>Tên</th>
-                <th>Loại API</th>
+                <th style="width: 50px;">#</th>
+                <th>Tên server</th>
+                <th style="width: 110px;">Loại API</th>
                 <th>Địa chỉ API</th>
-                <th>Giá/$</th>
-                <th>Nhóm</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
+                <th style="width: 130px;">Giá/$</th>
+                <th style="width: 100px;">Multi-group</th>
+                <th style="width: 110px;">Trạng thái</th>
+                <th style="width: 170px;">Thao tác</th>
             </tr>
         </thead>
         <tbody>
             {% for s in servers %}
             <tr>
                 {% set next_url = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
-                <td>{{ s.id }}</td>
-                <td>
-                    <span class="fw-bold">{{ s.name }}</span>
+                <td data-label="#">
+                    <span class="cell-id">#{{ s.id }}</span>
                 </td>
-                <td>
-                    <span class="badge {{ 'badge-info' if s.api_type == 'newapi' else ('badge-warning' if s.api_type == 'rixapi' else 'badge-secondary') }}">
-                        {{ s.api_type or 'newapi' }}
-                    </span>
-                </td>
-                <td>
-                    <code style="font-size: 0.8rem;">{{ s.base_url }}</code>
-                </td>
-                <td>
-                    <span class="fw-bold">{{ format_vnd(s.price_per_unit) }}</span>
-                </td>
-                <td>
-                    {% if s.supports_multi_group %}
-                    <span class="badge badge-success">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        ON
-                    </span>
-                    {% else %}
-                    <span class="badge badge-secondary">OFF</span>
+                <td data-label="Tên server">
+                    <div class="cell-name">{{ s.name }}</div>
+                    {% if s.default_group %}
+                    <div class="cell-meta">Nhóm mặc định: <code class="cell-code--subtle">{{ s.default_group }}</code></div>
                     {% endif %}
                 </td>
-                <td>{{ entity_state_badge(s.is_active) }}</td>
+                <td data-label="Loại API">
+                    {% if s.api_type == 'newapi' %}
+                    <span class="badge badge-info">newapi</span>
+                    {% elif s.api_type == 'rixapi' %}
+                    <span class="badge badge-warning">rixapi</span>
+                    {% else %}
+                    <span class="badge badge-secondary">{{ s.api_type or 'other' }}</span>
+                    {% endif %}
+                </td>
+                <td data-label="Địa chỉ API">
+                    <code class="cell-url">{{ s.base_url }}</code>
+                </td>
+                <td data-label="Giá/$">
+                    <div class="cell-price" style="color:var(--primary);">{{ format_vnd(s.price_per_unit) }}</div>
+                    <div class="cell-meta">/ $1</div>
+                </td>
+                <td data-label="Multi-group">
+                    {% if s.supports_multi_group %}
+                    <span class="badge badge-success">✓ Bật</span>
+                    {% else %}
+                    <span class="badge badge-secondary">Tắt</span>
+                    {% endif %}
+                </td>
+                <td data-label="Trạng thái">{{ entity_state_badge(s.is_active) }}</td>
                 <td>
                     <div class="actions">
                         {{ entity_toggle_form('/servers/' ~ s.id ~ '/toggle-active', s.is_active, next_url) }}
@@ -93,6 +132,14 @@
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">🖥️</div>
+        <h4>Chưa có máy chủ nào</h4>
+        <p>Thêm máy chủ API đầu tiên để bắt đầu cấu hình sản phẩm.</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">Thêm máy chủ đầu tiên</button>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Add Modal -->
@@ -108,7 +155,6 @@
                     <h6 class="text-muted mb-2">Thông tin cơ bản</h6>
                     <div class="mb-2"><label class="form-label">Tên</label><input name="name" class="form-control" required></div>
                     <div class="mb-2"><label class="form-label">Địa chỉ API</label><input name="base_url" class="form-control" required placeholder="https://api.example.com"></div>
-
                     <div class="mb-2">
                         <label class="form-label">Loại API</label>
                         <select name="api_type" class="form-select" id="add_api_type">
@@ -179,54 +225,52 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="discount-builder__panel">
-                                <div class="discount-builder__panel-title">Ưu đãi được cộng dồn</div>
-                                <div class="stack-rule-picker" data-stack-picker="add">
-                                    <input type="hidden" name="discount_allowed_stack_types" value="cashback">
-                                    <div class="stack-rule-picker__header">
-                                        <div>
-                                            <label class="form-label mb-1">Chọn loại ưu đãi được cộng cùng nhau</label>
-                                            <p class="stack-rule-picker__hint">Chỉ dùng khi server bật chế độ <strong>Cộng dồn các loại đã chọn</strong>.</p>
-                                        </div>
-                                        <div class="stack-rule-picker__presets">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('add', 'cashback_only')">Chỉ hoàn tiền</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('add', 'fixed_plus_cashback')">Giảm cố định + hoàn tiền</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('add', 'percent_plus_cashback')">Giảm % + hoàn tiền</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('add', 'tier_price_plus_cashback')">Giá riêng + hoàn tiền</button>
-                                        </div>
-                                    </div>
-                                    <div class="stack-rule-picker__choices">
-                                        <label class="stack-rule-card">
-                                            <input type="checkbox" value="percent_off" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
-                                            <span class="stack-rule-card__body">
-                                                <strong>Giảm %</strong>
-                                                <small>Giảm trực tiếp theo phần trăm trên đơn hàng.</small>
-                                            </span>
-                                        </label>
-                                        <label class="stack-rule-card">
-                                            <input type="checkbox" value="fixed_off" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
-                                            <span class="stack-rule-card__body">
-                                                <strong>Giảm cố định</strong>
-                                                <small>Trừ một số tiền cố định trước khi thanh toán.</small>
-                                            </span>
-                                        </label>
-                                        <label class="stack-rule-card">
-                                            <input type="checkbox" value="cashback" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
-                                            <span class="stack-rule-card__body">
-                                                <strong>Hoàn tiền</strong>
-                                                <small>Hoàn lại tiền sau khi đơn đã được tính giá.</small>
-                                            </span>
-                                        </label>
-                                        <label class="stack-rule-card">
-                                            <input type="checkbox" value="tier_price" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
-                                            <span class="stack-rule-card__body">
-                                                <strong>Giá riêng theo bậc</strong>
-                                                <small>Áp giá theo bậc; nếu chọn loại này, hệ thống chỉ cộng thêm được với hoàn tiền.</small>
-                                            </span>
-                                        </label>
-                                    </div>
-                                    <div id="add_stack_rule_summary" class="stack-rule-picker__summary"></div>
+                        </div>
+
+                        <!-- Stack rule picker — full width section -->
+                        <div style="border-top: 1px solid var(--border-light); padding-top: 1rem; margin-top: 0.25rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                                <div>
+                                    <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-bottom: 0.25rem;">Ưu đãi được cộng dồn</div>
+                                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.82rem;">Chọn loại ưu đãi có thể kết hợp với nhau. Chỉ áp dụng khi server dùng chế độ <strong>Cộng dồn các loại đã chọn</strong>.</p>
                                 </div>
+                                <div class="stack-rule-picker__presets">
+                                    <span style="font-size: 0.75rem; color: var(--text-tertiary); margin-right: 0.25rem;">Nhanh:</span>
+                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('add', 'cashback_only')">Chỉ hoàn tiền</button>
+                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('add', 'fixed_plus_cashback')">Cố định + hoàn</button>
+                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('add', 'percent_plus_cashback')">% + hoàn</button>
+                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('add', 'tier_price_plus_cashback')">Giá riêng + hoàn</button>
+                                </div>
+                            </div>
+                            <div class="stack-rule-picker" data-stack-picker="add">
+                                <input type="hidden" name="discount_allowed_stack_types" value="cashback">
+                                <div class="stack-rule-picker__choices">
+                                    <label class="stack-rule-card">
+                                        <input type="checkbox" value="percent_off" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
+                                        <span class="stack-rule-card__body">
+                                            <div><strong>Giảm %</strong><small>Giảm theo phần trăm đơn hàng.</small></div>
+                                        </span>
+                                    </label>
+                                    <label class="stack-rule-card">
+                                        <input type="checkbox" value="fixed_off" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
+                                        <span class="stack-rule-card__body">
+                                            <div><strong>Giảm cố định</strong><small>Trừ số tiền cố định.</small></div>
+                                        </span>
+                                    </label>
+                                    <label class="stack-rule-card">
+                                        <input type="checkbox" value="cashback" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
+                                        <span class="stack-rule-card__body">
+                                            <div><strong>Hoàn tiền</strong><small>Hoàn lại sau khi thanh toán.</small></div>
+                                        </span>
+                                    </label>
+                                    <label class="stack-rule-card">
+                                        <input type="checkbox" value="tier_price" onchange="toggleDiscountAllowedType('add', this.value, this.checked)">
+                                        <span class="stack-rule-card__body">
+                                            <div><strong>Giá riêng bậc</strong><small>Áp giá theo bậc chi tiêu.</small></div>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div id="add_stack_rule_summary" class="stack-rule-picker__summary"></div>
                             </div>
                         </div>
                         <div class="discount-badge-row">
@@ -352,54 +396,52 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="discount-builder__panel">
-                                <div class="discount-builder__panel-title">Ưu đãi được cộng dồn</div>
-                                <div class="stack-rule-picker" data-stack-picker="edit">
-                                    <input type="hidden" name="discount_allowed_stack_types" value="{{ editing.discount_allowed_stack_types or 'cashback' }}">
-                                    <div class="stack-rule-picker__header">
-                                        <div>
-                                            <label class="form-label mb-1">Chọn loại ưu đãi được cộng cùng nhau</label>
-                                            <p class="stack-rule-picker__hint">Phần này chỉ có tác dụng khi server dùng chế độ <strong>Cộng dồn các loại đã chọn</strong>.</p>
-                                        </div>
-                                        <div class="stack-rule-picker__presets">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('edit', 'cashback_only')">Chỉ hoàn tiền</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('edit', 'fixed_plus_cashback')">Giảm cố định + hoàn tiền</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('edit', 'percent_plus_cashback')">Giảm % + hoàn tiền</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyDiscountStackPreset('edit', 'tier_price_plus_cashback')">Giá riêng + hoàn tiền</button>
-                                        </div>
-                                    </div>
-                                    <div class="stack-rule-picker__choices">
-                                        <label class="stack-rule-card">
-                                            <input type="checkbox" value="percent_off" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
-                                            <span class="stack-rule-card__body">
-                                                <strong>Giảm %</strong>
-                                                <small>Giảm trực tiếp theo phần trăm trên đơn hàng.</small>
-                                            </span>
-                                        </label>
-                                        <label class="stack-rule-card">
-                                            <input type="checkbox" value="fixed_off" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
-                                            <span class="stack-rule-card__body">
-                                                <strong>Giảm cố định</strong>
-                                                <small>Trừ một số tiền cố định trước khi thanh toán.</small>
-                                            </span>
-                                        </label>
-                                        <label class="stack-rule-card">
-                                            <input type="checkbox" value="cashback" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
-                                            <span class="stack-rule-card__body">
-                                                <strong>Hoàn tiền</strong>
-                                                <small>Hoàn lại tiền sau khi đơn đã được tính giá.</small>
-                                            </span>
-                                        </label>
-                                        <label class="stack-rule-card">
-                                            <input type="checkbox" value="tier_price" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
-                                            <span class="stack-rule-card__body">
-                                                <strong>Giá riêng theo bậc</strong>
-                                                <small>Áp giá theo bậc; nếu chọn loại này, hệ thống chỉ cộng thêm được với hoàn tiền.</small>
-                                            </span>
-                                        </label>
-                                    </div>
-                                    <div id="edit_stack_rule_summary" class="stack-rule-picker__summary"></div>
+                        </div>
+
+                        <!-- Stack rule picker — full width section -->
+                        <div style="border-top: 1px solid var(--border-light); padding-top: 1rem; margin-top: 0.25rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                                <div>
+                                    <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-bottom: 0.25rem;">Ưu đãi được cộng dồn</div>
+                                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.82rem;">Chọn loại ưu đãi có thể kết hợp với nhau. Chỉ áp dụng khi server dùng chế độ <strong>Cộng dồn các loại đã chọn</strong>.</p>
                                 </div>
+                                <div class="stack-rule-picker__presets">
+                                    <span style="font-size: 0.75rem; color: var(--text-tertiary); margin-right: 0.25rem;">Nhanh:</span>
+                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('edit', 'cashback_only')">Chỉ hoàn tiền</button>
+                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('edit', 'fixed_plus_cashback')">Cố định + hoàn</button>
+                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('edit', 'percent_plus_cashback')">% + hoàn</button>
+                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('edit', 'tier_price_plus_cashback')">Giá riêng + hoàn</button>
+                                </div>
+                            </div>
+                            <div class="stack-rule-picker" data-stack-picker="edit">
+                                <input type="hidden" name="discount_allowed_stack_types" value="{{ editing.discount_allowed_stack_types or 'cashback' }}">
+                                <div class="stack-rule-picker__choices">
+                                    <label class="stack-rule-card">
+                                        <input type="checkbox" value="percent_off" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
+                                        <span class="stack-rule-card__body">
+                                            <div><strong>Giảm %</strong><small>Giảm theo phần trăm đơn hàng.</small></div>
+                                        </span>
+                                    </label>
+                                    <label class="stack-rule-card">
+                                        <input type="checkbox" value="fixed_off" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
+                                        <span class="stack-rule-card__body">
+                                            <div><strong>Giảm cố định</strong><small>Trừ số tiền cố định.</small></div>
+                                        </span>
+                                    </label>
+                                    <label class="stack-rule-card">
+                                        <input type="checkbox" value="cashback" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
+                                        <span class="stack-rule-card__body">
+                                            <div><strong>Hoàn tiền</strong><small>Hoàn lại sau khi thanh toán.</small></div>
+                                        </span>
+                                    </label>
+                                    <label class="stack-rule-card">
+                                        <input type="checkbox" value="tier_price" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
+                                        <span class="stack-rule-card__body">
+                                            <div><strong>Giá riêng bậc</strong><small>Áp giá theo bậc chi tiêu.</small></div>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div id="edit_stack_rule_summary" class="stack-rule-picker__summary"></div>
                             </div>
                         </div>
                         <div class="discount-badge-row">
