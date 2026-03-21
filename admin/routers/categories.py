@@ -110,6 +110,22 @@ async def categories_edit_page(request: Request, cat_id: Annotated[int, Path()])
     )
 
 
+@router.get("/{cat_id}/edit-modal", response_class=HTMLResponse)
+async def categories_edit_modal(request: Request, cat_id: Annotated[int, Path()]) -> HTMLResponse:
+    category = await get_category_by_id(cat_id)
+    if not category:
+        return HTMLResponse("Category not found", status_code=404)
+
+    templates = get_templates()
+    return templates.TemplateResponse(
+        "_category_edit_modal.html",
+        {
+            "request": request,
+            "editing": category,
+        },
+    )
+
+
 @router.post("/{cat_id}/edit")
 async def categories_edit_submit(request: Request, cat_id: Annotated[int, Path()]):
     form = await request.form()

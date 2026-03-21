@@ -100,7 +100,12 @@
                 <td data-label="">
                     <div class="actions">
                         {{ entity_toggle_form('/categories/' ~ c.id ~ '/toggle-active', c.is_active, next_url) }}
-                        <a href="/categories/{{ c.id }}/edit" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        <a
+                            href="/categories/{{ c.id }}/edit"
+                            class="btn btn-sm btn-outline-primary"
+                            data-edit-modal-url="/categories/{{ c.id }}/edit-modal"
+                            data-edit-modal-init="initializeCategoriesEditModal"
+                        >Sửa</a>
                         <a href="/categories/{{ c.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
                     </div>
                 </td>
@@ -171,56 +176,7 @@
 </div>
 
 {% if editing %}
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="POST" action="/categories/{{ editing.id }}/edit">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <span style="margin-right: 0.4rem; font-size: 1.25rem;">{{ editing.icon }}</span>
-                        Sửa: {{ editing.name }}
-                    </h5>
-                    <a href="/categories" class="btn btn-sm btn-outline-secondary">Đóng</a>
-                </div>
-                <div class="modal-body" style="display: grid; gap: 1rem;">
-                    <div class="form-group">
-                        <label class="form-label">Tên danh mục <span style="color: var(--danger);">*</span></label>
-                        <input name="name" class="form-control" value="{{ editing.name }}" required>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
-                            <label class="form-label">Icon (Emoji)</label>
-                            <input name="icon" class="form-control" value="{{ editing.icon }}" style="font-size: 1.25rem; text-align: center;">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Loại danh mục</label>
-                            <select name="cat_type" class="form-select">
-                                <option value="key_api" {{ 'selected' if editing.cat_type == 'key_api' }}>🔑 Key API</option>
-                                <option value="general" {{ 'selected' if editing.cat_type != 'key_api' }}>🗂️ Tổng quát</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Mô tả</label>
-                        <textarea name="description" class="form-control" rows="2">{{ editing.description or '' }}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Thứ tự hiển thị</label>
-                        <input name="sort_order" type="number" class="form-control" value="{{ editing.sort_order }}">
-                    </div>
-                    {{ entity_state_checkbox('editActive', editing.is_active) }}
-                </div>
-                <div class="modal-footer">
-                    <a href="/categories" class="btn btn-secondary">Hủy</a>
-                    <button type="submit" class="btn btn-primary">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline></svg>
-                        Lưu thay đổi
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% include "_category_edit_modal.html" %}
 {% endif %}
 
 <script>
@@ -228,15 +184,16 @@ function confirmDelete() {
     return confirm('Bạn có chắc muốn xóa danh mục này? Hành động này không thể hoàn tác.');
 }
 
+function initializeCategoriesEditModal() {}
+
 document.addEventListener('DOMContentLoaded', function () {
     {% if editing %}
     const editModalEl = document.getElementById('editModal');
     if (editModalEl) {
-        const modal = new bootstrap.Modal(editModalEl);
-        editModalEl.addEventListener('hidden.bs.modal', function () {
-            window.location.href = '/categories';
+        AdminRemoteModal.showExisting(editModalEl, {
+            onReady: initializeCategoriesEditModal,
+            onHiddenNavigate: '/categories',
         });
-        modal.show();
     }
     {% endif %}
 });

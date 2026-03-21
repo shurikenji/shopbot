@@ -124,7 +124,12 @@
                                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                             </svg>
                         </a>
-                        <a href="/servers/{{ s.id }}/edit" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        <a
+                            href="/servers/{{ s.id }}/edit"
+                            class="btn btn-sm btn-outline-primary"
+                            data-edit-modal-url="/servers/{{ s.id }}/edit-modal"
+                            data-edit-modal-init="initializeServerEditModal"
+                        >Sửa</a>
                         <a href="/servers/{{ s.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
                     </div>
                 </td>
@@ -310,210 +315,7 @@
 </div>
 
 {% if editing %}
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <form method="POST" action="/servers/{{ editing.id }}/edit" id="editForm">
-                <div class="modal-header">
-                    <h5 class="modal-title">Sửa server: {{ editing.name }}</h5>
-                    <a href="/servers" class="btn btn-sm btn-outline-secondary">Đóng</a>
-                </div>
-                <div class="modal-body">
-                    <h6 class="text-muted mb-2">Thông tin cơ bản</h6>
-                    <div class="row mb-2">
-                        <div class="col"><label class="form-label">Tên</label><input name="name" class="form-control" value="{{ editing.name }}" required></div>
-                        <div class="col"><label class="form-label">Địa chỉ API</label><input name="base_url" class="form-control" value="{{ editing.base_url }}" required></div>
-                    </div>
-
-                    <div class="mb-2">
-                        <label class="form-label">Loại API</label>
-                        <select name="api_type" class="form-select" id="edit_api_type">
-                            {% for t in api_types %}
-                            <option value="{{ t.value }}" {% if editing.api_type == t.value %}selected{% endif %}>{{ t.label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <hr>
-                    <h6 class="text-muted mb-2">Xác thực</h6>
-                    <div class="mb-2" id="edit_auth_type_wrap">
-                        <label class="form-label">Kiểu xác thực</label>
-                        <select name="auth_type" class="form-select" id="edit_auth_type">
-                            {% for a in auth_types %}
-                            <option value="{{ a.value }}" {% if editing.auth_type == a.value %}selected{% endif %}>{{ a.label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div id="edit_auth_fields">
-                        <div class="mb-2" id="edit_header_wrap"><label class="form-label">Header mã người dùng</label><input name="auth_user_header" class="form-control" value="{{ editing.auth_user_header or '' }}"></div>
-                        <div class="mb-2"><label class="form-label" id="edit_user_value_label">User ID</label><input name="auth_user_value" class="form-control" value="{{ editing.auth_user_value or '' }}"></div>
-                        <div class="mb-2"><label class="form-label" id="edit_token_label">Token truy cập</label><input name="auth_token" class="form-control" value="{{ editing.auth_token or '' }}"></div>
-                    </div>
-
-                    <div id="edit_cookie_field" class="mb-2" style="display:none;">
-                        <label class="form-label">Cookie</label><input name="auth_cookie" class="form-control" value="{{ editing.auth_cookie or '' }}">
-                    </div>
-
-                    <div class="form-check mb-2" id="edit_multi_group_wrap">
-                        <input class="form-check-input" type="checkbox" name="supports_multi_group" id="edit_multi_group" value="1" {% if editing.supports_multi_group %}checked{% endif %}>
-                        <label class="form-check-label" for="edit_multi_group">Bật hỗ trợ nhiều nhóm</label>
-                    </div>
-
-                    <hr>
-                    <div id="edit_advanced_block">
-                        <h6 class="text-muted mb-2">Nâng cao</h6>
-                        <div class="mb-2"><label class="form-label">Đường dẫn lấy nhóm</label><input name="groups_endpoint" class="form-control" value="{{ editing.groups_endpoint or '' }}"></div>
-                        <div class="mb-2"><label class="form-label">Danh sách nhóm nhập tay</label><input name="manual_groups" class="form-control" value="{{ editing.manual_groups or '' }}"></div>
-                        <div class="mb-2"><label class="form-label">Custom Headers (JSON)</label><textarea name="custom_headers" class="form-control" rows="2">{{ editing.custom_headers or '' }}</textarea></div>
-                    </div>
-
-                    <hr>
-                    <h6 class="text-muted mb-2">Chính sách giảm giá</h6>
-                    <div class="discount-builder" data-builder="edit">
-                        <div class="discount-builder__hero">
-                            <div>
-                                <h4>Thiết lập bậc chiết khấu</h4>
-                                <p>Chỉnh trực tiếp từng mốc chi tiêu và quyền lợi. Khi lưu, giao diện sẽ tự sinh JSON chuẩn cho backend.</p>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-primary" onclick="addDiscountTier('edit')">Thêm bậc giảm giá</button>
-                        </div>
-                        <div class="discount-builder__grid">
-                            <div class="discount-builder__panel">
-                                <div class="discount-builder__panel-title">Nguồn tích lũy</div>
-                                <strong>Nhập key để cộng chi tiêu</strong>
-                                <div class="form-check mt-2">
-                                    <input class="form-check-input" type="checkbox" name="import_spend_accrual_enabled" id="edit_import_spend_accrual_enabled" value="1" {% if editing.import_spend_accrual_enabled %}checked{% endif %}>
-                                    <label class="form-check-label" for="edit_import_spend_accrual_enabled">Bật cộng chi tiêu từ key người dùng nhập vào</label>
-                                </div>
-                            </div>
-                            <div class="discount-builder__panel">
-                                <div class="discount-builder__panel-title">Cách cộng benefit</div>
-                                <label class="form-label">Kiểu áp dụng</label>
-                                <select name="discount_stack_mode" class="form-select">
-                                    {% for mode in discount_stack_modes %}
-                                    <option value="{{ mode.value }}" {% if editing.discount_stack_mode == mode.value %}selected{% endif %}>{{ mode.label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Stack rule picker — full width section -->
-                        <div style="border-top: 1px solid var(--border-light); padding-top: 1rem; margin-top: 0.25rem;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
-                                <div>
-                                    <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-bottom: 0.25rem;">Ưu đãi được cộng dồn</div>
-                                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.82rem;">Chọn loại ưu đãi có thể kết hợp với nhau. Chỉ áp dụng khi server dùng chế độ <strong>Cộng dồn các loại đã chọn</strong>.</p>
-                                </div>
-                                <div class="stack-rule-picker__presets">
-                                    <span style="font-size: 0.75rem; color: var(--text-tertiary); margin-right: 0.25rem;">Nhanh:</span>
-                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('edit', 'cashback_only')">Chỉ hoàn tiền</button>
-                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('edit', 'fixed_plus_cashback')">Cố định + hoàn</button>
-                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('edit', 'percent_plus_cashback')">% + hoàn</button>
-                                    <button type="button" class="btn" onclick="applyDiscountStackPreset('edit', 'tier_price_plus_cashback')">Giá riêng + hoàn</button>
-                                </div>
-                            </div>
-                            <div class="stack-rule-picker" data-stack-picker="edit">
-                                <input type="hidden" name="discount_allowed_stack_types" value="{{ editing.discount_allowed_stack_types or 'cashback' }}">
-                                <div class="stack-rule-picker__choices">
-                                    <label class="stack-rule-card">
-                                        <input type="checkbox" value="percent_off" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
-                                        <span class="stack-rule-card__body">
-                                            <div><strong>Giảm %</strong><small>Giảm theo phần trăm đơn hàng.</small></div>
-                                        </span>
-                                    </label>
-                                    <label class="stack-rule-card">
-                                        <input type="checkbox" value="fixed_off" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
-                                        <span class="stack-rule-card__body">
-                                            <div><strong>Giảm cố định</strong><small>Trừ số tiền cố định.</small></div>
-                                        </span>
-                                    </label>
-                                    <label class="stack-rule-card">
-                                        <input type="checkbox" value="cashback" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
-                                        <span class="stack-rule-card__body">
-                                            <div><strong>Hoàn tiền</strong><small>Hoàn lại sau khi thanh toán.</small></div>
-                                        </span>
-                                    </label>
-                                    <label class="stack-rule-card">
-                                        <input type="checkbox" value="tier_price" onchange="toggleDiscountAllowedType('edit', this.value, this.checked)">
-                                        <span class="stack-rule-card__body">
-                                            <div><strong>Giá riêng bậc</strong><small>Áp giá theo bậc chi tiêu.</small></div>
-                                        </span>
-                                    </label>
-                                </div>
-                                <div id="edit_stack_rule_summary" class="stack-rule-picker__summary"></div>
-                            </div>
-                        </div>
-                        <div class="discount-badge-row">
-                            <span class="badge badge-info">Giảm theo %</span>
-                            <span class="badge badge-info">Giảm cố định</span>
-                            <span class="badge badge-info">Hoàn tiền</span>
-                            <span class="badge badge-info">Giá riêng theo bậc</span>
-                        </div>
-                        <div id="edit_discount_tiers_builder" class="discount-builder__list mt-3"></div>
-                        <div class="discount-builder__advanced">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleDiscountJson('edit')">Mở cấu hình JSON nâng cao</button>
-                            <div id="edit_discount_json_wrap" class="mt-2" style="display:none;">
-                                <label class="form-label">JSON nâng cao</label>
-                                <textarea id="edit_discount_tiers_json" name="discount_tiers_json" class="form-control discount-json-input" rows="10">{{ editing.discount_tiers_json or '[]' }}</textarea>
-                                <div class="form-text">Mỗi bậc sẽ có <code>min_spend_vnd</code> và danh sách <code>benefits</code>.</div>
-                            </div>
-                        </div>
-                    </div>
-                    {% if editing.pricing_versions %}
-                    <div class="mb-3">
-                        <label class="form-label">Lịch sử cấu hình giá</label>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Phiên bản</th>
-                                        <th>Có hiệu lực từ</th>
-                                        <th>Giá/$</th>
-                                        <th>Quota/$</th>
-                                        <th>Hệ số quota</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for version in editing.pricing_versions %}
-                                    <tr>
-                                        <td>#{{ version.version_code }}</td>
-                                        <td><code>{{ version.effective_from }}</code></td>
-                                        <td>{{ format_vnd(version.price_per_unit) }}</td>
-                                        <td>{{ version.quota_per_unit }}</td>
-                                        <td>{{ version.quota_multiple }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <hr>
-                    <h6 class="text-muted mb-2">Cấu hình giá</h6>
-                    <div class="row mb-2">
-                        <div class="col"><label class="form-label">Giá/$ (VND)</label><input name="price_per_unit" type="number" class="form-control" value="{{ editing.price_per_unit }}" required></div>
-                        <div class="col"><label class="form-label">Quota/$</label><input name="quota_per_unit" type="number" class="form-control" value="{{ editing.quota_per_unit }}" required></div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col"><label class="form-label">Hệ số $</label><input name="dollar_per_unit" type="number" step="0.1" class="form-control" value="{{ editing.dollar_per_unit }}"></div>
-                        <div class="col"><label class="form-label">Hệ số quota</label><input name="quota_multiple" type="number" step="0.01" class="form-control" value="{{ editing.quota_multiple }}"></div>
-                    </div>
-                    <div class="mb-2"><label class="form-label">Nhóm mặc định</label><input name="default_group" class="form-control" value="{{ editing.default_group or '' }}"></div>
-                    <div class="mb-2"><button type="button" class="btn btn-outline-info btn-sm" onclick="previewServerGroups('edit')">Tải groups</button></div>
-                    <div id="edit_group_preview" class="mb-2" style="display:none;"></div>
-
-                    {{ entity_state_checkbox('editActive', editing.is_active) }}
-                </div>
-                <div class="modal-footer">
-                    <a href="/servers" class="btn btn-outline-secondary">Hủy</a>
-                    <button type="submit" class="btn btn-primary">Lưu</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% include "_server_edit_modal.html" %}
 {% endif %}
 
 <!-- Groups Panel -->
@@ -652,7 +454,12 @@
 
             <div class="mt-3 d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Lưu cấu hình nhóm</button>
-                <a href="/servers/{{ groups_server.id }}/edit" class="btn btn-outline-secondary">Sửa máy chủ</a>
+                <a
+                    href="/servers/{{ groups_server.id }}/edit"
+                    class="btn btn-outline-secondary"
+                    data-edit-modal-url="/servers/{{ groups_server.id }}/edit-modal"
+                    data-edit-modal-init="initializeServerEditModal"
+                >Sửa máy chủ</a>
             </div>
         </form>
 
@@ -681,12 +488,12 @@ function setupAuthType(prefix) {
         }
     }
 
-    if (authType) authType.addEventListener('change', toggle);
+    if (authType && authType.dataset.bound !== 'true') {
+        authType.dataset.bound = 'true';
+        authType.addEventListener('change', toggle);
+    }
     toggle();
 }
-
-setupAuthType('add');
-setupAuthType('edit');
 
 // Auto-set header based on API type
 function setupApiType(prefix) {
@@ -719,14 +526,12 @@ function setupApiType(prefix) {
         setupAuthType(prefix);
     }
 
-    if (apiType) {
+    if (apiType && apiType.dataset.bound !== 'true') {
+        apiType.dataset.bound = 'true';
         apiType.addEventListener('change', setHeader);
-        setHeader();
     }
+    setHeader();
 }
-
-setupApiType('add');
-setupApiType('edit');
 
 const discountBuilderState = { add: [], edit: [] };
 const discountStackOptionOrder = ['percent_off', 'fixed_off', 'cashback', 'tier_price'];
@@ -1306,44 +1111,59 @@ function confirmDelete() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    setupAuthType('add');
+    setupApiType('add');
     loadDiscountBuilder('add');
     setupDiscountStackPicker('add');
-    if (document.getElementById('edit_discount_tiers_json')) {
-        loadDiscountBuilder('edit');
-        setupDiscountStackPicker('edit');
-    }
-
-    ['add_discount_tiers_json', 'edit_discount_tiers_json'].forEach(textareaId => {
-        const textarea = document.getElementById(textareaId);
-        if (!textarea) return;
-        textarea.addEventListener('input', function () {
-            textarea.dataset.manualDirty = '1';
-        });
-    });
-
-    ['addForm', 'editForm'].forEach(formId => {
-        const form = document.getElementById(formId);
-        if (!form) return;
-        form.addEventListener('submit', function () {
-            const prefix = formId === 'addForm' ? 'add' : 'edit';
-            if (!commitDiscountJsonIfDirty(prefix)) {
-                return;
-            }
-            syncDiscountAllowedTypesInput(prefix);
-            serializeDiscountBuilder(prefix);
-        });
-    });
+    initializeServerForm('add');
 
     {% if editing %}
     const editModalEl = document.getElementById('editModal');
     if (editModalEl) {
-        const modal = new bootstrap.Modal(editModalEl);
-        editModalEl.addEventListener('hidden.bs.modal', function () {
-            window.location.href = '/servers';
+        AdminRemoteModal.showExisting(editModalEl, {
+            onReady: initializeServerEditModal,
+            onHiddenNavigate: '/servers',
         });
-        modal.show();
     }
     {% endif %}
 });
+
+function bindDiscountJsonInput(prefix) {
+    const textarea = document.getElementById(`${prefix}_discount_tiers_json`);
+    if (!textarea || textarea.dataset.bound === 'true') return;
+
+    textarea.dataset.bound = 'true';
+    textarea.addEventListener('input', function () {
+        textarea.dataset.manualDirty = '1';
+    });
+}
+
+function bindDiscountFormSubmit(prefix) {
+    const form = document.getElementById(`${prefix}Form`);
+    if (!form || form.dataset.bound === 'true') return;
+
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', function (event) {
+        if (!commitDiscountJsonIfDirty(prefix)) {
+            event.preventDefault();
+            return;
+        }
+        syncDiscountAllowedTypesInput(prefix);
+        serializeDiscountBuilder(prefix);
+    });
+}
+
+function initializeServerForm(prefix) {
+    setupAuthType(prefix);
+    setupApiType(prefix);
+    bindDiscountJsonInput(prefix);
+    bindDiscountFormSubmit(prefix);
+}
+
+function initializeServerEditModal() {
+    initializeServerForm('edit');
+    loadDiscountBuilder('edit');
+    setupDiscountStackPicker('edit');
+}
 </script>
 {% endblock %}

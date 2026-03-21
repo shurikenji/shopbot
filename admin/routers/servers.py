@@ -148,6 +148,19 @@ async def _hydrate_server_pricing_context(server: dict) -> dict:
     return server
 
 
+async def _build_server_edit_context(server_id: int) -> dict | None:
+    server = await get_server_by_id(server_id)
+    if not server:
+        return None
+
+    return {
+        "editing": await _hydrate_server_pricing_context(_normalize_server_for_form(server)),
+        "api_types": _API_TYPES,
+        "auth_types": _AUTH_TYPES,
+        "discount_stack_modes": _DISCOUNT_STACK_MODES,
+    }
+
+
 def _redirect_to_servers() -> RedirectResponse:
     return RedirectResponse("/servers", status_code=303)
 
@@ -510,19 +523,34 @@ async def servers_add(request: Request):
 
 @router.get("/{server_id}/edit", response_class=HTMLResponse)
 async def servers_edit_page(request: Request, server_id: Annotated[int, Path()]):
-    server = await _get_server_or_redirect(server_id)
-    if isinstance(server, RedirectResponse):
-        return server
+    edit_context = await _build_server_edit_context(server_id)
+    if not edit_context:
+        return _redirect_to_servers()
 
     templates = get_templates()
-    hydrated_server = await _hydrate_server_pricing_context(_normalize_server_for_form(server))
     return templates.TemplateResponse(
         "servers.html",
         _server_page_context(
             request=request,
             servers=await _load_servers_for_page(),
-            editing=hydrated_server,
+            editing=edit_context["editing"],
         ),
+    )
+
+
+@router.get("/{server_id}/edit-modal", response_class=HTMLResponse)
+async def servers_edit_modal(request: Request, server_id: Annotated[int, Path()]) -> HTMLResponse:
+    edit_context = await _build_server_edit_context(server_id)
+    if not edit_context:
+        return HTMLResponse("Server not found", status_code=404)
+
+    templates = get_templates()
+    return templates.TemplateResponse(
+        "_server_edit_modal.html",
+        {
+            "request": request,
+            **edit_context,
+        },
     )
 
 

@@ -208,6 +208,22 @@ def _decorate_products(products: list[dict], categories: list[dict], servers: li
         )
 
 
+async def _build_product_edit_context(product_id: int) -> dict | None:
+    product = await get_product_by_id(product_id)
+    if not product:
+        return None
+
+    categories = await get_all_categories()
+    servers = await get_all_servers()
+    product["promotion"] = await get_primary_product_promotion(product_id)
+
+    return {
+        "categories": categories,
+        "servers": servers,
+        "editing": product,
+    }
+
+
 @router.get("", response_class=HTMLResponse)
 async def products_list(request: Request):
     products = await get_all_products(limit=200)
@@ -242,15 +258,14 @@ async def products_add(request: Request):
 
 @router.get("/{product_id}/edit", response_class=HTMLResponse)
 async def products_edit_page(request: Request, product_id: Annotated[int, Path()]):
-    product = await get_product_by_id(product_id)
-    if not product:
+    edit_context = await _build_product_edit_context(product_id)
+    if not edit_context:
         return RedirectResponse("/products?error=not_found", status_code=303)
 
     products = await get_all_products(limit=200)
-    categories = await get_all_categories()
-    servers = await get_all_servers()
+    categories = edit_context["categories"]
+    servers = edit_context["servers"]
     _decorate_products(products, categories, servers)
-    product["promotion"] = await get_primary_product_promotion(product_id)
 
     templates = get_templates()
     return templates.TemplateResponse(
@@ -260,8 +275,24 @@ async def products_edit_page(request: Request, product_id: Annotated[int, Path()
             "products": products,
             "categories": categories,
             "servers": servers,
-            "editing": product,
+            "editing": edit_context["editing"],
             **_build_flash_context(request),
+        },
+    )
+
+
+@router.get("/{product_id}/edit-modal", response_class=HTMLResponse)
+async def products_edit_modal(request: Request, product_id: Annotated[int, Path()]) -> HTMLResponse:
+    edit_context = await _build_product_edit_context(product_id)
+    if not edit_context:
+        return HTMLResponse("Product not found", status_code=404)
+
+    templates = get_templates()
+    return templates.TemplateResponse(
+        "_product_edit_modal.html",
+        {
+            "request": request,
+            **edit_context,
         },
     )
 
