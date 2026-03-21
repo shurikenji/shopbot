@@ -50,7 +50,7 @@
         </div>
     </div>
     <div class="card-body" style="padding: 0;">
-        <table class="table">
+        <table class="table table-responsive-cards">
             <thead>
                 <tr>
                     <th>#</th>
@@ -69,25 +69,29 @@
             <tbody>
                 {% for a in info.accounts %}
                 <tr>
-                    <td>{{ a.id }}</td>
+                    <td data-label="#">{{ a.id }}</td>
                     {% if info.format_template %}
                     {% set parts = a.account_data.split('|') %}
                     {% set labels = info.format_template.split('|') %}
                     {% for i in range(labels|length) %}
-                    <td><code>{{ parts[i]|default('—') if i < parts|length else '—' }}</code></td>
+                    <td data-label="{{ labels[i].strip() }}">
+                        <code>{{ parts[i]|default('—') if i < parts|length else '—' }}</code>
+                    </td>
                     {% endfor %}
                     {% else %}
-                    <td><code>{{ a.account_data[:80] }}{{ '...' if a.account_data|length > 80 }}</code></td>
+                    <td data-label="Data">
+                        <code>{{ a.account_data[:80] }}{{ '...' if a.account_data|length > 80 }}</code>
+                    </td>
                     {% endif %}
-                    <td>
+                    <td data-label="Trạng thái">
                         {% if not a.is_sold %}
                         <span class="badge badge-success">Còn</span>
                         {% else %}
                         <span class="badge badge-danger">Đã bán</span>
                         {% endif %}
                     </td>
-                    <td>{{ a.sold_to_user|default('—') }}</td>
-                    <td>
+                    <td data-label="Bán cho">{{ a.sold_to_user|default('—') }}</td>
+                    <td data-label="" class="actions">
                         {% if not a.is_sold %}
                         <a href="/account-stock/{{ a.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete()">Xóa</a>
                         {% endif %}
@@ -100,7 +104,6 @@
 </div>
 {% endfor %}
 
-<!-- Add Modal -->
 <div class="modal fade" id="addModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

@@ -2363,6 +2363,22 @@ textarea.form-control {
     box-shadow: var(--shadow-sm);
 }
 
+@media (max-width: 768px) {
+    .settings-tab-nav {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .settings-tab-btn {
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+    }
+}
+
 .settings-sticky-footer {
     position: sticky;
     bottom: 0;
@@ -2752,6 +2768,14 @@ textarea.form-control {
     .table-responsive-cards tbody td {
         border-bottom: none;
         padding: 0.4rem 1rem;
+    }
+
+    .table-responsive-cards tbody td code {
+        display: inline-block;
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
     }
 
     .table-responsive-cards tbody td::before {
