@@ -280,6 +280,37 @@
                                     <input name="vietqr_template" class="form-control" value="{{ all_settings.get('vietqr_template', '') }}" placeholder="compact">
                                 </div>
                             </div>
+                            <div class="col-12">
+                                <div style="height: 1px; background: var(--border-light); margin: 0.25rem 0;"></div>
+                            </div>
+                            <div class="col-12">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.35rem;">
+                                    <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Cảnh báo API key sắp hết tiền</h4>
+                                    <span style="font-size: 0.75rem; color: var(--text-secondary); background: var(--background-subtle); border: 1px solid var(--border-light); border-radius: 999px; padding: 0.2rem 0.6rem;">Telegram tự động</span>
+                                </div>
+                                <p style="margin: 0; color: var(--text-secondary); font-size: 0.84rem;">Quét các key đang active theo chu kỳ và gửi cảnh báo khi số dư còn thấp hơn các mốc đã cấu hình.</p>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check" style="padding: 0.6rem 0.75rem; background: var(--background-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                                    <input type="checkbox" class="form-check-input" id="key_alert_enabled" name="key_alert_enabled" value="true"
+                                        {% if all_settings.get('key_alert_enabled', 'true') == 'true' %}checked{% endif %}>
+                                    <label class="form-check-label" for="key_alert_enabled" style="font-size: 0.875rem; font-weight: 500;">Bật cảnh báo số dư API key qua Telegram</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Chu kỳ quét key (phút)</label>
+                                    <input name="key_alert_poll_interval_min" type="number" min="1" class="form-control" value="{{ all_settings.get('key_alert_poll_interval_min', '15') }}" placeholder="15">
+                                    <div class="form-text">Khuyến nghị 10-15 phút cho VPS free tier.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Mốc cảnh báo ($)</label>
+                                    <input name="key_alert_thresholds" class="form-control" value="{{ all_settings.get('key_alert_thresholds', '5,3,1') }}" placeholder="5,3,1">
+                                    <div class="form-text">Nhập các mốc USD, ngăn cách bằng dấu phẩy.</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

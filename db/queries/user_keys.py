@@ -48,6 +48,16 @@ async def get_user_keys(
     return await fetch_all_dicts(query, params)
 
 
+async def get_active_user_keys_for_alerts() -> list[dict]:
+    """List all active user keys for background low-balance scans."""
+    return await fetch_all_dicts(
+        """SELECT *
+           FROM user_keys
+           WHERE is_active = 1
+           ORDER BY server_id ASC, id ASC"""
+    )
+
+
 async def search_user_keys(
     user_id: int,
     *,

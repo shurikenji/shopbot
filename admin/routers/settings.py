@@ -21,6 +21,8 @@ _EDITABLE_KEYS = [
     "mb_account_name",
     "mb_bank_id",
     "poll_interval",
+    "key_alert_poll_interval_min",
+    "key_alert_thresholds",
     "order_expire_min",
     "vietqr_template",
     "bot_name",
@@ -36,6 +38,7 @@ _EDITABLE_KEYS = [
     "admin_notify_service_paid",
     "admin_notify_service_completed",
     "admin_notify_order_refunded",
+    "key_alert_enabled",
     "msg_key_new",
     "msg_key_topup",
     "msg_chatgpt",
@@ -96,6 +99,7 @@ async def settings_save(request: Request):
         "admin_notify_service_paid",
         "admin_notify_service_completed",
         "admin_notify_order_refunded",
+        "key_alert_enabled",
     ):
         await set_setting(key, "true" if form.get(key) else "false")
     return RedirectResponse("/settings?saved=1", status_code=303)

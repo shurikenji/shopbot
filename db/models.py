@@ -301,6 +301,25 @@ CREATE TABLE IF NOT EXISTS api_key_valuation_events (
 );
 CREATE INDEX IF NOT EXISTS idx_akve_registry ON api_key_valuation_events(api_key_registry_id, created_at);
 
+-- API KEY ALERT STATES
+CREATE TABLE IF NOT EXISTS api_key_alert_states (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    server_id       INTEGER NOT NULL REFERENCES api_servers(id),
+    api_key_hash    TEXT NOT NULL,
+    masked_key      TEXT,
+    last_seen_remain_quota INTEGER DEFAULT 0,
+    last_seen_balance_dollar REAL DEFAULT 0,
+    last_alert_threshold REAL,
+    last_alert_sent_at TEXT,
+    last_checked_at  TEXT DEFAULT (datetime('now')),
+    last_error      TEXT,
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, server_id, api_key_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_akas_user_server ON api_key_alert_states(user_id, server_id, updated_at);
+
 -- SPEND LEDGER
 CREATE TABLE IF NOT EXISTS spend_ledger (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -427,6 +446,9 @@ _DEFAULT_SETTINGS = [
     ("welcome_message", "Chào mừng bạn đến với ShopBot!", "Lời chào /start"),
     ("admin_password", "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9", "Mật khẩu admin panel (hash của admin123)"),
     ("wallet_topup_min", "30000", "Nạp ví tối thiểu (VNĐ)"),
+    ("key_alert_enabled", "true", "Bật/tắt cảnh báo Telegram khi API key sắp hết số dư"),
+    ("key_alert_poll_interval_min", "15", "Chu kỳ quét cảnh báo API key (phút)"),
+    ("key_alert_thresholds", "5,3,1", "Các mốc cảnh báo API key theo USD"),
     # Custom dollar settings
     ("quota_per_dollar", "500000", "Quota tương đương $1 (hằng số quy đổi)"),
     ("custom_dollar_min_wallet", "1", "$ tối thiểu nhập custom - thanh toán ví"),

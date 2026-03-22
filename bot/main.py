@@ -16,6 +16,7 @@ from aiogram.types import BotCommand
 from bot.config import settings
 from bot.handlers import setup_routers
 from bot.middlewares.auth import AuthMiddleware
+from bot.services.key_alert_poller import start_key_alert_poller
 from bot.storage.sqlite_fsm import SQLiteFSMStorage
 from bot.services.payment_poller import start_payment_poller
 from db.bootstrap import init_db
@@ -114,6 +115,7 @@ async def main() -> None:
     await register_bot_commands(bot)
 
     poller_task = asyncio.create_task(start_payment_poller(bot))
+    key_alert_task = asyncio.create_task(start_key_alert_poller(bot))
     admin_task = await start_admin_server()
 
     try:
@@ -122,6 +124,7 @@ async def main() -> None:
     finally:
         logger.info("Shutting down...")
         await cancel_task(poller_task)
+        await cancel_task(key_alert_task)
         await cancel_task(admin_task)
         await close_db()
         await bot.session.close()
