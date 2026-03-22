@@ -80,8 +80,9 @@ async def clear_old_logs(days: int = 30) -> int:
     db = await get_db()
     cursor = await db.execute(
         """DELETE FROM logs
-           WHERE created_at < datetime('now', ? || ' days')""",
+           WHERE created_at < datetime('now', '+7 hours', ? || ' days')""",
         (f"-{days}",),
     )
     await db.commit()
     return cursor.rowcount
+

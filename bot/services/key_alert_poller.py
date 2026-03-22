@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
 
 from aiogram import Bot
 
@@ -13,6 +12,7 @@ from bot.services.api_clients import get_api_client
 from bot.services.key_valuation import hash_api_key, normalize_api_key
 from bot.services.notifier import notify_user
 from bot.utils.formatting import format_dollar, mask_api_key
+from bot.utils.time_utils import to_db_time_string
 from db.queries.api_key_alerts import get_api_key_alert_state, upsert_api_key_alert_state
 from db.queries.logs import add_log
 from db.queries.servers import get_active_servers
@@ -201,7 +201,7 @@ async def _check_user_key(bot: Bot, *, user_key: dict, server: dict, thresholds:
         )
         delivered = await notify_user(int(user_key["user_id"]), message, bot=bot)
         if delivered:
-            sent_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            sent_at = to_db_time_string()
         else:
             last_error = "notify_failed"
 
@@ -220,3 +220,5 @@ async def _check_user_key(bot: Bot, *, user_key: dict, server: dict, thresholds:
         last_alert_sent_at=sent_at,
         last_error=last_error,
     )
+
+

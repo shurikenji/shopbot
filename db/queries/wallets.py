@@ -4,7 +4,7 @@ Tiền tệ luôn dùng INTEGER (VNĐ).
 """
 from __future__ import annotations
 
-from datetime import datetime
+from bot.utils.time_utils import to_db_time_string
 from typing import Optional
 
 from db.database import get_db
@@ -139,7 +139,7 @@ async def charge_pending_order_from_wallet(order_id: int) -> Optional[dict]:
             )
 
         new_balance = balance - order["amount"]
-        paid_at = datetime.utcnow().isoformat()
+        paid_at = to_db_time_string()
 
         await db.execute(
             """UPDATE wallets
@@ -165,7 +165,7 @@ async def charge_pending_order_from_wallet(order_id: int) -> Optional[dict]:
                SET status = 'paid',
                    payment_method = 'wallet',
                    paid_at = ?,
-                   updated_at = datetime('now')
+                   updated_at = datetime('now', '+7 hours')
                WHERE id = ? AND status = 'pending'""",
             (paid_at, order_id),
         )
@@ -237,7 +237,7 @@ async def complete_wallet_topup_order(order_id: int) -> Optional[int]:
         await db.execute(
             """UPDATE orders
                SET status = 'completed',
-                   updated_at = datetime('now')
+                   updated_at = datetime('now', '+7 hours')
                WHERE id = ? AND status IN ('paid', 'processing')""",
             (order_id,),
         )
@@ -288,7 +288,7 @@ async def refund_order_to_wallet(
         wallet_row = await cursor.fetchone()
         balance = wallet_row["balance"] if wallet_row else 0
         new_balance = balance + order["amount"]
-        refunded_at = datetime.utcnow().isoformat()
+        refunded_at = to_db_time_string()
 
         await db.execute(
             """UPDATE wallets
@@ -315,7 +315,7 @@ async def refund_order_to_wallet(
                    refund_reason = ?,
                    refunded_at = ?,
                    status = 'refunded',
-                   updated_at = datetime('now')
+                   updated_at = datetime('now', '+7 hours')
                WHERE id = ? AND is_refunded = 0""",
             (reason, refunded_at, order_id),
         )
@@ -352,3 +352,4 @@ async def count_wallet_transactions(user_id: int) -> int:
     )
     row = await cursor.fetchone()
     return row[0] if row else 0
+

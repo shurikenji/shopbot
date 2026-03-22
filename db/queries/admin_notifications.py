@@ -28,7 +28,7 @@ async def create_admin_notification_event(
                SET status = 'pending',
                    message_text = ?,
                    error_message = NULL,
-                   updated_at = datetime('now')
+                   updated_at = datetime('now', '+7 hours')
                WHERE order_id = ? AND event_type = ? AND target_chat_id = ?""",
             (message_text, order_id, event_type, target_chat_id),
         )
@@ -37,7 +37,7 @@ async def create_admin_notification_event(
     cursor = await execute_commit(
         """INSERT INTO admin_notification_events
            (order_id, event_type, target_chat_id, status, message_text, updated_at)
-           VALUES (?, ?, ?, 'pending', ?, datetime('now'))""",
+           VALUES (?, ?, ?, 'pending', ?, datetime('now', '+7 hours'))""",
         (order_id, event_type, target_chat_id, message_text),
     )
     return bool(cursor.rowcount)
@@ -53,9 +53,9 @@ async def mark_admin_notification_sent(
     await execute_commit(
         """UPDATE admin_notification_events
            SET status = 'sent',
-               sent_at = datetime('now'),
+               sent_at = datetime('now', '+7 hours'),
                error_message = NULL,
-               updated_at = datetime('now')
+               updated_at = datetime('now', '+7 hours')
            WHERE order_id = ? AND event_type = ? AND target_chat_id = ?""",
         (order_id, event_type, target_chat_id),
     )
@@ -73,7 +73,7 @@ async def mark_admin_notification_failed(
         """UPDATE admin_notification_events
            SET status = 'failed',
                error_message = ?,
-               updated_at = datetime('now')
+               updated_at = datetime('now', '+7 hours')
            WHERE order_id = ? AND event_type = ? AND target_chat_id = ?""",
         (error_message, order_id, event_type, target_chat_id),
     )
@@ -87,3 +87,4 @@ async def get_admin_notification_events(*, order_id: int) -> list[dict]:
            ORDER BY id ASC""",
         (order_id,),
     )
+

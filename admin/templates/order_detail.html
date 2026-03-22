@@ -95,7 +95,19 @@
                     {% if order.paid_at %}
                     <tr>
                         <th>Thanh toán lúc</th>
-                        <td>{{ order.paid_at }}</td>
+                        <td>{{ order.paid_at | time_vn }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if order.expired_at %}
+                    <tr>
+                        <th>Hết hạn lúc</th>
+                        <td>{{ order.expired_at | time_vn }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if order.refunded_at %}
+                    <tr>
+                        <th>Hoàn tiền lúc</th>
+                        <td>{{ order.refunded_at | time_vn }}</td>
                     </tr>
                     {% endif %}
                     {% if order.api_key %}
@@ -165,3 +177,4 @@ function confirmDelete(msg) {
 }
 </script>
 {% endblock %}
+

@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_admin        INTEGER DEFAULT 0,
     disable_discounts INTEGER DEFAULT 0,
     is_banned       INTEGER DEFAULT 0,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_users_tgid ON users(telegram_id);
 
@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS wallets (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id         INTEGER UNIQUE NOT NULL REFERENCES users(id),
     balance         INTEGER DEFAULT 0,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 
 -- WALLET TRANSACTIONS (audit log)
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
     type            TEXT NOT NULL,
     reference_id    TEXT,
     description     TEXT,
-    created_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_wtx_user ON wallet_transactions(user_id);
 
@@ -76,8 +76,8 @@ CREATE TABLE IF NOT EXISTS api_servers (
     import_spend_accrual_enabled INTEGER DEFAULT 0,
     discount_stack_mode    TEXT DEFAULT 'exclusive',
     discount_allowed_stack_types TEXT DEFAULT 'cashback',
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 
 -- CATEGORIES
@@ -89,8 +89,8 @@ CREATE TABLE IF NOT EXISTS categories (
     cat_type        TEXT DEFAULT 'general',
     sort_order      INTEGER DEFAULT 0,
     is_active       INTEGER DEFAULT 1,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 
 -- PRODUCTS
@@ -111,8 +111,8 @@ CREATE TABLE IF NOT EXISTS products (
     is_active       INTEGER DEFAULT 1,
     sort_order      INTEGER DEFAULT 0,
     meta_json       TEXT,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_prod_cat ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_prod_srv ON products(server_id);
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS chatgpt_accounts (
     is_sold         INTEGER DEFAULT 0,
     sold_to_user    INTEGER REFERENCES users(id),
     sold_order_id   INTEGER,
-    created_at      TEXT DEFAULT (datetime('now')),
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
     sold_at         TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_cga_prod ON chatgpt_accounts(product_id, is_sold);
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS account_stocks (
     is_sold         INTEGER DEFAULT 0,
     sold_to_user    INTEGER REFERENCES users(id),
     sold_order_id   INTEGER,
-    created_at      TEXT DEFAULT (datetime('now')),
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
     sold_at         TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_accstk_prod ON account_stocks(product_id, is_sold);
@@ -181,8 +181,8 @@ CREATE TABLE IF NOT EXISTS orders (
     refund_reason   TEXT,
     refunded_at     TEXT,
     expired_at      TEXT,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_ord_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_ord_status ON orders(status);
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS server_pricing_versions (
     rounding_step   INTEGER DEFAULT 1,
     min_payable_amount INTEGER DEFAULT 1000,
     is_active       INTEGER DEFAULT 1,
-    created_at      TEXT DEFAULT (datetime('now')),
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
     UNIQUE(server_id, version_code)
 );
 CREATE INDEX IF NOT EXISTS idx_spv_server_effective ON server_pricing_versions(server_id, effective_from);
@@ -216,8 +216,8 @@ CREATE TABLE IF NOT EXISTS server_discount_tiers (
     min_spend_vnd   INTEGER NOT NULL,
     is_active       INTEGER DEFAULT 1,
     sort_order      INTEGER DEFAULT 0,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_sdt_server ON server_discount_tiers(server_id, min_spend_vnd);
 
@@ -229,8 +229,8 @@ CREATE TABLE IF NOT EXISTS server_tier_benefits (
     value_amount    REAL,
     config_json     TEXT,
     is_active       INTEGER DEFAULT 1,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_stb_tier ON server_tier_benefits(tier_id);
 
@@ -247,8 +247,8 @@ CREATE TABLE IF NOT EXISTS product_promotions (
     ends_at         TEXT,
     priority        INTEGER DEFAULT 0,
     is_active       INTEGER DEFAULT 1,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_pp_product ON product_promotions(product_id, priority);
 
@@ -261,8 +261,8 @@ CREATE TABLE IF NOT EXISTS user_keys (
     api_token_id    INTEGER,
     label           TEXT,
     is_active       INTEGER DEFAULT 1,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_ukeys_user ON user_keys(user_id);
 
@@ -275,8 +275,8 @@ CREATE TABLE IF NOT EXISTS api_key_registry (
     masked_key      TEXT,
     last_observed_total_quota INTEGER DEFAULT 0,
     last_pricing_version_id INTEGER REFERENCES server_pricing_versions(id),
-    first_seen_at   TEXT DEFAULT (datetime('now')),
-    last_seen_at    TEXT DEFAULT (datetime('now')),
+    first_seen_at   TEXT DEFAULT (datetime('now', '+7 hours')),
+    last_seen_at    TEXT DEFAULT (datetime('now', '+7 hours')),
     is_owner_locked INTEGER DEFAULT 1,
     UNIQUE(server_id, api_key_hash)
 );
@@ -297,7 +297,7 @@ CREATE TABLE IF NOT EXISTS api_key_valuation_events (
     credited_delta_quota INTEGER DEFAULT 0,
     credited_value_vnd INTEGER DEFAULT 0,
     detail_json     TEXT,
-    created_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_akve_registry ON api_key_valuation_events(api_key_registry_id, created_at);
 
@@ -312,10 +312,10 @@ CREATE TABLE IF NOT EXISTS api_key_alert_states (
     last_seen_balance_dollar REAL DEFAULT 0,
     last_alert_threshold REAL,
     last_alert_sent_at TEXT,
-    last_checked_at  TEXT DEFAULT (datetime('now')),
+    last_checked_at  TEXT DEFAULT (datetime('now', '+7 hours')),
     last_error      TEXT,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now')),
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours')),
     UNIQUE(user_id, server_id, api_key_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_akas_user_server ON api_key_alert_states(user_id, server_id, updated_at);
@@ -331,7 +331,7 @@ CREATE TABLE IF NOT EXISTS spend_ledger (
     direction       TEXT NOT NULL,
     description     TEXT,
     detail_json     TEXT,
-    created_at      TEXT DEFAULT (datetime('now')),
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
     UNIQUE(source_type, source_ref)
 );
 CREATE INDEX IF NOT EXISTS idx_spend_ledger_user_server ON spend_ledger(user_id, server_id, created_at);
@@ -342,8 +342,8 @@ CREATE TABLE IF NOT EXISTS user_server_spend_summary (
     server_id       INTEGER NOT NULL REFERENCES api_servers(id),
     total_spend_vnd INTEGER DEFAULT 0,
     last_ledger_id  INTEGER REFERENCES spend_ledger(id),
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now')),
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours')),
     PRIMARY KEY (user_id, server_id)
 );
 
@@ -357,8 +357,8 @@ CREATE TABLE IF NOT EXISTS admin_notification_events (
     message_text    TEXT,
     error_message   TEXT,
     sent_at         TEXT,
-    created_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now')),
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours')),
     UNIQUE(order_id, event_type, target_chat_id)
 );
 CREATE INDEX IF NOT EXISTS idx_admin_notify_order_event ON admin_notification_events(order_id, event_type);
@@ -374,7 +374,7 @@ CREATE TABLE IF NOT EXISTS fsm_storage (
     destiny         TEXT NOT NULL,
     state           TEXT,
     data_json       TEXT NOT NULL DEFAULT '{}',
-    updated_at      TEXT DEFAULT (datetime('now'))
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 CREATE INDEX IF NOT EXISTS idx_fsm_storage_lookup ON fsm_storage(bot_id, chat_id, user_id, destiny);
 
@@ -383,7 +383,7 @@ CREATE TABLE IF NOT EXISTS settings (
     key             TEXT PRIMARY KEY,
     value           TEXT NOT NULL,
     description     TEXT,
-    updated_at      TEXT DEFAULT (datetime('now'))
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 
 -- PROCESSED TRANSACTIONS (dedup MBBank)
@@ -392,7 +392,7 @@ CREATE TABLE IF NOT EXISTS processed_transactions (
     transaction_id  TEXT UNIQUE NOT NULL,
     order_code      TEXT,
     amount          INTEGER,
-    processed_at    TEXT DEFAULT (datetime('now'))
+    processed_at    TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 
 -- LOGS
@@ -402,7 +402,7 @@ CREATE TABLE IF NOT EXISTS logs (
     module          TEXT,
     message         TEXT NOT NULL,
     detail          TEXT,
-    created_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now', '+7 hours'))
 );
 
 -- GROUP TRANSLATIONS (AI translation cache)
@@ -415,7 +415,7 @@ CREATE TABLE IF NOT EXISTS group_translations (
     desc_en         TEXT,
     desc_vi         TEXT,
     category        TEXT,
-    updated_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now', '+7 hours')),
     UNIQUE(original_name, api_type)
 );
 """
@@ -503,3 +503,4 @@ async def init_db() -> None:
     from db.bootstrap import init_db as bootstrap_init_db
 
     await bootstrap_init_db()
+

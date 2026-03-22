@@ -8,7 +8,7 @@ import logging
 import random
 import string
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from aiogram import Bot
@@ -25,6 +25,7 @@ from bot.services.spend_ledger import SpendLedgerService
 from bot.services.refund_service import refund_order
 from bot.services.notifier import notify_user
 from bot.utils.formatting import format_vnd, mask_api_key, quota_to_dollar
+from bot.utils.time_utils import get_now_vn, to_db_time_string, to_gmt7
 from db.queries.account_stocks import mark_account_sold
 from db.queries.logs import add_log
 from db.queries.orders import (
@@ -134,7 +135,7 @@ async def _handle_transaction(bot: Bot, transaction: dict[str, Any]) -> None:
 
 async def _mark_order_paid(order_id: int, tx_id: str | None = None) -> None:
     """Đánh dấu đơn là đã thanh toán và lưu mã giao dịch nếu có."""
-    payload: dict[str, Any] = {"paid_at": datetime.utcnow().isoformat()}
+    payload: dict[str, Any] = {"paid_at": to_db_time_string()}
     if tx_id:
         payload["mb_transaction_id"] = tx_id
     await update_order_status(order_id, "paid", **payload)
@@ -594,22 +595,21 @@ async def _expire_old_orders(bot: Bot) -> None:
     """Đánh dấu hết hạn cho các đơn QR đã quá thời gian chờ."""
     expire_minutes = await get_setting_int("order_expire_min", env_settings.order_expire_minutes)
     pending_orders = await _load_pending_qr_orders()
-    now = datetime.utcnow()
+    now = get_now_vn()
 
     for order in pending_orders:
         created_str = order.get("created_at", "")
         if not created_str:
             continue
 
-        try:
-            created_at = datetime.fromisoformat(created_str)
-        except ValueError:
+        created_at = to_gmt7(created_str)
+        if created_at is None:
             continue
 
         if now - created_at <= timedelta(minutes=expire_minutes):
             continue
 
-        await update_order_status(order["id"], "expired", expired_at=now.isoformat())
+        await update_order_status(order["id"], "expired", expired_at=to_db_time_string(now))
         await add_log(
             f"Order {order['order_code']} expired after {expire_minutes}min",
             module="poller",
@@ -671,3 +671,5 @@ def _format_account_delivery(raw_data: str, format_template: str | None) -> str:
         value = values[index] if index < len(values) else "-"
         lines.append(f"  {label}: <code>{value}</code>")
     return "\n".join(lines)
+
+

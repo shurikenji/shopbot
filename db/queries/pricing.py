@@ -4,20 +4,20 @@ db/queries/pricing.py - Pricing versions, server discount tiers, and product pro
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from typing import Any
 
+from bot.utils.time_utils import to_db_time_string
 from db.database import get_db
 from db.queries._helpers import fetch_all_dicts, fetch_one_dict, fetch_scalar
 from db.queries.servers import get_server_by_id
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat()
+    return to_db_time_string()
 
 
 def _normalize_datetime(value: str | None) -> str:
-    return value or _now_iso()
+    return to_db_time_string(value) if value else _now_iso()
 
 
 async def list_server_pricing_versions(server_id: int) -> list[dict]:

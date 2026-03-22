@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from bot.utils.time_utils import to_db_time_string
 from db.database import get_db
 from db.queries._helpers import execute_commit, fetch_all_dicts, fetch_one_dict, fetch_scalar
 
@@ -187,10 +188,8 @@ async def cancel_order(order_id: int) -> None:
 
 async def expire_order(order_id: int) -> None:
     """Đánh dấu đơn hết hạn và nhả tài khoản (nếu có)."""
-    from datetime import datetime as _dt
-
     await update_order_status(
-        order_id, "expired", expired_at=_dt.utcnow().isoformat()
+        order_id, "expired", expired_at=to_db_time_string()
     )
     from db.queries.account_stocks import release_account_by_order
 
@@ -204,8 +203,8 @@ async def mark_refunded(
     """Đánh dấu đã hoàn tiền (chống hoàn 2 lần)."""
     await execute_commit(
         """UPDATE orders
-           SET is_refunded = 1, refund_reason = ?, refunded_at = datetime('now'),
-               status = 'refunded', updated_at = datetime('now')
+           SET is_refunded = 1, refund_reason = ?, refunded_at = datetime('now', '+7 hours'),
+               status = 'refunded', updated_at = datetime('now', '+7 hours')
            WHERE id = ? AND is_refunded = 0""",
         (reason, order_id),
     )
@@ -256,7 +255,7 @@ async def get_order_stats() -> dict:
     today_orders = int(
         await fetch_scalar(
             """SELECT COUNT(*) FROM orders
-               WHERE date(created_at, '+7 hours') = date('now', '+7 hours')"""
+               WHERE date(created_at) = date('now', '+7 hours')"""
         )
         or 0
     )
@@ -265,7 +264,7 @@ async def get_order_stats() -> dict:
     today_revenue = int(
         await fetch_scalar(
             """SELECT COALESCE(SUM(amount), 0) FROM orders
-               WHERE status = 'completed' AND date(created_at, '+7 hours') = date('now', '+7 hours')"""
+               WHERE status = 'completed' AND date(created_at) = date('now', '+7 hours')"""
         )
         or 0
     )
@@ -276,3 +275,5 @@ async def get_order_stats() -> dict:
         "today_orders": today_orders,
         "today_revenue": today_revenue,
     }
+
+
