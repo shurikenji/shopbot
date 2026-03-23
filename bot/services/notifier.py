@@ -49,10 +49,44 @@ async def _resolve_bot(bot: Bot | None = None) -> AsyncIterator[Bot | None]:
         await temp_bot.session.close()
 
 
+_TG_MAX_LENGTH = 4000  # Telegram limit is 4096; leave margin for safety
+
+
+def _split_message(text: str, max_length: int = _TG_MAX_LENGTH) -> list[str]:
+    """Split a long message into chunks that fit within Telegram's limit.
+
+    Splits at newline boundaries when possible to avoid cutting mid-line.
+    """
+    if len(text) <= max_length:
+        return [text]
+
+    chunks: list[str] = []
+    remaining = text
+    while remaining:
+        if len(remaining) <= max_length:
+            chunks.append(remaining)
+            break
+
+        # Try to split at last newline within the limit
+        split_at = remaining.rfind("\n", 0, max_length)
+        if split_at <= 0:
+            # No newline found; hard-cut at max_length
+            split_at = max_length
+
+        chunks.append(remaining[:split_at])
+        remaining = remaining[split_at:].lstrip("\n")
+
+    return chunks
+
+
 async def send_text(bot: Bot, chat_id: int, text: str) -> bool:
-    """Send a Telegram message and return whether it succeeded."""
+    """Send a Telegram message and return whether it succeeded.
+
+    Automatically splits messages that exceed Telegram's 4096-char limit.
+    """
     try:
-        await bot.send_message(chat_id=chat_id, text=text)
+        for chunk in _split_message(text):
+            await bot.send_message(chat_id=chat_id, text=chunk)
         return True
     except Exception as exc:
         logger.error("Cannot send Telegram message to %s: %s", chat_id, exc)

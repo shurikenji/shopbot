@@ -177,8 +177,13 @@ async def _process_order(bot: Bot, order: Order) -> None:
 
 async def _process_service_upgrade(bot: Bot, order: Order) -> None:
     """Thông báo cho user và admin rằng đơn nâng cấp dịch vụ cần xử lý tay."""
-    user_input = order.get("user_input_data") or ""
-    input_line = f"\n📝 Thông tin KH: <code>{user_input}</code>" if user_input else ""
+    user_input = str(order.get("user_input_data") or "")
+    if user_input:
+        preview = user_input[:500]
+        suffix = "…" if len(user_input) > 500 else ""
+        input_line = f"\n📝 Thông tin KH: <code>{preview}{suffix}</code>"
+    else:
+        input_line = ""
     support_url = await get_setting("support_url", "https://t.me/admin")
 
     await notify_user(
