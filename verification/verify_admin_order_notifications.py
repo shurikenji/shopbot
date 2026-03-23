@@ -14,7 +14,7 @@ from bot.config import settings
 from db.database import close_db
 from db.models import init_db
 from db.queries.admin_notifications import get_admin_notification_events
-from db.queries.orders import create_order, get_order_by_id
+from db.queries.orders import create_order, get_order_by_id, update_order_status
 from db.queries.servers import create_server
 from db.queries.settings import set_setting
 from db.queries.users import create_user
@@ -84,6 +84,51 @@ async def main() -> None:
                 print("[OK] completed-order notifications are deduplicated per admin chat id")
             finally:
                 admin_order_notifications.send_text = original_send_text
+
+            long_order_id = await create_order(
+                order_code="ADMINNOTIFY003",
+                user_id=user["id"],
+                product_name="Long Service Input",
+                product_type="service_upgrade",
+                amount=75_000,
+                payment_method="qr",
+            )
+            await update_order_status(
+                long_order_id,
+                "pending",
+                user_input_data="<secret>" + ("A" * 5000),
+            )
+            long_order = await get_order_by_id(long_order_id)
+            assert long_order is not None
+
+            sent_messages = []
+            sent_files: list[tuple[int, str]] = []
+
+            async def _fake_send_text_with_summary(bot, chat_id: int, text: str) -> bool:
+                _ = bot
+                sent_messages.append((chat_id, text))
+                return True
+
+            async def _fake_send_user_input_file(bot, chat_id: int, order: dict) -> bool:
+                _ = bot
+                sent_files.append((chat_id, str(order.get("order_code"))))
+                return True
+
+            original_send_text = admin_order_notifications.send_text
+            original_send_user_input_file = admin_order_notifications._send_user_input_file
+            await set_setting("admin_telegram_ids", "90011")
+            admin_order_notifications.send_text = _fake_send_text_with_summary
+            admin_order_notifications._send_user_input_file = _fake_send_user_input_file
+            try:
+                sent_long = await admin_order_notifications.notify_admin_service_paid(long_order, bot=object())
+                assert sent_long == (1, 0, 0)
+                assert len(sent_messages) == 1
+                assert "xem file TXT đính kèm" in sent_messages[0][1]
+                assert sent_files == [(90011, "ADMINNOTIFY003")]
+                print("[OK] long service input sends a summary plus TXT attachment to admin")
+            finally:
+                admin_order_notifications.send_text = original_send_text
+                admin_order_notifications._send_user_input_file = original_send_user_input_file
 
             retry_order_id = await create_order(
                 order_code="ADMINNOTIFY002",

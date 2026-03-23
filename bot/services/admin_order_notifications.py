@@ -3,10 +3,12 @@ bot/services/admin_order_notifications.py - Admin Telegram notifications for ord
 """
 from __future__ import annotations
 
+from datetime import datetime
 from html import escape
 from typing import Any
 
 from aiogram import Bot
+from aiogram.types import BufferedInputFile
 
 from bot.services.notifier import _resolve_bot, resolve_admin_chat_ids, send_text
 from bot.utils.formatting import format_vnd, mask_api_key
@@ -26,6 +28,8 @@ EVENT_ORDER_COMPLETED = "order_completed"
 EVENT_SERVICE_PAID = "service_paid"
 EVENT_SERVICE_COMPLETED = "service_completed"
 EVENT_ORDER_REFUNDED = "order_refunded"
+_ADMIN_USER_INPUT_INLINE_LIMIT = 1200
+_ADMIN_USER_INPUT_FILE_THRESHOLD = 1500
 
 _EVENT_SETTING_KEYS = {
     EVENT_ORDER_COMPLETED: "admin_notify_order_completed",
@@ -51,6 +55,54 @@ def _is_truthy(value: str | None, *, default: bool = False) -> bool:
 
 def _safe_text(value: Any) -> str:
     return escape(str(value or ""))
+
+
+def _needs_user_input_file(value: Any) -> bool:
+    return len(str(value or "")) > _ADMIN_USER_INPUT_FILE_THRESHOLD
+
+
+def _user_input_summary_line(value: Any) -> str:
+    raw_text = str(value or "")
+    if not raw_text:
+        return ""
+    if _needs_user_input_file(raw_text):
+        return "📝 Thông tin KH: <b>Quá dài, xem file TXT đính kèm</b>"
+    preview = _safe_text(raw_text[:_ADMIN_USER_INPUT_INLINE_LIMIT])
+    return f"📝 Thông tin KH: <code>{preview}</code>"
+
+
+def _build_user_input_file_caption(order: Order) -> str:
+    order_code = _safe_text(order.get("order_code") or "UNKNOWN")
+    product_name = _safe_text(order.get("product_name") or "Dịch vụ")
+    return f"📝 File thông tin khách hàng cho đơn <b>{order_code}</b>\n🛍️ <b>{product_name}</b>"
+
+
+def _build_user_input_file(order: Order) -> BufferedInputFile | None:
+    raw_text = str(order.get("user_input_data") or "")
+    if not _needs_user_input_file(raw_text):
+        return None
+
+    order_code = str(order.get("order_code") or "order").strip() or "order"
+    safe_code = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in order_code)
+    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    filename = f"{safe_code[:48]}-{timestamp}.txt"
+    return BufferedInputFile(raw_text.encode("utf-8"), filename=filename)
+
+
+async def _send_user_input_file(bot: Bot, chat_id: int, order: Order) -> bool:
+    document = _build_user_input_file(order)
+    if document is None:
+        return True
+
+    try:
+        await bot.send_document(
+            chat_id=chat_id,
+            document=document,
+            caption=_build_user_input_file_caption(order),
+        )
+        return True
+    except Exception:
+        return False
 
 
 def _product_type_label(product_type: str | None) -> str:
@@ -98,7 +150,7 @@ def _build_order_lines(order: Order, *, server_name: str | None, reason: str | N
             f"📈 Quota: <b>{int(order['quota_before'] or 0):,}</b> → <b>{int(order['quota_after'] or 0):,}</b>"
         )
     if order.get("user_input_data"):
-        lines.append(f"📝 Thông tin KH: <code>{_safe_text(order['user_input_data'])}</code>")
+        lines.append(_user_input_summary_line(order["user_input_data"]))
     if reason:
         lines.append(f"📌 Lý do: {_safe_text(reason)}")
     return lines
@@ -186,6 +238,17 @@ async def notify_admin_order_event(
                 continue
 
             if await send_text(active_bot, chat_id, message):
+                file_sent = await _send_user_input_file(active_bot, chat_id, order)
+                if not file_sent:
+                    failed += 1
+                    await mark_admin_notification_failed(
+                        order_id=int(order["id"]),
+                        event_type=event_type,
+                        target_chat_id=chat_id,
+                        error_message="user_input_file_failed",
+                    )
+                    continue
+
                 sent += 1
                 await mark_admin_notification_sent(
                     order_id=int(order["id"]),
