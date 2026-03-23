@@ -43,9 +43,11 @@ class _FakeTranslator:
         return [
             {
                 **group,
-                "label_en": "Premium",
-                "label_vi": "Cao cấp",
-                "desc_en": "Premium route",
+                "label_en": f"EN {group['name']}",
+                "label_vi": f"VI {group['name']}",
+                "name_en": f"EN {group['name']}",
+                "name_vi": f"VI {group['name']}",
+                "desc_en": group.get("desc") or f"Description for {group['name']}",
             }
             for group in groups
         ]
@@ -143,8 +145,8 @@ async def main() -> None:
                 assert page_response.status_code == 200
                 page_text = page_response.text
                 assert "Manual Group Server" in page_text
-                assert "Save group config" in page_text
-                assert "Manual Groups Override" in page_text
+                assert 'id="groupsConfigForm"' in page_text
+                assert 'id="manual_groups_override"' in page_text
                 print("[OK] servers_groups renders configurable admin group page")
 
                 single_page_response = client.get(f"/servers/{single_server_id}/groups")
@@ -179,13 +181,30 @@ async def main() -> None:
                     assert fetched_api_response.status_code == 200
                     fetched_api_payload = fetched_api_response.json()
                     assert fetched_api_payload["success"] is True
-                    assert fetched_api_payload["data"]["premium"]["label_vi"] == "Cao cấp"
+                    assert fetched_api_payload["data"]["premium"]["label_vi"] == "VI premium"
                     print("[OK] api_servers_groups keeps fetched/translated group shape")
+
+                    manual_preview_response = client.post(
+                        "/servers/preview-groups",
+                        data={
+                            "name": "Translated Manual Preview",
+                            "base_url": "https://example.com",
+                            "price_per_unit": "1000",
+                            "quota_per_unit": "1000",
+                            "api_type": "newapi",
+                            "manual_groups": "\u4f01\u4e1a\u7ea7\u9ad8\u53ef\u7528,\u9006\u5411",
+                        },
+                    )
+                    assert manual_preview_response.status_code == 200
+                    manual_preview_payload = manual_preview_response.json()
+                    assert manual_preview_payload["data"][0]["label_en"] == "EN \u4f01\u4e1a\u7ea7\u9ad8\u53ef\u7528"
+                    assert manual_preview_payload["data"][1]["label_vi"] == "VI \u9006\u5411"
+                    print("[OK] preview_groups translates manual groups through the translator/cache path")
 
                     refreshed_page_response = client.post(f"/servers/{fetched_server_id}/groups/refresh")
                     assert refreshed_page_response.status_code == 200
                     refreshed_page_text = refreshed_page_response.text
-                    assert "Refresh groups" in refreshed_page_text
+                    assert "Groups refreshed from remote server." in refreshed_page_text
 
                     refreshed_server = await get_server_by_id(fetched_server_id)
                     assert refreshed_server is not None
@@ -196,7 +215,7 @@ async def main() -> None:
                     assert fetched_page_response.status_code == 200
                     fetched_page_text = fetched_page_response.text
                     assert "Fetched Group Server" in fetched_page_text
-                    assert "Save group config" in fetched_page_text
+                    assert 'id="groupsConfigForm"' in fetched_page_text
                     assert "premium" in fetched_page_text
                     print("[OK] servers_groups renders fetched groups via cached config page")
 

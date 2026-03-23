@@ -29,6 +29,7 @@ from bot.keyboards.inline_kb import (
     quantity_picker_kb, back_only_kb,
 )
 from bot.services.pricing_resolver import QuoteContext, quote_api_order, quote_non_api_product
+from bot.utils.group_labels import format_group_display_names
 from db.queries.categories import get_active_categories, get_category_by_id
 from db.queries.products import get_active_products_by_category, get_product_by_id
 from db.queries.servers import get_server_by_id
@@ -276,7 +277,8 @@ async def _show_quantity_picker(
             lines.append(f"🖥 Server: <b>{server['name']}</b>")
         group_name = (product.get("group_name") or (server.get("default_group") if server else "") or "").strip()
         if group_name:
-            lines.append(f"👥 Group: <b>{group_name}</b>")
+            display_group = await format_group_display_names(group_name, server)
+            lines.append(f"👥 Group: <b>{display_group or group_name}</b>")
     elif product.get("product_type") == "account_stocked":
         lines.append(f"📦 Tồn kho khả dụng: <b>{product.get('stock', 0)}</b>")
 

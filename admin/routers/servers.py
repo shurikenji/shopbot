@@ -221,6 +221,18 @@ def _build_manual_group_rows(manual_groups: str) -> list[dict]:
     ]
 
 
+async def _load_manual_group_rows(server: dict) -> list[dict]:
+    manual_groups = _clean_str(server.get("manual_groups"))
+    if not manual_groups:
+        return []
+    return _normalize_group_rows(
+        await _translate_groups_for_server(
+            _build_manual_group_rows(manual_groups),
+            server,
+        )
+    )
+
+
 def _get_supports_multi_group(server: dict) -> bool:
     return get_api_client(server).get_supports_multi_group(server)
 
@@ -279,7 +291,7 @@ async def _load_catalog_groups(
 
     manual_groups = server.get("manual_groups", "")
     if manual_groups:
-        return _build_manual_group_rows(manual_groups), "manual"
+        return await _load_manual_group_rows(server), "manual"
 
     return [], "empty"
 
@@ -287,7 +299,7 @@ async def _load_catalog_groups(
 async def _resolve_groups_data(server: dict) -> list[dict]:
     manual_groups = server.get("manual_groups", "")
     if manual_groups:
-        return _build_manual_group_rows(manual_groups)
+        return await _load_manual_group_rows(server)
     groups_data, _ = await _load_catalog_groups(server)
     return groups_data
 
@@ -308,7 +320,7 @@ async def _build_groups_page_context(request: Request, server: dict) -> dict[str
     }
     cached_groups = _load_cached_group_rows(server)
     if server["manual_groups"] and not cached_groups:
-        catalog_groups = _build_manual_group_rows(server["manual_groups"])
+        catalog_groups = await _load_manual_group_rows(server)
         catalog_source = "manual"
     else:
         catalog_groups, catalog_source = await _load_catalog_groups(server)

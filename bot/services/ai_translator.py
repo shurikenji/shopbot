@@ -174,43 +174,36 @@ class AITranslator:
         Returns:
             Groups with added translation fields (name_en, name_vi, category)
         """
-        if not self.is_configured:
-            logger.info("AI translation disabled or not configured")
+        if not groups:
             return groups
 
-        # Filter groups that need translation
         groups_needing_translation = []
         for group in groups:
             if self._needs_translation_refresh(group):
                 groups_needing_translation.append(group)
 
         if not groups_needing_translation:
-            logger.info("All groups already have translations")
             return groups
 
-        # Get cached translations
         cached = await self._get_cached_translations(
             [g["name"] for g in groups_needing_translation], api_type
         )
 
-        # Filter out already cached
         to_translate = [
             g for g in groups_needing_translation
             if self._needs_translation_refresh(g, cached.get(g["name"]))
         ]
-        
+
         if not to_translate:
-            # Apply cached translations
             return self._apply_translations(groups, cached, api_type)
 
-        # Call AI for new translations
+        if not self.is_configured:
+            logger.info("AI translation disabled or not configured; using cached translations only")
+            return self._apply_translations(groups, cached, api_type)
+
         new_translations = await self._call_ai(to_translate, api_type)
         new_translations = self._sanitize_translation_payload(new_translations, to_translate)
-        
-        # Save to cache
         await self._save_translations(new_translations, api_type)
-        
-        # Merge all translations
         all_translations = {**cached, **new_translations}
         return self._apply_translations(groups, all_translations, api_type)
 

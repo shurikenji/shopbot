@@ -88,6 +88,14 @@ async def main() -> None:
     assert saved_translations["fresh-group"]["name_vi"] == "Nh\u00f3m m\u1edbi"
     print("[OK] translate_groups merges cached and fresh translations without external API calls")
 
+    translator.enabled = False
+    cached_only = await translator.translate_groups(
+        [{"name": "cached-group", "desc": "cached desc"}],
+        "newapi",
+    )
+    assert cached_only[0]["label_en"] == "Cached Group"
+    print("[OK] translate_groups still applies cached translations when AI is disabled")
+
     print("\n=== AI TRANSLATOR VERIFICATION PASSED ===")
 
 
