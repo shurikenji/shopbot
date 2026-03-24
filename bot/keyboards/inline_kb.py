@@ -65,6 +65,41 @@ def _format_key_label(key_row: dict) -> str:
     return str(label)
 
 
+def _build_my_keys_compact_pager(
+    *,
+    page: int,
+    total_pages: int,
+    server_id: int,
+    cat_id: int,
+) -> list[InlineKeyboardButton]:
+    """Pager compact riêng cho màn xem tất cả key đã lưu."""
+    is_first_page = page <= 0
+    is_last_page = page >= total_pages - 1
+
+    return [
+        InlineKeyboardButton(
+            text="·" if is_first_page else "◀️",
+            callback_data="noop" if is_first_page else MyKeysPageCB(
+                server_id=server_id,
+                cat_id=cat_id,
+                page=page - 1,
+            ).pack(),
+        ),
+        InlineKeyboardButton(
+            text=f"{page + 1}/{total_pages}",
+            callback_data="noop",
+        ),
+        InlineKeyboardButton(
+            text="·" if is_last_page else "▶️",
+            callback_data="noop" if is_last_page else MyKeysPageCB(
+                server_id=server_id,
+                cat_id=cat_id,
+                page=page + 1,
+            ).pack(),
+        ),
+    ]
+
+
 # ── Danh mục ────────────────────────────────────────────────────────────────
 
 def categories_kb(
@@ -336,6 +371,7 @@ def my_keys_all_kb(
 ) -> InlineKeyboardMarkup:
     """Inline keyboard toàn bộ key đã lưu, có phân trang."""
     page_items, total_pages = _paginate(keys, page, per_page)
+    current_page = max(0, min(page, total_pages - 1))
     builder = InlineKeyboardBuilder()
     for key_row in page_items:
         builder.button(
@@ -345,36 +381,29 @@ def my_keys_all_kb(
     builder.adjust(1)
 
     if total_pages > 1:
-        builder.row(
-            *build_pagination_buttons(
-                page=page,
-                total_pages=total_pages,
-                prev_callback=MyKeysPageCB(
-                    server_id=server_id,
-                    cat_id=cat_id,
-                    page=page - 1,
-                ).pack(),
-                next_callback=MyKeysPageCB(
-                    server_id=server_id,
-                    cat_id=cat_id,
-                    page=page + 1,
-                ).pack(),
-            ).inline_keyboard[0]
-        )
+        builder.row(*_build_my_keys_compact_pager(
+            page=current_page,
+            total_pages=total_pages,
+            server_id=server_id,
+            cat_id=cat_id,
+        ))
 
-    builder.button(
-        text="🔎 Tìm key",
-        callback_data=MyKeySearchCB(server_id=server_id, cat_id=cat_id),
+    builder.row(
+        InlineKeyboardButton(
+            text="🔎 Tìm key",
+            callback_data=MyKeySearchCB(server_id=server_id, cat_id=cat_id).pack(),
+        ),
+        InlineKeyboardButton(
+            text="✏️ Dán key khác",
+            callback_data=MyKeyInputCB(server_id=server_id, cat_id=cat_id).pack(),
+        ),
     )
-    builder.button(
-        text="✏️ Dán key khác",
-        callback_data=MyKeyInputCB(server_id=server_id, cat_id=cat_id),
+    builder.row(
+        InlineKeyboardButton(
+            text="⬅️ Quay lại",
+            callback_data=BackServersCB(cat_id=cat_id, action="topup").pack(),
+        )
     )
-    builder.button(
-        text="⬅️ Quay lại",
-        callback_data=BackServersCB(cat_id=cat_id, action="topup"),
-    )
-    builder.adjust(1)
     return builder.as_markup()
 
 

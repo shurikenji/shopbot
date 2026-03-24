@@ -11,6 +11,7 @@ from bot.utils.time_utils import get_now_vn
 
 import json
 import logging
+import math
 from datetime import datetime, timedelta
 
 from aiogram import Router, F
@@ -72,15 +73,20 @@ async def _show_existing_keys_for_server(
     per_page = await get_setting_int("pagination_size", 6)
     total_count = len(keys)
     if view == "all" and total_count:
+        total_pages = max(1, math.ceil(total_count / per_page))
+        current_page = max(0, min(page, total_pages - 1))
+        start_index = current_page * per_page + 1
+        end_index = min(total_count, start_index + per_page - 1)
         text = (
             f"💳 <b>Nạp key cũ — {server['name']}</b>\n\n"
-            "Tất cả key đã lưu trên server này:"
+            "Tất cả key đã lưu trên server này:\n"
+            f"<i>Đang hiển thị {start_index}-{end_index} / {total_count} key</i>"
         )
         reply_markup = my_keys_all_kb(
             keys,
             server_id=server_id,
             cat_id=cat_id,
-            page=page,
+            page=current_page,
             per_page=per_page,
         )
     elif total_count:
